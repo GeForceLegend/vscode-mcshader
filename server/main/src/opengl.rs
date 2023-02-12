@@ -1,19 +1,15 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
-use glutin::event_loop::EventLoopBuilder;
-use glutin::platform::unix::EventLoopBuilderExtUnix;
-use logging::info;
+use slog_scope::info;
 
-use crate::ShaderValidator;
-
-pub(crate) struct Context {
+pub struct OpenGlContext {
     _ctx: glutin::Context<glutin::PossiblyCurrent>,
 }
 
-impl Context {
-    pub fn default() -> Context {
-        let events_loop = EventLoopBuilder::new().with_any_thread(true).build();
+impl OpenGlContext {
+    pub fn new() -> OpenGlContext {
+        let events_loop = glutin::event_loop::EventLoop::new();
         let gl_window = glutin::ContextBuilder::new()
             .build_headless(&*events_loop, glutin::dpi::PhysicalSize::new(1, 1))
             .unwrap();
@@ -24,7 +20,7 @@ impl Context {
             gl_window
         };
 
-        let gl_ctx = Context { _ctx: gl_window };
+        let gl_ctx = OpenGlContext { _ctx: gl_window };
 
         unsafe {
             info!(
@@ -57,41 +53,20 @@ impl Context {
             );
             info.set_len((info_len - 1) as usize); // ignore null for str::from_utf8
             Some(String::from_utf8(info).unwrap())
-        } else { None };
+        } else {
+            None
+        };
         gl::DeleteShader(shader);
         result
     }
-}
-
-impl ShaderValidator for Context {
-    fn validate(&self, tree_type: super::TreeType, source: &str) -> Option<String> {
+    pub fn validate_shader(&self, file_type: &gl::types::GLenum, source: &str) -> Option<String> {
         unsafe {
-            match tree_type {
-                crate::TreeType::Fragment => {
-                    // Fragment shader
-                    let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-                    self.compile_and_get_shader_log(fragment_shader, source)
-                }
-                crate::TreeType::Vertex => {
-                    // Vertex shader
-                    let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-                    self.compile_and_get_shader_log(vertex_shader, source)
-                }
-                crate::TreeType::Geometry => {
-                    // Geometry shader
-                    let geometry_shader = gl::CreateShader(gl::GEOMETRY_SHADER);
-                    self.compile_and_get_shader_log(geometry_shader, source)
-                }
-                crate::TreeType::Compute => {
-                    // Compute shader
-                    let compute_shader = gl::CreateShader(gl::COMPUTE_SHADER);
-                    self.compile_and_get_shader_log(compute_shader, source)
-                }
-            }
+            let shader = gl::CreateShader(file_type.clone());
+            self.compile_and_get_shader_log(shader, source)
         }
     }
 
-    fn vendor(&self) -> String {
+    pub fn vendor(&self) -> String {
         unsafe { String::from_utf8(CStr::from_ptr(gl::GetString(gl::VENDOR) as *const _).to_bytes().to_vec()).unwrap() }
     }
 }

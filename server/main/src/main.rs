@@ -1,20 +1,54 @@
 #![feature(option_get_or_insert_default)]
-use logging::{logger, FutureExt};
-use server::Server;
-use tower_lsp::LspService;
+#![feature(linked_list_cursors)]
 
-mod navigation;
+use server::MinecraftLanguageServer;
+use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::*;
+use tower_lsp::{Client, LanguageServer, LspService, Server};
+
+mod diagnostics_parser;
+mod enchanter;
+mod opengl;
+mod server;
+mod shaders;
+
+#[derive(Debug)]
+struct Backend {
+    client: Client,
+}
+
+#[tower_lsp::async_trait]
+impl LanguageServer for Backend {
+    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+        Ok(InitializeResult::default())
+    }
+
+    async fn initialized(&self, _: InitializedParams) {
+        self.client
+            .log_message(MessageType::INFO, "server initialized!")
+            .await;
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
+}
 
 #[tokio::main]
 async fn main() {
-    // start with debug log level, and then adjust once we get the configuration from the client.
-    logging::set_level(logging::Level::Debug);
-
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(|client| Server::new(client, opengl::ContextFacade::default));
-    tower_lsp::Server::new(stdin, stdout, socket)
+    
+    let opengl_content = opengl::OpenGlContext::new();
+    let diagnostics_parser = diagnostics_parser::DiagnosticsParser::new(&opengl_content);
+
+    let (service, socket) = LspService::new(|client|
+        MinecraftLanguageServer::new(
+            client,
+            diagnostics_parser
+        )
+    );
+    Server::new(stdin, stdout, socket)
         .serve(service)
-        .with_logger(logger())
         .await;
 }

@@ -53,9 +53,9 @@ export class Extension {
     log.info('starting language server...')
 
     const lspBinary = process.env['MCSHADER_DEBUG'] ?
-      this.context.asAbsolutePath(path.join('server', 'target', 'debug', 'mcshader-lsp')) +
+      this.context.asAbsolutePath(path.join('server', 'target', 'debug', 'vscode-mcshader')) +
       (process.platform === 'win32' ? '.exe' : '') :
-      path.join(this.context.globalStorageUri.fsPath, 'mcshader-lsp')
+      path.join(this.context.globalStorageUri.fsPath, 'vscode-mcshader')
 
     const filewatcherGlob = this.fileAssociationsToGlob(this.getGLSLFileAssociations())
 
