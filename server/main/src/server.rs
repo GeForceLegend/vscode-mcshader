@@ -378,16 +378,24 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        self.set_status_loading("Linting file...".to_string()).await;
+
         let file_path = PathBuf::from_url(params.text_document.uri);
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
+
+        self.set_status_ready("File linted".to_string()).await;
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        self.set_status_loading("Linting file...".to_string()).await;
+
         let file_path = PathBuf::from_url(params.text_document.uri);
         self.update_file(&file_path);
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
+
+        self.set_status_ready("File linted".to_string()).await;
     }
 
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
@@ -428,6 +436,8 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
+        self.set_status_loading("Applying work space changes...".to_string()).await;
+
         let mut roots = self.roots.lock().unwrap().clone();
         let mut shader_files = self.shader_files.lock().unwrap().clone();
         let mut include_files = self.include_files.lock().unwrap().clone();
@@ -448,5 +458,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
         *self.shader_files.lock().unwrap() = shader_files;
         *self.include_files.lock().unwrap() = include_files;
+
+        self.set_status_ready("Work space changes applied".to_string()).await;
     }
 }
