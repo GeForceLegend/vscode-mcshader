@@ -1,0 +1,51 @@
+name: Test Server
+on:
+  push:
+    branches: [ rust-rewrite ]
+  pull_request:
+    branches: [ rust-rewrite ]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.platforms.os }}
+    defaults:
+      run:
+        working-directory: server
+    strategy:
+      matrix:
+        platforms:
+        - os: ubuntu-18.04
+          target: x86_64-unknown-linux-gnu
+          dir: server/mcshader-lsp
+          artifact: x86_64-unknown-linux-gnu
+        - os: windows-latest
+          target: x86_64-pc-windows-msvc
+          dir: server/mcshader-lsp.exe
+          artifact: x86_64-windows-msvc.exe
+        - os: macos-11
+          target: x86_64-apple-darwin
+          dir: server/mcshader-lsp
+          artifact: x86_64-apple-darwin
+        - os: macos-11
+          target: aarch64-apple-darwin
+          dir: server/mcshader-lsp
+          artifact: aarch64-apple-darwin
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly
+          default: true
+          target: ${{ matrix.platforms.target }}
+          override: true
+    - name: Build server
+      run: cargo build --target ${{ matrix.platforms.target }} --out-dir . -Z unstable-options
+    - uses: actions/upload-artifact@v2
+      with:
+        name: mcshader-lsp-${{ matrix.platforms.artifact }}
+        path: ${{ matrix.platforms.dir }}
+    - name: Run tests
+      run: cargo test --target ${{ matrix.platforms.target }}
+      if: ${{ matrix.platforms.target != 'aarch64-apple-darwin' }}

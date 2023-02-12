@@ -1,0 +1,56 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [        
+        {
+            "type": "npm",
+            "script": "fix",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": false,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+			"type": "npm",
+			"script": "compile",
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"type": "npm",
+			"script": "watch",
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "(\\[Finished running. Exit status: 101\\])|(Found [1-9]\\d* errors. Watching for file changes.)"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "[Running 'cargo build']",
+                    "endsPattern": "(Watching for file changes)|(\\[Finished running. Exit status: 0\\])"
+                }
+            }
+		}
+	]
+}

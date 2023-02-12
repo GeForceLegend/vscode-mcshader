@@ -1,0 +1,15 @@
+{
+    "files.exclude": {
+        "out": false
+    },
+    "npm.exclude": [
+        "**/client",
+        "**/server"
+    ],
+    "search.exclude": {
+        "out": true
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow": [".github/*"]
+    }
+}
