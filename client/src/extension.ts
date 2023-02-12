@@ -82,7 +82,7 @@ export class Extension {
 
     const extraExts = vscode.workspace.getConfiguration('mcglsl').get('extraExtension') as string[]
     extraExts.forEach((key) => {
-      exts.push(key)
+      exts.push('.' + key)
     })
 
     return exts

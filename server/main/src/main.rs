@@ -8,9 +8,10 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 mod diagnostics_parser;
 mod enhancer;
+mod notification;
 mod opengl;
 mod server;
-mod shaders;
+mod shader_file;
 
 #[derive(Debug)]
 struct Backend {

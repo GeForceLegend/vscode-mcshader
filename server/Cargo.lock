@@ -1423,6 +1423,7 @@ dependencies = [
  "path-slash",
  "percent-encoding",
  "regex",
+ "serde",
  "serde_json",
  "slog-scope",
  "tokio",

@@ -1,10 +1,10 @@
 import { ChildProcess, spawn } from 'child_process'
 import { ConfigurationTarget, workspace } from 'vscode'
 import * as lsp from 'vscode-languageclient/node'
-import { PublishDiagnosticsNotification, StreamInfo, TelemetryEventNotification } from 'vscode-languageclient/node'
+import { LogMessageNotification, StreamInfo, TelemetryEventNotification } from 'vscode-languageclient/node'
 import { Extension } from './extension'
 import { log, lspOutputChannel, traceOutputChannel } from './log'
-import { statusMethod, StatusParams } from './lspExt'
+import * as constant from './constant'
 
 export class LanguageClient extends lsp.LanguageClient {
   private extension: Extension
@@ -42,11 +42,32 @@ export class LanguageClient extends lsp.LanguageClient {
   }
 
   public startServer = async (): Promise<LanguageClient> => {
-    this.extension.context.subscriptions.push(this.onNotification(TelemetryEventNotification.type, this.onStatusChange))
+    this.extension.context.subscriptions.push(this.onNotification(constant.statusNotificationMethod, this.onStatusChange))
+    this.extension.context.subscriptions.push(this.onNotification(LogMessageNotification.method, this.logOutput))
 
     await this.start()
 
     return this
+  }
+
+  logOutput = (params: {
+    type: 1 | 2 | 3 | 4
+    message: string
+  }) => {
+    switch (params.type) {
+      case 1:
+        log.error(params.message)
+        break
+      case 2:
+        log.warn(params.message)
+        break
+      case 3:
+        log.info(params.message)
+        break
+      default:
+        log.debug(params.message)
+        break
+    }
   }
 
   onStatusChange = (params: {
@@ -54,6 +75,7 @@ export class LanguageClient extends lsp.LanguageClient {
     message: string
     icon: string
   }) => {
+    log.info('get status changed')
     switch (params.status) {
       case 'loading':
       case 'ready':

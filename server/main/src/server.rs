@@ -12,8 +12,9 @@ use tower_lsp::{Client, LanguageServer};
 use lazy_static::{lazy_static, __Deref};
 
 use crate::enhancer::FromUrl;
+use crate::notification;
 use crate::{opengl, diagnostics_parser};
-use crate::shaders;
+use crate::shader_file;
 
 lazy_static! {
     static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+"#).unwrap();
@@ -84,8 +85,8 @@ pub struct MinecraftLanguageServer {
     pub client: Client,
     diagnostics_parser: diagnostics_parser::DiagnosticsParser,
     roots: Mutex<HashSet<PathBuf>>,
-    shader_files: Mutex<HashMap<PathBuf, shaders::ShaderFile>>,
-    include_files: Mutex<HashMap<PathBuf, shaders::IncludeFile>>,
+    shader_files: Mutex<HashMap<PathBuf, shader_file::ShaderFile>>,
+    include_files: Mutex<HashMap<PathBuf, shader_file::IncludeFile>>,
 }
 
 impl MinecraftLanguageServer {
@@ -99,11 +100,11 @@ impl MinecraftLanguageServer {
         }
     }
 
-    fn add_shader_file(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
-        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>, work_space: &PathBuf, file_path: PathBuf
+    fn add_shader_file(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, work_space: &PathBuf, file_path: PathBuf
     ) {
         if RE_DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
-            let mut shader_file = shaders::ShaderFile::new(work_space, &file_path);
+            let mut shader_file = shader_file::ShaderFile::new(work_space, &file_path);
             shader_file.read_file(include_files);
             shader_files.insert(file_path, shader_file);
         }
@@ -126,8 +127,8 @@ impl MinecraftLanguageServer {
         *self.include_files.lock().unwrap() = include_files;
     }
 
-    fn remove_shader_file(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
-        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>, file_path: &PathBuf
+    fn remove_shader_file(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, file_path: &PathBuf
     ) {
         shader_files.remove(file_path);
         for include_file in include_files {
@@ -158,8 +159,8 @@ impl MinecraftLanguageServer {
         work_spaces
     }
 
-    fn scan_new_root(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
-        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>, root: &PathBuf
+    fn scan_new_root(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, root: &PathBuf
     ) {
         let shader_packs: HashSet<PathBuf> = self.find_shader_packs(root);
     
@@ -237,8 +238,8 @@ impl MinecraftLanguageServer {
         diagnostics
     }
 
-    fn lint_shader(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
-        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>,
+    fn lint_shader(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>,
         path: &PathBuf, opengl_context: &opengl::OpenGlContext
     ) -> HashMap<Url, Vec<Diagnostic>> {
         if !path.exists() {
@@ -275,6 +276,30 @@ impl MinecraftLanguageServer {
         for (uri, diagnostics) in diagnostics {
             self.client.publish_diagnostics(uri, diagnostics, document_version).await;
         }
+    }
+
+    async fn set_status_loading(&self, message: String) {
+        self.client
+            .send_notification::<notification::StatusNotification>(
+                notification::StatusNotificationParams{
+                    status: "loading".to_string(),
+                    message,
+                    icon: "$(loading~spin)".to_string(),
+                }
+            )
+            .await;
+    }
+
+    async fn set_status_ready(&self, message: String) {
+        self.client
+            .send_notification::<notification::StatusNotification>(
+                notification::StatusNotificationParams{
+                    status: "ready".to_string(),
+                    message,
+                    icon: "$(check)".to_string(),
+                }
+            )
+            .await;
     }
 }
 
@@ -337,9 +362,15 @@ impl LanguageServer for MinecraftLanguageServer {
         }
         self.roots.lock().unwrap().extend(roots);
 
+        initialize_result
+    }
+
+    async fn initialized(&self, _params: InitializedParams) {
+        self.set_status_loading("Building file system...".to_string()).await;
+
         self.build_file_framework();
 
-        initialize_result
+        self.set_status_ready("File system built".to_string()).await;
     }
 
     async fn shutdown(&self) -> Result<()> {
