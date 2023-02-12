@@ -7,7 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 mod diagnostics_parser;
-mod enchanter;
+mod enhancer;
 mod opengl;
 mod server;
 mod shaders;

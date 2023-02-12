@@ -21,7 +21,7 @@ export class LanguageClient extends lsp.LanguageClient {
         lspOutputChannel.appendLine(data.toString().trimRight())
       })
       childProcess.on('exit', (code, signal) => {
-        lspOutputChannel.appendLine(`⚠️⚠️⚠️ Language server exited ` + (signal ? `from signal ${signal}` : `with exit code ${code}`) + ' ⚠️⚠️⚠️')
+        lspOutputChannel.appendLine('⚠️⚠️⚠️ Language server exited ' + (signal ? `from signal ${signal}` : `with exit code ${code}`) + ' ⚠️⚠️⚠️')
       })
       resolve(childProcess)
     })

@@ -1,17 +1,17 @@
 use std::collections::{HashSet, HashMap, LinkedList};
 use std::path::PathBuf;
-use std::sync::{Mutex, Arc};
+use std::sync::Mutex;
 
 use regex::Regex;
-use slog_scope::{error, info, warn};
+use slog_scope::{info, warn};
 
 use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
 use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tower_lsp::{Client, LanguageServer};
 
 use lazy_static::{lazy_static, __Deref};
 
-use crate::enchanter::FromUrl;
+use crate::enhancer::FromUrl;
 use crate::{opengl, diagnostics_parser};
 use crate::shaders;
 

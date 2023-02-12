@@ -25,7 +25,7 @@ export class Extension {
 
   readonly package: {
     version: string
-  } = vscode.extensions.getExtension(this.extensionID)!.packageJSON;
+  } = vscode.extensions.getExtension(this.extensionID)!.packageJSON
 
   public get context(): vscode.ExtensionContext {
     return this.extensionContext
@@ -78,6 +78,11 @@ export class Extension {
       if (associations[key] === 'glsl') {
         exts.push(key.substring(key.indexOf('*') + 1))
       }
+    })
+
+    const extraExts = vscode.workspace.getConfiguration('mcglsl').get('extraExtension') as string[]
+    extraExts.forEach((key) => {
+      exts.push(key)
     })
 
     return exts
