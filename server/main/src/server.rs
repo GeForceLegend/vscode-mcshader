@@ -99,13 +99,13 @@ impl MinecraftLanguageServer {
         }
     }
 
-    fn add_shader_file(&self, work_space: &PathBuf, file_path: PathBuf) {
+    fn add_shader_file(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>, work_space: &PathBuf, file_path: PathBuf
+    ) {
         if RE_DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
             let mut shader_file = shaders::ShaderFile::new(work_space, &file_path);
-            let mut include_files = self.include_files.lock().unwrap().clone();
-            shader_file.read_file(&mut include_files);
-            *self.include_files.lock().unwrap() = include_files;
-            self.shader_files.lock().unwrap().insert(file_path, shader_file);
+            shader_file.read_file(include_files);
+            shader_files.insert(file_path, shader_file);
         }
     }
 
@@ -158,24 +158,54 @@ impl MinecraftLanguageServer {
         work_spaces
     }
 
+    fn scan_new_root(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
+        include_files: &mut HashMap<PathBuf, shaders::IncludeFile>, root: &PathBuf
+    ) {
+        let shader_packs: HashSet<PathBuf> = self.find_shader_packs(root);
+    
+        for shader_pack in &shader_packs {
+            for file in shader_pack.read_dir().expect("read work space failed") {
+                if let Ok(file) = file {
+                    let file_path = file.path();
+                    if file_path.is_file() {
+                        self.add_shader_file(shader_files, include_files, shader_pack, file_path);
+                    }
+                    else if file_path.is_dir() && RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
+                        for dim_file in file_path.read_dir().expect("read dimension folder failed") {
+                            if let Ok(dim_file) = dim_file {
+                                let file_path = dim_file.path();
+                                if file_path.is_file() {
+                                    self.add_shader_file(shader_files, include_files, shader_pack, file_path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn build_file_framework(&self) {
+        let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
+        let mut include_files = self.include_files.lock().unwrap().deref().clone();
+
         for root in self.roots.lock().unwrap().clone() {
             info!("generating file framework on current root"; "root" => root.to_str().unwrap());
 
-            let work_spaces: HashSet<PathBuf> = self.find_shader_packs(&root);
-            for work_space in &work_spaces {
-                for file in work_space.read_dir().expect("read work space failed") {
+            let shader_packs: HashSet<PathBuf> = self.find_shader_packs(&root);
+            for shader_pack in &shader_packs {
+                for file in shader_pack.read_dir().expect("read work space failed") {
                     if let Ok(file) = file {
                         let file_path = file.path();
                         if file_path.is_file() {
-                            self.add_shader_file(work_space, file_path);
+                            self.add_shader_file(&mut shader_files, &mut include_files, shader_pack, file_path);
                         }
                         else if file_path.is_dir() && RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                             for dim_file in file_path.read_dir().expect("read dimension folder failed") {
                                 if let Ok(dim_file) = dim_file {
                                     let file_path = dim_file.path();
                                     if file_path.is_file() {
-                                        self.add_shader_file(work_space, file_path);
+                                        self.add_shader_file(&mut shader_files, &mut include_files, shader_pack, file_path);
                                     }
                                 }
                             }
@@ -184,6 +214,8 @@ impl MinecraftLanguageServer {
                 }
             }
         }
+        *self.shader_files.lock().unwrap() = shader_files;
+        *self.include_files.lock().unwrap() = include_files;
     }
 
     fn update_lint(&self, path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
@@ -328,8 +360,6 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
-        self.client.show_message(MessageType::INFO, "includes found").await;
-
         let curr_doc = PathBuf::from_url(params.text_document.uri);
 
         let include_list: &LinkedList<(usize, usize, usize, PathBuf)>;
@@ -366,13 +396,26 @@ impl LanguageServer for MinecraftLanguageServer {
         Ok(Some(include_links))
     }
 
-    // async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-    //     let roots = self.roots.lock().unwrap().clone();
-    //     for removed_path in params.event.removed {
-    //         ;
-    //     }
-    //     for added_path in params.event.added {
-    //         ;
-    //     }
-    // }
+    async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
+        let mut roots = self.roots.lock().unwrap().clone();
+        let mut shader_files = self.shader_files.lock().unwrap().clone();
+        let mut include_files = self.include_files.lock().unwrap().clone();
+        for removed_uri in params.event.removed {
+            let removed_path = PathBuf::from_url(removed_uri.uri);
+            roots.remove(&removed_path);
+            let shader_packup = shader_files.clone();
+            for shader in &shader_packup {
+                if shader.0.starts_with(&removed_path) {
+                    self.remove_shader_file(&mut shader_files, &mut include_files, shader.0);
+                }
+            }
+        }
+        for added_uri in params.event.added {
+            let added_path = PathBuf::from_url(added_uri.uri);
+            self.scan_new_root(&mut shader_files, &mut include_files, &added_path);
+            roots.insert(added_path);
+        }
+        *self.shader_files.lock().unwrap() = shader_files;
+        *self.include_files.lock().unwrap() = include_files;
+    }
 }
