@@ -6,17 +6,17 @@
   },
   "dependencies": {
     "@rollup/plugin-json": "^4.1.0",
-    "adm-zip": "^0.5.9",
+    "adm-zip": "^0.5.10",
     "encoding": "^0.1.13",
-    "node-fetch": "^2.6.7",
+    "node-fetch": "^2.6.9",
     "vscode-languageclient": "^8.0.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^21.0.2",
-    "@rollup/plugin-node-resolve": "^13.1.3",
+    "@rollup/plugin-commonjs": "^21.1.0",
+    "@rollup/plugin-node-resolve": "^13.3.0",
     "@types/adm-zip": "^0.4.34",
-    "@types/node-fetch": "^2.6.1",
-    "@types/vscode": "^1.70.0",
-    "rollup": "^2.70.1"
+    "@types/node-fetch": "^2.6.2",
+    "@types/vscode": "^1.75.0",
+    "rollup": "^2.79.1"
   }
 }

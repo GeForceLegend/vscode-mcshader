@@ -1,10 +1,13 @@
 use std::collections::{HashSet, HashMap, LinkedList};
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Mutex;
 
 use regex::Regex;
-use slog_scope::{info, warn};
+use logging::{error, info, warn};
 
+use serde::Deserialize;
+use serde_json::from_value;
 use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -87,6 +90,7 @@ pub struct MinecraftLanguageServer {
     roots: Mutex<HashSet<PathBuf>>,
     shader_files: Mutex<HashMap<PathBuf, shader_file::ShaderFile>>,
     include_files: Mutex<HashMap<PathBuf, shader_file::IncludeFile>>,
+    _log_guard: logging::GlobalLoggerGuard,
 }
 
 impl MinecraftLanguageServer {
@@ -97,6 +101,7 @@ impl MinecraftLanguageServer {
             roots: Mutex::from(HashSet::new()),
             shader_files: Mutex::from(HashMap::new()),
             include_files: Mutex::from(HashMap::new()),
+            _log_guard: logging::init_logger(),
         }
     }
 
@@ -162,6 +167,8 @@ impl MinecraftLanguageServer {
     fn scan_new_root(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
         include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, root: &PathBuf
     ) {
+        info!("generating file framework on current root"; "root" => root.to_str().unwrap());
+
         let shader_packs: HashSet<PathBuf> = self.find_shader_packs(root);
     
         for shader_pack in &shader_packs {
@@ -305,7 +312,9 @@ impl MinecraftLanguageServer {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for MinecraftLanguageServer {
+    #[logging::with_trace_id]
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        info!("starting server...");
         let initialize_result = Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
@@ -365,6 +374,7 @@ impl LanguageServer for MinecraftLanguageServer {
         initialize_result
     }
 
+    #[logging::with_trace_id]
     async fn initialized(&self, _params: InitializedParams) {
         self.set_status_loading("Building file system...".to_string()).await;
 
@@ -377,6 +387,7 @@ impl LanguageServer for MinecraftLanguageServer {
         Ok(())
     }
 
+    #[logging::with_trace_id]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
 
@@ -387,6 +398,7 @@ impl LanguageServer for MinecraftLanguageServer {
         self.set_status_ready("File linted".to_string()).await;
     }
 
+    #[logging::with_trace_id]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
 
@@ -398,6 +410,7 @@ impl LanguageServer for MinecraftLanguageServer {
         self.set_status_ready("File linted".to_string()).await;
     }
 
+    #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let curr_doc = PathBuf::from_url(params.text_document.uri);
 
@@ -435,6 +448,7 @@ impl LanguageServer for MinecraftLanguageServer {
         Ok(Some(include_links))
     }
 
+    #[logging::with_trace_id]
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
         self.set_status_loading("Applying work space changes...".to_string()).await;
 
@@ -460,5 +474,23 @@ impl LanguageServer for MinecraftLanguageServer {
         *self.include_files.lock().unwrap() = include_files;
 
         self.set_status_ready("Work space changes applied".to_string()).await;
+    }
+
+    #[logging_macro::with_trace_id]
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        #[derive(Deserialize)]
+        struct Configuration {
+            #[serde(alias = "logLevel")]
+            log_level: String,
+        }
+
+        let config: Configuration = from_value(params.settings.as_object().unwrap().get("mcglsl").unwrap().to_owned()).unwrap();
+
+        info!("got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcglsl").unwrap().to_string());
+
+        match logging::Level::from_str(config.log_level.as_str()) {
+            Ok(level) => logging::set_level(level),
+            Err(_) => error!("got unexpected log level from config"; "level" => &config.log_level),
+        }
     }
 }

@@ -75,7 +75,6 @@ export class LanguageClient extends lsp.LanguageClient {
     message: string
     icon: string
   }) => {
-    log.info('get status changed')
     switch (params.status) {
       case 'loading':
       case 'ready':
