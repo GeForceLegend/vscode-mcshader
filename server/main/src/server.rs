@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, LinkedList};
 use std::path::PathBuf;
 use std::sync::{Mutex, Arc};
 
@@ -7,7 +7,6 @@ use slog_scope::{error, info, warn};
 
 use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
 use tower_lsp::lsp_types::*;
-use tower_lsp::lsp_types::notification::TelemetryEvent;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 use lazy_static::{lazy_static, __Deref};
@@ -158,6 +157,45 @@ impl MinecraftLanguageServer {
         }
     }
 
+    fn update_file(&self, path: &PathBuf) {
+        let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
+        let mut include_files = self.include_files.lock().unwrap().deref().clone();
+        if shader_files.contains_key(path) {
+            let shader_file = shader_files.get_mut(path).unwrap();
+            shader_file.clear_including_files();
+            shader_file.read_file(&mut include_files);
+        }
+        if include_files.contains_key(path) {
+            let mut include_file = include_files.remove(path).unwrap();
+            include_file.update_include(&mut include_files);
+            include_files.insert(path.clone(), include_file);
+        }
+        *self.shader_files.lock().unwrap() = shader_files;
+        *self.include_files.lock().unwrap() = include_files;
+    }
+
+    fn update_lint(&self, path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
+        // self.set_status("loading", "Compiling shaders...", "$(loading~spin)");
+
+        let opengl_context = opengl::OpenGlContext::new();
+        let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
+        let include_files = self.include_files.lock().unwrap().deref().clone();
+        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+        if shader_files.contains_key(path) {
+            diagnostics.extend(self.lint_shader(&mut shader_files, &include_files, path, &opengl_context));
+        }
+        if include_files.contains_key(path) {
+            let include_file = include_files.get(path).unwrap();
+            for shader_path in include_file.included_shaders().clone() {
+                diagnostics.extend(self.lint_shader(&mut shader_files, &include_files, &shader_path, &opengl_context));
+            }
+        }
+        *self.shader_files.lock().unwrap() = shader_files;
+        diagnostics
+        // self.publish_diagnostic(diagnostics, None).await;
+        // self.set_status("ready", "Compiled all changed shaders", "$(check)");
+    }
+
     fn lint_shader(&self, shader_files: &mut HashMap<PathBuf, shaders::ShaderFile>,
         include_files: &HashMap<PathBuf, shaders::IncludeFile>,
         path: &PathBuf, opengl_context: &opengl::OpenGlContext
@@ -190,37 +228,6 @@ impl MinecraftLanguageServer {
         };
 
         self.diagnostics_parser.parse_diagnostics(validation_result.unwrap(), file_list)
-    }
-
-    fn update_file(&self, path: &PathBuf) {
-        if self.shader_files.lock().unwrap().contains_key(path) {
-            ;
-        }
-        if self.include_files.lock().unwrap().contains_key(path) {
-            ;
-        }
-    }
-
-    fn update_lint(&self, path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
-        // self.set_status("loading", "Compiling shaders...", "$(loading~spin)");
-
-        let opengl_context: opengl::OpenGlContext = opengl::OpenGlContext::new();
-        let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
-        let include_files = self.include_files.lock().unwrap().deref().clone();
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-        if shader_files.contains_key(path) {
-            diagnostics.extend(self.lint_shader(&mut shader_files, &include_files, path, &opengl_context));
-        }
-        if include_files.contains_key(path) {
-            let include_file = include_files.get(path).unwrap();
-            for shader_path in include_file.included_shaders().clone() {
-                diagnostics.extend(self.lint_shader(&mut shader_files, &include_files, &shader_path, &opengl_context));
-            }
-        }
-        *self.shader_files.lock().unwrap() = shader_files;
-        diagnostics
-        // self.publish_diagnostic(diagnostics, None).await;
-        // self.set_status("ready", "Compiled all changed shaders", "$(check)");
     }
 
     async fn publish_diagnostic(&self, diagnostics: HashMap<Url, Vec<Diagnostic>>, document_version: Option<i32>) {
@@ -294,6 +301,13 @@ impl LanguageServer for MinecraftLanguageServer {
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let file_path = PathBuf::from_url(params.text_document.uri);
+        let diagnostics = self.update_lint(&file_path);
+        self.publish_diagnostic(diagnostics, None).await;
+    }
+
+    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+        let file_path = PathBuf::from_url(params.text_document.uri);
+        self.update_file(&file_path);
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
     }

@@ -30,8 +30,8 @@ impl DiagnosticsParser {
                 .unwrap(),
         };
         let line_offset = match vendor_querier.vendor().as_str() {
-            "ATI Technologies" => 0,
-            _ => 1,
+            "ATI Technologies" => 1,
+            _ => 2,
         };
         DiagnosticsParser {
             line_offset: line_offset,
