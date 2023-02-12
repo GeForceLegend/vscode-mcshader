@@ -264,6 +264,12 @@ impl LanguageServer for MinecraftLanguageServer {
                     }),
                     file_operations: None,
                 }),
+                document_link_provider: Some(DocumentLinkOptions{
+                    resolve_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions{
+                        work_done_progress: None
+                    }
+                }),
                 ..ServerCapabilities::default()
             },
             ..Default::default()
@@ -310,5 +316,44 @@ impl LanguageServer for MinecraftLanguageServer {
         self.update_file(&file_path);
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
+    }
+
+    async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        self.client.show_message(MessageType::INFO, "includes found").await;
+
+        let curr_doc = PathBuf::from_url(params.text_document.uri);
+
+        let include_list: &LinkedList<(usize, usize, usize, PathBuf)>;
+        let shader_files = self.shader_files.lock().unwrap().clone();
+        let include_files = self.include_files.lock().unwrap().clone();
+        if shader_files.contains_key(&curr_doc) {
+            include_list = shader_files.get(&curr_doc).unwrap().including_files();
+        }
+        else if include_files.contains_key(&curr_doc) {
+            include_list = include_files.get(&curr_doc).unwrap().including_files();
+        }
+        else {
+            warn!("document not found in file system"; "path" => curr_doc.to_str().unwrap());
+            return Err(Error::parse_error());
+        }
+
+        let include_links: Vec<DocumentLink> = include_list
+            .iter()
+            .map(|include_file| {
+                let path = &include_file.3;
+                let url = Url::from_file_path(path).unwrap();
+                DocumentLink {
+                    range: Range::new(
+                        Position::new(u32::try_from(include_file.0).unwrap(), u32::try_from(include_file.1).unwrap()),
+                        Position::new(u32::try_from(include_file.0).unwrap(), u32::try_from(include_file.2).unwrap()),
+                    ),
+                    tooltip: Some(url.path().to_string()),
+                    target: Some(url),
+                    data: None,
+                }
+            })
+            .collect();
+
+        Ok(Some(include_links))
     }
 }
