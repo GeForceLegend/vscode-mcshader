@@ -21,7 +21,7 @@ export class Extension {
   private client: lsp.LanguageClient
   private state: PersistentState
 
-  readonly extensionID = 'strum355.vscode-mc-shader'
+  readonly extensionID = 'GeForceLegend.vscode-mcshader'
 
   readonly package: {
     version: string
@@ -39,13 +39,12 @@ export class Extension {
     this.extensionContext = context
     this.state = new PersistentState(context.globalState)
 
-    if (!process.env['MCSHADER_DEBUG'] && !(vscode.workspace.getConfiguration('mcglsl').get('skipBootstrap') as boolean)) {
+    if (!process.env['MCSHADER_DEBUG'] && !(vscode.workspace.getConfiguration('mcshader').get('skipBootstrap') as boolean)) {
       await this.bootstrap()
     } else {
       log.info('skipping language server bootstrap')
     }
 
-    this.registerCommand('graphDot', commands.generateGraphDot)
     this.registerCommand('restart', commands.restartExtension)
     this.registerCommand('virtualMerge', commands.virtualMergedDocument)
     this.registerCommand('parseTree', commands.parseTree)
@@ -80,7 +79,7 @@ export class Extension {
       }
     })
 
-    const extraExts = vscode.workspace.getConfiguration('mcglsl').get('extraExtension') as string[]
+    const extraExts = vscode.workspace.getConfiguration('mcshader').get('extraExtension') as string[]
     extraExts.forEach((key) => {
       exts.push('.' + key)
     })
@@ -90,7 +89,7 @@ export class Extension {
 
   registerCommand = (name: string, f: (e: Extension) => commands.Command) => {
     const cmd = f(this)
-    this.context.subscriptions.push(vscode.commands.registerCommand('mcglsl.' + name, cmd))
+    this.context.subscriptions.push(vscode.commands.registerCommand('mcshader.' + name, cmd))
   }
 
   deactivate = async () => {

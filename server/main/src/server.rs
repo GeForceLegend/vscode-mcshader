@@ -459,9 +459,9 @@ impl LanguageServer for MinecraftLanguageServer {
             log_level: String,
         }
 
-        let config: Configuration = from_value(params.settings.as_object().unwrap().get("mcglsl").unwrap().to_owned()).unwrap();
+        let config: Configuration = from_value(params.settings.as_object().unwrap().get("mcshader").unwrap().to_owned()).unwrap();
 
-        info!("got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcglsl").unwrap().to_string());
+        info!("got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
         match logging::Level::from_str(config.log_level.as_str()) {
             Ok(level) => logging::set_level(level),

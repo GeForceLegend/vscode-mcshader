@@ -1,18 +1,29 @@
 {
-  "name": "vscode-mc-shader",
-  "displayName": "Minecraft GLSL Shaders",
+  "name": "vscode-mcshader",
+  "displayName": "Lsp for Minecraft Shaderpacks",
   "description": "A Visual Studio Code extension for linting/etc Minecraft GLSL Shaders",
-  "version": "0.9.8",
-  "publisher": "Strum355",
-  "author": "Noah Santschi-Cooney (Strum355)",
+  "version": "0.0.1",
+  "publisher": "GeForceLegend",
   "license": "MIT",
-  "icon": "logo-mini.png",
+  "icon": "icon.png",
+  "homepage": "https://github.com/GeForceLegend/vscode-mcshader",
   "repository": {
-    "url": "https://github.com/Strum355/mcshader-lsp"
+    "type": "git",
+    "url": "https://github.com/GeForceLegend/vscode-mcshader"
+  },
+  "bugs": {
+    "url": "https://github.com/GeForceLegend/vscode-mcshader/issues"
   },
   "engines": {
     "vscode": "^1.53.0"
   },
+  "keywords": [
+    "GLSL",
+    "glsl",
+    "OpenGL",
+    "shader",
+    "Minecraft"
+  ],
   "categories": [
     "Linters",
     "Programming Languages"
@@ -25,22 +36,17 @@
   "contributes": {
     "commands": [
       {
-        "command": "mcglsl.graphDot",
-        "title": "Generate Graphviz DOT dependency graph",
-        "category": "Minecraft Shader"
-      },
-      {
-        "command": "mcglsl.restart",
+        "command": "mcshader.restart",
         "title": "Restart Language Server",
         "category": "Minecraft Shader"
       },
       {
-        "command": "mcglsl.virtualMerge",
+        "command": "mcshader.virtualMerge",
         "title": "Show flattened file",
         "category": "Minecraft Shader"
       },
       {
-        "command": "mcglsl.parseTree",
+        "command": "mcshader.parseTree",
         "title": "Show parse tree for file",
         "category": "Minecraft Shader"
       }
@@ -62,16 +68,21 @@
     "configuration": {
       "title": "Minecraft GLSL Shaders",
       "properties": {
-        "mcglsl.skipBootstrap": {
+        "mcshader.skipBootstrap": {
           "type": "boolean",
           "default": false,
           "description": "[DEBUG] Enable to skip bootstrapping the language server binary from Github. Set this to use a manually provided language server binary."
         },
-        "mcglsl.logLevel": {
+        "mcshader.logLevel": {
           "type": "string",
           "default": "info",
           "enum": ["trace", "debug", "info", "warn", "error"],
           "description": "Change the log level of the language server. This change happens live and does not require a restart."
+        },
+        "mcshader.extraExtension": {
+          "type": "array",
+          "default": ["inc"],
+          "description": "Extra file extensions support"
         }
       }
     }

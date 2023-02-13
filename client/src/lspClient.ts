@@ -26,12 +26,12 @@ export class LanguageClient extends lsp.LanguageClient {
       resolve(childProcess)
     })
 
-    super('mcglsl', '', serverOptions, {
+    super('mcshader', '', serverOptions, {
       traceOutputChannel: traceOutputChannel,
-      diagnosticCollectionName: 'mcglsl',
+      diagnosticCollectionName: 'mcshader',
       documentSelector: [{ scheme: 'file', language: 'glsl' }],
       synchronize: {
-        configurationSection: 'mcglsl',
+        configurationSection: 'mcshader',
         fileEvents: workspace.createFileSystemWatcher(filewatcherGlob)
       },
     })

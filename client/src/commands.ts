@@ -6,15 +6,6 @@ import { log } from './log'
 
 export type Command = (...args: any[]) => unknown
 
-export function generateGraphDot(e: Extension): Command {
-  return async () => {
-    await e.lspClient.sendRequest(lsp.ExecuteCommandRequest.type.method, {
-      command: 'graphDot',
-      arguments: [vscode.window.activeTextEditor.document.uri.path],
-    })
-  }
-}
-
 export function restartExtension(e: Extension): Command {
   return async () => {
     vscode.window.showInformationMessage('Reloading Minecraft GLSL language server...')
@@ -46,7 +37,7 @@ export function virtualMergedDocument(e: Extension): Command {
     }
   }
 
-  e.context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('mcglsl', docProvider))
+  e.context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('mcshader', docProvider))
 
   return async () => {
     if (vscode.window.activeTextEditor.document.languageId != 'glsl') return
@@ -56,7 +47,7 @@ export function virtualMergedDocument(e: Extension): Command {
       + '.flattened.'
       + vscode.window.activeTextEditor.document.uri.path
         .slice(vscode.window.activeTextEditor.document.uri.path.lastIndexOf('.') + 1)
-    const path = vscode.Uri.parse(`mcglsl:${uri}`)
+    const path = vscode.Uri.parse(`mcshader:${uri}`)
 
     const doc = await vscode.workspace.openTextDocument(path)
     docProvider.onDidChangeEmitter.fire(path)
@@ -90,13 +81,13 @@ export function parseTree(e: Extension): Command {
     }
   }
 
-  e.context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('mcglsl', docProvider))
+  e.context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('mcshader', docProvider))
 
   return async () => {
     if (vscode.window.activeTextEditor.document.languageId != 'glsl') return
 
     const uri = vscode.window.activeTextEditor.document.uri
-    const path = vscode.Uri.parse(`mcglsl:${uri.path}.ast`)
+    const path = vscode.Uri.parse(`mcshader:${uri.path}.ast`)
 
     const doc = await vscode.workspace.openTextDocument(path)
     docProvider.onDidChangeEmitter.fire(path)
