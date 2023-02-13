@@ -68,7 +68,7 @@ pub struct ShaderFile {
     // Type of the shader
     file_type: gl::types::GLenum,
     // The work space that this file in
-    work_space: PathBuf,
+    pack_path: PathBuf,
     // Files included in this file (line, start char, end char, file path)
     including_files: LinkedList<(usize, usize, usize, PathBuf)>,
 }
@@ -86,11 +86,11 @@ impl ShaderFile {
         self.including_files.clear();
     }
 
-    pub fn new(work_space: &PathBuf, path: &PathBuf) -> ShaderFile {
+    pub fn new(pack_path: &PathBuf, path: &PathBuf) -> ShaderFile {
         ShaderFile {
             path: path.clone(),
             file_type: gl::NONE,
-            work_space: work_space.clone(),
+            pack_path: pack_path.clone(),
             including_files: LinkedList::new(),
         }
     }
@@ -128,14 +128,14 @@ impl ShaderFile {
 
                 let include_path = if path.starts_with('/') {
                     let path = path.strip_prefix('/').unwrap().to_string();
-                    self.work_space.join(PathBuf::from_slash(&path))
+                    self.pack_path.join(PathBuf::from_slash(&path))
                 } else {
                     self.path.parent().unwrap().join(PathBuf::from_slash(&path))
                 };
 
                 self.including_files.push_back((line.0, start, end, include_path.clone()));
 
-                IncludeFile::get_includes(&self.work_space, include_path, &parent_path, include_files, 0);
+                IncludeFile::get_includes(&self.pack_path, include_path, &parent_path, include_files, 0);
             });
     }
 
@@ -149,7 +149,7 @@ impl ShaderFile {
         let mut next_include_file = load_cursor_content(including_files.current());
 
         // If we are in the debug folder, do not add Optifine's macros
-        let mut macro_inserted = self.work_space.parent().unwrap().file_name().unwrap() == "debug";
+        let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
         let shader_reader = BufReader::new(std::fs::File::open(&self.path).unwrap());
         shader_reader.lines()
@@ -194,7 +194,7 @@ pub struct IncludeFile {
     // File path
     path: PathBuf,
     // The work space that this file in
-    work_space: PathBuf,
+    pack_path: PathBuf,
     // Shader files that include this file
     included_shaders: HashSet<PathBuf>,
     // Files included in this file (line, start char, end char, file path)
@@ -230,7 +230,7 @@ impl IncludeFile {
         include_files.insert(include_path.clone(), include_file);
     }
 
-    pub fn get_includes(work_space: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, include_files: &mut HashMap<PathBuf, IncludeFile>, depth: i32) {
+    pub fn get_includes(pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, include_files: &mut HashMap<PathBuf, IncludeFile>, depth: i32) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
@@ -247,7 +247,7 @@ impl IncludeFile {
         else {
             let mut include = IncludeFile {
                 path: include_path.clone(),
-                work_space: work_space.clone(),
+                pack_path: pack_path.clone(),
                 included_shaders: parent_file.clone(),
                 including_files: LinkedList::new(),
             };
@@ -270,14 +270,14 @@ impl IncludeFile {
 
                         let sub_include_path = if path.starts_with('/') {
                             let path = path.strip_prefix('/').unwrap().to_string();
-                            work_space.join(PathBuf::from_slash(&path))
+                            pack_path.join(PathBuf::from_slash(&path))
                         } else {
                             include_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
                         include.including_files.push_back((line.0, start, end, sub_include_path.clone()));
 
-                        Self::get_includes(work_space, sub_include_path, parent_file, include_files, depth + 1);
+                        Self::get_includes(pack_path, sub_include_path, parent_file, include_files, depth + 1);
                     });
             }
             else {
@@ -308,14 +308,14 @@ impl IncludeFile {
 
                 let sub_include_path = if path.starts_with('/') {
                     let path = path.strip_prefix('/').unwrap().to_string();
-                    self.work_space.join(PathBuf::from_slash(&path))
+                    self.pack_path.join(PathBuf::from_slash(&path))
                 } else {
                     self.path.parent().unwrap().join(PathBuf::from_slash(&path))
                 };
 
                 self.including_files.push_back((line.0, start, end, sub_include_path.clone()));
 
-                Self::get_includes(&self.work_space, sub_include_path, &self.included_shaders, include_files, 1);
+                Self::get_includes(&self.pack_path, sub_include_path, &self.included_shaders, include_files, 1);
             });
     }
 

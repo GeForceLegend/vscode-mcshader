@@ -14,9 +14,11 @@ use tower_lsp::{Client, LanguageServer};
 
 use lazy_static::{lazy_static, __Deref};
 
+use crate::capability::ServerCapabilitiesFactroy;
+use crate::diagnostics_parser;
 use crate::enhancer::FromUrl;
 use crate::notification;
-use crate::{opengl, diagnostics_parser};
+use crate::opengl;
 use crate::shader_file;
 
 lazy_static! {
@@ -88,6 +90,7 @@ pub struct MinecraftLanguageServer {
     pub client: Client,
     diagnostics_parser: diagnostics_parser::DiagnosticsParser,
     roots: Mutex<HashSet<PathBuf>>,
+    shader_packs: Mutex<HashSet<PathBuf>>,
     shader_files: Mutex<HashMap<PathBuf, shader_file::ShaderFile>>,
     include_files: Mutex<HashMap<PathBuf, shader_file::IncludeFile>>,
     _log_guard: logging::GlobalLoggerGuard,
@@ -99,6 +102,7 @@ impl MinecraftLanguageServer {
             client,
             diagnostics_parser,
             roots: Mutex::from(HashSet::new()),
+            shader_packs: Mutex::from(HashSet::new()),
             shader_files: Mutex::from(HashMap::new()),
             include_files: Mutex::from(HashMap::new()),
             _log_guard: logging::init_logger(),
@@ -106,10 +110,10 @@ impl MinecraftLanguageServer {
     }
 
     fn add_shader_file(&self, shader_files: &mut HashMap<PathBuf, shader_file::ShaderFile>,
-        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, work_space: &PathBuf, file_path: PathBuf
+        include_files: &mut HashMap<PathBuf, shader_file::IncludeFile>, pack_path: &PathBuf, file_path: PathBuf
     ) {
         if RE_DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
-            let mut shader_file = shader_file::ShaderFile::new(work_space, &file_path);
+            let mut shader_file = shader_file::ShaderFile::new(pack_path, &file_path);
             shader_file.read_file(include_files);
             shader_files.insert(file_path, shader_file);
         }
@@ -197,6 +201,7 @@ impl MinecraftLanguageServer {
         let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
         let mut include_files = self.include_files.lock().unwrap().deref().clone();
 
+        let mut total_shader_packs: HashSet<PathBuf> = HashSet::new();
         for root in self.roots.lock().unwrap().clone() {
             info!("generating file framework on current root"; "root" => root.to_str().unwrap());
 
@@ -221,7 +226,9 @@ impl MinecraftLanguageServer {
                     }
                 }
             }
+            total_shader_packs.extend(shader_packs);
         }
+        *self.shader_packs.lock().unwrap() = total_shader_packs;
         *self.shader_files.lock().unwrap() = shader_files;
         *self.include_files.lock().unwrap() = include_files;
     }
@@ -297,12 +304,12 @@ impl MinecraftLanguageServer {
             .await;
     }
 
-    async fn set_status_ready(&self, message: String) {
+    async fn set_status_ready(&self) {
         self.client
             .send_notification::<notification::StatusNotification>(
                 notification::StatusNotificationParams{
                     status: "ready".to_string(),
-                    message,
+                    message: "ready".to_string(),
                     icon: "$(check)".to_string(),
                 }
             )
@@ -315,40 +322,7 @@ impl LanguageServer for MinecraftLanguageServer {
     #[logging::with_trace_id]
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         info!("starting server...");
-        let initialize_result = Ok(InitializeResult {
-            server_info: None,
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::INCREMENTAL,
-                )),
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string()]),
-                    work_done_progress_options: Default::default(),
-                    all_commit_characters: None,
-                    ..Default::default()
-                }),
-                execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["dummy.do_something".to_string()],
-                    work_done_progress_options: Default::default(),
-                }),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                        supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
-                    }),
-                    file_operations: None,
-                }),
-                document_link_provider: Some(DocumentLinkOptions{
-                    resolve_provider: Some(true),
-                    work_done_progress_options: WorkDoneProgressOptions{
-                        work_done_progress: None
-                    }
-                }),
-                ..ServerCapabilities::default()
-            },
-            ..Default::default()
-        });
+        let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
         let mut roots: HashSet<PathBuf> = HashSet::new();
         if params.workspace_folders.is_none() {
@@ -380,7 +354,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         self.build_file_framework();
 
-        self.set_status_ready("File system built".to_string()).await;
+        self.set_status_ready().await;
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -395,7 +369,7 @@ impl LanguageServer for MinecraftLanguageServer {
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
 
-        self.set_status_ready("File linted".to_string()).await;
+        self.set_status_ready().await;
     }
 
     #[logging::with_trace_id]
@@ -407,7 +381,7 @@ impl LanguageServer for MinecraftLanguageServer {
         let diagnostics = self.update_lint(&file_path);
         self.publish_diagnostic(diagnostics, None).await;
 
-        self.set_status_ready("File linted".to_string()).await;
+        self.set_status_ready().await;
     }
 
     #[logging::with_trace_id]
@@ -473,7 +447,7 @@ impl LanguageServer for MinecraftLanguageServer {
         *self.shader_files.lock().unwrap() = shader_files;
         *self.include_files.lock().unwrap() = include_files;
 
-        self.set_status_ready("Work space changes applied".to_string()).await;
+        self.set_status_ready().await;
     }
 
     #[logging_macro::with_trace_id]
@@ -492,5 +466,23 @@ impl LanguageServer for MinecraftLanguageServer {
             Ok(level) => logging::set_level(level),
             Err(_) => error!("got unexpected log level from config"; "level" => &config.log_level),
         }
+    }
+
+    #[logging_macro::with_trace_id]
+    async fn did_delete_files(&self, params: DeleteFilesParams) {
+        self.set_status_loading("Deleting file from file system...".to_string()).await;
+
+        let mut shader_files = self.shader_files.lock().unwrap().clone();
+        let mut include_files = self.include_files.lock().unwrap().clone();
+        for file in params.files {
+            let file_path = PathBuf::from(file.uri);
+            if file_path.is_file() && shader_files.contains_key(&file_path) {
+                self.remove_shader_file(&mut shader_files, &mut include_files, &file_path);
+            }
+        }
+        *self.shader_files.lock().unwrap() = shader_files;
+        *self.include_files.lock().unwrap() = include_files;
+
+        self.set_status_ready().await;
     }
 }
