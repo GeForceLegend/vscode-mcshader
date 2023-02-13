@@ -348,16 +348,13 @@ impl LanguageServer for MinecraftLanguageServer {
             }
         }
         self.roots.lock().unwrap().extend(roots);
+        self.build_file_framework();
 
         initialize_result
     }
 
     #[logging::with_trace_id]
     async fn initialized(&self, _params: InitializedParams) {
-        self.set_status_loading("Building file system...".to_string()).await;
-
-        self.build_file_framework();
-
         self.set_status_ready().await;
     }
 
