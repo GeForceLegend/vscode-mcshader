@@ -6,16 +6,16 @@ pub struct ServerCapabilitiesFactroy {
 
 impl ServerCapabilitiesFactroy {
     pub fn initial_capabilities() -> Result<InitializeResult> {
-        let did_delete_filter: Vec<FileOperationFilter> = Vec::from([
-            FileOperationFilter{
+        let shader_filter = Some(FileOperationRegistrationOptions{
+            filters: Vec::from([FileOperationFilter{
                 scheme: Some("file".to_string()),
                 pattern: FileOperationPattern{
                     glob: "**/*.{vsh,gsh,fsh,csh}".to_string(),
                     matches: None,
                     options: None,
                 },
-            }
-        ]);
+            }])
+        });
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
@@ -39,13 +39,11 @@ impl ServerCapabilitiesFactroy {
                         change_notifications: Some(OneOf::Left(true)),
                     }),
                     file_operations: Some(WorkspaceFileOperationsServerCapabilities{
-                        did_create: None,
+                        did_create: shader_filter.clone(),
                         will_create: None,
                         did_rename: None,
                         will_rename: None,
-                        did_delete: Some(FileOperationRegistrationOptions{
-                            filters: did_delete_filter,
-                        }),
+                        did_delete: shader_filter.clone(),
                         will_delete: None,
                     }),
                 }),

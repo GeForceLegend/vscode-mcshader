@@ -40,7 +40,7 @@ impl LanguageServer for Backend {
 async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    
+
     let opengl_content = opengl::OpenGlContext::new();
     let diagnostics_parser = diagnostics_parser::DiagnosticsParser::new(&opengl_content);
 

@@ -34,7 +34,7 @@ pub fn set_level(level: Level) {
         Level::Debug => &*DEBUG_DRAIN,
         Level::Trace => &*TRACE_DRAIN,
     };
-    
+
     DRAIN_SWITCH.ctrl().set(drain);
 }
 
