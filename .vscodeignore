@@ -1,6 +1,13 @@
 **/node_modules
 **/*.ts
-server/
+server/logging
+server/logging_macro
+server/main
+server/target
+server/.gitignore
+server/Cargo.lock
+server/Cargo.toml
+server/Makefile
 **/*.js.map
 .vscode
 *.dot

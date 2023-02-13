@@ -2,10 +2,9 @@
   "name": "vscode-mcshader",
   "displayName": "Lsp for Minecraft Shaderpacks",
   "description": "A Visual Studio Code extension for linting/etc Minecraft GLSL Shaders",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "GeForceLegend",
   "license": "MIT",
-  "icon": "icon.png",
   "homepage": "https://github.com/GeForceLegend/vscode-mcshader",
   "repository": {
     "type": "git",

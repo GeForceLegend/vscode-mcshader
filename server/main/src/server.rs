@@ -546,6 +546,5 @@ impl LanguageServer for MinecraftLanguageServer {
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;
-        warn!("Got a workspace/didChangeWatchedFiles notification, but it is not implemented");
     }
 }

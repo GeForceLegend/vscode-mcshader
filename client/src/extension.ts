@@ -39,12 +39,6 @@ export class Extension {
     this.extensionContext = context
     this.state = new PersistentState(context.globalState)
 
-    if (!process.env['MCSHADER_DEBUG'] && !(vscode.workspace.getConfiguration('mcshader').get('skipBootstrap') as boolean)) {
-      await this.bootstrap()
-    } else {
-      log.info('skipping language server bootstrap')
-    }
-
     this.registerCommand('restart', commands.restartExtension)
     this.registerCommand('virtualMerge', commands.virtualMergedDocument)
     this.registerCommand('parseTree', commands.parseTree)
@@ -52,9 +46,8 @@ export class Extension {
     log.info('starting language server...')
 
     const lspBinary = process.env['MCSHADER_DEBUG'] ?
-      this.context.asAbsolutePath(path.join('server', 'target', 'debug', 'vscode-mcshader')) +
-      (process.platform === 'win32' ? '.exe' : '') :
-      path.join(this.context.globalStorageUri.fsPath, 'vscode-mcshader')
+      this.context.asAbsolutePath(path.join('server', 'target', 'debug', 'vscode-mcshader.exe')) :
+      this.context.asAbsolutePath(path.join('server', 'vscode-mcshader.exe'))
 
     this.client = await new LanguageClient(this, lspBinary).startServer()
 
