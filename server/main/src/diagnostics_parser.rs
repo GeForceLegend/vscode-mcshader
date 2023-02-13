@@ -89,7 +89,7 @@ impl DiagnosticsParser {
                 ),
                 code: None,
                 severity: Some(severity),
-                source: Some("mc-glsl".into()),
+                source: Some("mcshader-glsl".into()),
                 message: msg.trim().into(),
                 related_information: None,
                 tags: None,

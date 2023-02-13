@@ -1,8 +1,7 @@
 use tower_lsp::lsp_types::*;
 use tower_lsp::jsonrpc::Result;
 
-pub struct ServerCapabilitiesFactroy {
-}
+pub struct ServerCapabilitiesFactroy {}
 
 impl ServerCapabilitiesFactroy {
     pub fn initial_capabilities() -> Result<InitializeResult> {

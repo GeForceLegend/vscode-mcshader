@@ -4,6 +4,7 @@ use std::{
     io::{BufReader, BufRead},
 };
 
+use logging::warn;
 use path_slash::PathBufExt;
 use regex::Regex;
 
@@ -64,10 +65,10 @@ fn load_cursor_content(cursor_content: Option<&(usize, usize, usize, PathBuf)>) 
 #[derive(Clone)]
 pub struct ShaderFile {
     // File path
-    path: PathBuf,
+    file_path: PathBuf,
     // Type of the shader
     file_type: gl::types::GLenum,
-    // The work space that this file in
+    // The shader pack path that this file in
     pack_path: PathBuf,
     // Files included in this file (line, start char, end char, file path)
     including_files: LinkedList<(usize, usize, usize, PathBuf)>,
@@ -86,9 +87,9 @@ impl ShaderFile {
         self.including_files.clear();
     }
 
-    pub fn new(pack_path: &PathBuf, path: &PathBuf) -> ShaderFile {
+    pub fn new(pack_path: &PathBuf, file_path: &PathBuf) -> ShaderFile {
         ShaderFile {
-            path: path.clone(),
+            file_path: file_path.clone(),
             file_type: gl::NONE,
             pack_path: pack_path.clone(),
             including_files: LinkedList::new(),
@@ -96,7 +97,7 @@ impl ShaderFile {
     }
 
     pub fn read_file (&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>) {
-        let extension = self.path.extension().unwrap();
+        let extension = self.file_path.extension().unwrap();
         self.file_type = if extension == "fsh" {
                 gl::FRAGMENT_SHADER
             } else if extension == "vsh" {
@@ -109,9 +110,9 @@ impl ShaderFile {
                 gl::NONE
             };
 
-        let parent_path: HashSet<PathBuf> = HashSet::from([self.path.clone()]);
+        let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
 
-        let reader = BufReader::new(std::fs::File::open(&self.path).unwrap());
+        let reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
         reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
@@ -130,7 +131,7 @@ impl ShaderFile {
                     let path = path.strip_prefix('/').unwrap().to_string();
                     self.pack_path.join(PathBuf::from_slash(&path))
                 } else {
-                    self.path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                 };
 
                 self.including_files.push_back((line.0, start, end, include_path.clone()));
@@ -141,7 +142,7 @@ impl ShaderFile {
 
     pub fn merge_shader_file(&self, include_files: &HashMap<PathBuf, IncludeFile>, file_list: &mut HashMap<String, PathBuf>) -> String {
         let mut shader_content: String = String::new();
-        file_list.insert("0".to_owned(), self.path.clone());
+        file_list.insert("0".to_owned(), self.file_path.clone());
         let mut file_id = 0;
 
         // Get a cursor pointed to the first position of LinkedList, and we can get data without have to clone one and pop_front()!
@@ -151,7 +152,7 @@ impl ShaderFile {
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
-        let shader_reader = BufReader::new(std::fs::File::open(&self.path).unwrap());
+        let shader_reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
         shader_reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
@@ -192,8 +193,8 @@ impl ShaderFile {
 #[derive(Clone)]
 pub struct IncludeFile {
     // File path
-    path: PathBuf,
-    // The work space that this file in
+    file_path: PathBuf,
+    // The shader pack path that this file in
     pack_path: PathBuf,
     // Shader files that include this file
     included_shaders: HashSet<PathBuf>,
@@ -246,7 +247,7 @@ impl IncludeFile {
         }
         else {
             let mut include = IncludeFile {
-                path: include_path.clone(),
+                file_path: include_path.clone(),
                 pack_path: pack_path.clone(),
                 included_shaders: parent_file.clone(),
                 including_files: LinkedList::new(),
@@ -291,7 +292,7 @@ impl IncludeFile {
     pub fn update_include(&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>) {
         self.including_files.clear();
 
-        let reader = BufReader::new(std::fs::File::open(&self.path).unwrap());
+        let reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
         reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
@@ -310,7 +311,7 @@ impl IncludeFile {
                     let path = path.strip_prefix('/').unwrap().to_string();
                     self.pack_path.join(PathBuf::from_slash(&path))
                 } else {
-                    self.path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                 };
 
                 self.including_files.push_back((line.0, start, end, sub_include_path.clone()));
@@ -320,12 +321,12 @@ impl IncludeFile {
     }
 
     pub fn merge_include(&self, original_content: String, include_files: &HashMap<PathBuf, IncludeFile>, file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32) -> String {
-        if !self.path.exists() || depth > 10 {
+        if !self.file_path.exists() || depth > 10 {
             original_content + "\n"
         }
         else {
             let mut include_content: String = String::new();
-            file_list.insert(file_id.to_string(), self.path.clone());
+            file_list.insert(file_id.to_string(), self.file_path.clone());
             include_content += &format!("#line 1 {}\n", &file_id.to_string());
             let curr_file_id = file_id.clone();
 
@@ -333,7 +334,7 @@ impl IncludeFile {
             let mut including_files = self.including_files.cursor_front();
             let mut next_include_file = load_cursor_content(including_files.current());
 
-            let shader_reader = BufReader::new(std::fs::File::open(&self.path).unwrap());
+            let shader_reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
             shader_reader.lines()
                 .enumerate()
                 .filter_map(|line| match line.1 {
@@ -363,5 +364,75 @@ impl IncludeFile {
                 });
             include_content
         }
+    }
+
+    pub fn temp_search_include(pack_path: &PathBuf, file_path: &PathBuf) -> LinkedList<(usize, usize, usize, PathBuf)> {
+        let mut include_list = LinkedList::new();
+
+        let reader = BufReader::new(match std::fs::File::open(&file_path) {
+            Ok(inner) => inner,
+            Err(_err) => {
+                return include_list
+            }
+        });
+        reader.lines()
+            .enumerate()
+            .filter_map(|line| match line.1 {
+                Ok(t) => Some((line.0, t)),
+                Err(_e) => None,
+            })
+            .filter(|line| RE_MACRO_INCLUDE.is_match(line.1.as_str()))
+            .for_each(|line| {
+                let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
+                let path: String = cap.as_str().into();
+
+                let start = cap.start();
+                let end = cap.end();
+
+                let sub_include_path = if path.starts_with('/') {
+                    let path = path.strip_prefix('/').unwrap().to_string();
+                    pack_path.join(PathBuf::from_slash(&path))
+                } else {
+                    file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                };
+
+                include_list.push_back((line.0, start, end, sub_include_path.clone()));
+            });
+
+        include_list
+    }
+
+    pub fn temp_merge_include(pack_path: &PathBuf, file_path: &PathBuf) {
+        let mut include_list = LinkedList::new();
+
+        let reader = BufReader::new(match std::fs::File::open(&file_path) {
+            Ok(inner) => inner,
+            Err(_err) => {
+                return
+            }
+        });
+        reader.lines()
+            .enumerate()
+            .filter_map(|line| match line.1 {
+                Ok(t) => Some((line.0, t)),
+                Err(_e) => None,
+            })
+            .filter(|line| RE_MACRO_INCLUDE.is_match(line.1.as_str()))
+            .for_each(|line| {
+                let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
+                let path: String = cap.as_str().into();
+
+                let start = cap.start();
+                let end = cap.end();
+
+                let sub_include_path = if path.starts_with('/') {
+                    let path = path.strip_prefix('/').unwrap().to_string();
+                    pack_path.join(PathBuf::from_slash(&path))
+                } else {
+                    file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                };
+
+                include_list.push_back((line.0, start, end, sub_include_path.clone()));
+            });
     }
 }
