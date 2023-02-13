@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from 'child_process'
 import { ConfigurationTarget, workspace } from 'vscode'
 import * as lsp from 'vscode-languageclient/node'
 import { LogMessageNotification, StreamInfo, TelemetryEventNotification } from 'vscode-languageclient/node'
+import { ConfigurationFeature } from 'vscode-languageclient/lib/common/configuration'
 import { Extension } from './extension'
 import { log, lspOutputChannel, traceOutputChannel } from './log'
 import * as constant from './constant'
@@ -9,7 +10,7 @@ import * as constant from './constant'
 export class LanguageClient extends lsp.LanguageClient {
   private extension: Extension
 
-  constructor(ext: Extension, lspBinary: string, filewatcherGlob: string) {
+  constructor(ext: Extension, lspBinary: string) {
     const serverOptions = () => new Promise<ChildProcess>((resolve, reject) => {
       const childProcess = spawn(lspBinary, {
         env: {
@@ -30,14 +31,9 @@ export class LanguageClient extends lsp.LanguageClient {
       traceOutputChannel: traceOutputChannel,
       diagnosticCollectionName: 'mcshader',
       documentSelector: [{ scheme: 'file', language: 'glsl' }],
-      synchronize: {
-        configurationSection: 'mcshader',
-        fileEvents: workspace.createFileSystemWatcher(filewatcherGlob)
-      },
     })
     this.extension = ext
 
-    log.info('server receiving events for file glob:\n\t', filewatcherGlob)
     log.info('running with binary at path:\n\t', lspBinary)
   }
 

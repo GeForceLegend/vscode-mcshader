@@ -6,7 +6,7 @@ export const traceOutputChannel = vscode.window.createOutputChannel('Minecraft S
 
 // from rust-analyzer https://github.com/rust-analyzer/rust-analyzer/blob/ef223b9e6439c228e0be49861efd2067c0b22af4/editors/code/src/util.ts
 export const log = new class {
-  readonly output = vscode.window.createOutputChannel('Minecraft Shaders LSP - Client');
+  readonly output = vscode.window.createOutputChannel('Minecraft Shaders LSP - Client')
 
   // Hint: the type [T, ...T[]] means a non-empty array
   debug(...msg: [unknown, ...unknown[]]): void {

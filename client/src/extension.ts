@@ -56,35 +56,9 @@ export class Extension {
       (process.platform === 'win32' ? '.exe' : '') :
       path.join(this.context.globalStorageUri.fsPath, 'vscode-mcshader')
 
-    const filewatcherGlob = this.fileAssociationsToGlob(this.getGLSLFileAssociations())
-
-    this.client = await new LanguageClient(this, lspBinary, filewatcherGlob).startServer()
+    this.client = await new LanguageClient(this, lspBinary).startServer()
 
     log.info('language server started!')
-  }
-
-  fileAssociationsToGlob = (associations: string[]): string => {
-    return '**/*.{'.concat(
-      associations.map(s => s.substring(s.indexOf('.'))).join(',')
-    ) + '}'
-  }
-
-  getGLSLFileAssociations = (): string[] => {
-    const exts = ['.fsh', '.vsh', '.gsh', '.glsl']
-    const associations = vscode.workspace.getConfiguration('files').get('associations') as { [key: string]: string }
-
-    Object.keys(associations).forEach((key) => {
-      if (associations[key] === 'glsl') {
-        exts.push(key.substring(key.indexOf('*') + 1))
-      }
-    })
-
-    const extraExts = vscode.workspace.getConfiguration('mcshader').get('extraExtension') as string[]
-    extraExts.forEach((key) => {
-      exts.push('.' + key)
-    })
-
-    return exts
   }
 
   registerCommand = (name: string, f: (e: Extension) => commands.Command) => {
