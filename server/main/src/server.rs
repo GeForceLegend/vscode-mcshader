@@ -299,7 +299,9 @@ impl MinecraftLanguageServer {
             } else if extension == "csh" {
                 gl::COMPUTE_SHADER
             } else {
-                gl::NONE
+                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
+                return diagnostics;
             };
 
         let shader_content = ShaderFile::temp_merge_shader(file_path, pack_path, &mut file_list);
