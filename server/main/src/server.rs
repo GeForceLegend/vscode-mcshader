@@ -263,16 +263,16 @@ impl MinecraftLanguageServer {
         *self.include_files.lock().unwrap() = include_files;
     }
 
-    fn update_lint(&self, path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
+    fn update_lint(&self, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
         let opengl_context = opengl::OpenGlContext::new();
         let mut shader_files = self.shader_files.lock().unwrap().deref().clone();
         let mut include_files = self.include_files.lock().unwrap().deref().clone();
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-        if shader_files.contains_key(path) {
-            diagnostics.extend(self.lint_shader(&mut shader_files, &mut include_files, path, &opengl_context));
+        if shader_files.contains_key(file_path) {
+            diagnostics.extend(self.lint_shader(&mut shader_files, &mut include_files, file_path, &opengl_context));
         }
-        if include_files.contains_key(path) {
-            let include_file = include_files.get(path).unwrap();
+        if include_files.contains_key(file_path) {
+            let include_file = include_files.get(file_path).unwrap();
             for shader_path in include_file.included_shaders().clone() {
                 diagnostics.extend(self.lint_shader(&mut shader_files, &mut include_files, &shader_path, &opengl_context));
             }
@@ -483,8 +483,19 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = PathBuf::from_url(params.text_document.uri);
 
-        // If this file is in file system, they will handled by did_change_watched_files
-        if !self.shader_files.lock().unwrap().contains_key(&file_path) && !self.include_files.lock().unwrap().contains_key(&file_path) {
+        if self.shader_files.lock().unwrap().contains_key(&file_path) || self.include_files.lock().unwrap().contains_key(&file_path) {
+            let mut shader_files = self.shader_files.lock().unwrap().clone();
+            let mut include_files = self.include_files.lock().unwrap().clone();
+
+            self.update_file(&mut shader_files, &mut include_files, &file_path);
+            let diagnostics = self.update_lint(&file_path);
+
+            *self.shader_files.lock().unwrap() = shader_files;
+            *self.include_files.lock().unwrap() = include_files;
+
+            self.publish_diagnostic(diagnostics).await;
+        }
+        else {
             let mut shader_pack = file_path.clone();
             if !self.temp_shader_pack(&mut shader_pack) {
                 self.set_status_ready().await;
@@ -523,8 +534,8 @@ impl LanguageServer for MinecraftLanguageServer {
         let include_links: Vec<DocumentLink> = include_list
             .iter()
             .map(|include_file| {
-                let path = &include_file.3;
-                let url = Url::from_file_path(path).unwrap();
+                let include_path = &include_file.3;
+                let url = Url::from_file_path(include_path).unwrap();
                 DocumentLink {
                     range: Range::new(
                         Position::new(u32::try_from(include_file.0).unwrap(), u32::try_from(include_file.1).unwrap()),

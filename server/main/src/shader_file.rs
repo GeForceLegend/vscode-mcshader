@@ -4,6 +4,7 @@ use std::{
     io::{BufReader, BufRead},
 };
 
+use logging::warn;
 use path_slash::PathBufExt;
 use regex::Regex;
 
@@ -111,8 +112,14 @@ impl ShaderFile {
 
         let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
 
-        let reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
-        reader.lines()
+        let shader_reader = BufReader::new(match std::fs::File::open(&self.file_path) {
+            Ok(inner) => inner,
+            Err(_err) => {
+                warn!("Unable to read file"; "path" => self.file_path.to_str().unwrap());
+                return
+            }
+        });
+        shader_reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
                 Ok(t) => Some((line.0, t)),
@@ -154,6 +161,7 @@ impl ShaderFile {
         let shader_reader = BufReader::new(match std::fs::File::open(&self.file_path) {
             Ok(inner) => inner,
             Err(_err) => {
+                warn!("Unable to read file"; "path" => self.file_path.to_str().unwrap());
                 return shader_content
             }
         });
@@ -204,6 +212,7 @@ impl ShaderFile {
         let shader_reader = BufReader::new(match std::fs::File::open(file_path) {
             Ok(inner) => inner,
             Err(_err) => {
+                warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
                 return shader_content
             }
         });
@@ -354,8 +363,14 @@ impl IncludeFile {
     pub fn update_include(&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>) {
         self.including_files.clear();
 
-        let reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
-        reader.lines()
+        let include_reader = BufReader::new(match std::fs::File::open(&self.file_path){
+            Ok(inner) => inner,
+            Err(_err) => {
+                warn!("Unable to read file"; "path" => self.file_path.to_str().unwrap());
+                return;
+            }
+        });
+        include_reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
                 Ok(t) => Some((line.0, t)),
@@ -399,6 +414,7 @@ impl IncludeFile {
             let include_reader = BufReader::new(match std::fs::File::open(&self.file_path) {
                 Ok(inner) => inner,
                 Err(_err) => {
+                    warn!("Unable to read file"; "path" => self.file_path.to_str().unwrap());
                     return original_content + "\n"
                 }
             });
@@ -483,6 +499,7 @@ impl IncludeFile {
         let include_reader = BufReader::new(match std::fs::File::open(&file_path) {
             Ok(inner) => inner,
             Err(_err) => {
+                warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
                 return original_content + "\n"
             }
         });
