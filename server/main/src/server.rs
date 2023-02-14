@@ -290,13 +290,14 @@ impl MinecraftLanguageServer {
             Some(extension) => extension,
             None => return HashMap::new()
         };
-        let file_type = if extension == "fsh" {
+        let is_shader = DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap());
+        let file_type = if extension == "fsh" && is_shader {
                 gl::FRAGMENT_SHADER
-            } else if extension == "vsh" {
+            } else if extension == "vsh" && is_shader {
                 gl::VERTEX_SHADER
-            } else if extension == "gsh" {
+            } else if extension == "gsh" && is_shader {
                 gl::GEOMETRY_SHADER
-            } else if extension == "csh" {
+            } else if extension == "csh" && is_shader {
                 gl::COMPUTE_SHADER
             } else {
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
@@ -479,7 +480,7 @@ impl LanguageServer for MinecraftLanguageServer {
     #[logging::with_trace_id]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
-    
+
         let file_path = PathBuf::from_url(params.text_document.uri);
 
         // If this file is in file system, they will handled by did_change_watched_files

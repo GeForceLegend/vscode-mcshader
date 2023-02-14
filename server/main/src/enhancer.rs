@@ -20,7 +20,7 @@ impl FromUrl for PathBuf {
     #[cfg(target_family = "unix")]
     fn from_url(u: Url) -> Self {
         let path = percent_encoding::percent_decode_str(u.path()).decode_utf8().unwrap();
-        
+
         trace!("converted unix path from url"; "old" => u.as_str(), "new" => path.to_string());
 
         PathBuf::from_slash(path)
