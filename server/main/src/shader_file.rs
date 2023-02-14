@@ -173,15 +173,23 @@ impl ShaderFile {
             })
             .for_each(|line| {
                 if line.0 == next_include_file.0 {
-                    let include_file = include_files.get(&next_include_file.3).unwrap();
-                    file_id += 1;
-                    let include_content = include_file.merge_include(line.1, include_files, file_list, &mut file_id, 1);
-                    shader_content += &include_content;
-                    // Move cursor to the next position and get the value
-                    including_files.move_next();
-                    next_include_file = load_cursor_content(including_files.current());
+                    match include_files.get(&next_include_file.3){
+                        Some(include) => {
+                            let include_file = include;
+                            file_id += 1;
+                            let include_content = include_file.merge_include(line.1, include_files, file_list, &mut file_id, 1);
+                            shader_content += &include_content;
+                            // Move cursor to the next position and get the value
+                            including_files.move_next();
+                            next_include_file = load_cursor_content(including_files.current());
 
-                    shader_content += &format!("#line {} 0\n", line.0 + 2);
+                            shader_content += &format!("#line {} 0\n", line.0 + 2);
+                        },
+                        None => {
+                            shader_content += &line.1;
+                            shader_content += "\n";
+                        }
+                    };
                 }
                 else if RE_MACRO_LINE.is_match(&line.1) {
                     // Delete existing #line for correct linting

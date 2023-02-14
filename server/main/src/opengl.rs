@@ -47,6 +47,7 @@ impl OpenGlContext {
         gl::DeleteShader(shader);
         result
     }
+
     pub fn validate_shader(&self, file_type: &gl::types::GLenum, source: &str) -> Option<String> {
         unsafe {
             let shader = gl::CreateShader(file_type.clone());

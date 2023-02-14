@@ -331,8 +331,8 @@ impl MinecraftLanguageServer {
                 info!("compilation reported no errors"; "tree_root" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
-                for include_file in shader_file.including_files() {
-                    diagnostics.entry(Url::from_file_path(&include_file.3).unwrap()).or_default();
+                for include_file in &file_list {
+                    diagnostics.entry(Url::from_file_path(include_file.1).unwrap()).or_default();
                 }
                 return diagnostics;
             },
@@ -444,7 +444,7 @@ impl LanguageServer for MinecraftLanguageServer {
         if let Err(_err) = self.client.register_capability(registrations).await {
             warn!("Unable to registe file watch capability");
         }
-        
+
         match logging::Level::from_str(config.log_level.as_str()) {
             Ok(level) => logging::set_level(level),
             Err(_) => error!("got unexpected log level from config"; "level" => &config.log_level),
