@@ -187,6 +187,15 @@ impl MinecraftLanguageServer {
         shader_packs
     }
 
+    fn temp_shader_pack(&self, file_path: &mut PathBuf) -> bool {
+        while file_path.file_name().unwrap() != "shaders" {
+            if !file_path.pop() {
+                return false;
+            }
+        }
+        true
+    }
+
     fn scan_new_root(&self, shader_files: &mut HashMap<PathBuf, ShaderFile>,
         include_files: &mut HashMap<PathBuf, IncludeFile>, root: &PathBuf
     ) {
@@ -273,15 +282,57 @@ impl MinecraftLanguageServer {
         diagnostics
     }
 
+    fn temp_lint(&self, file_path: &PathBuf, pack_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
+        let opengl_context = opengl::OpenGlContext::new();
+
+        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
+        let extension = match file_path.extension(){
+            Some(extension) => extension,
+            None => return HashMap::new()
+        };
+        let file_type = if extension == "fsh" {
+                gl::FRAGMENT_SHADER
+            } else if extension == "vsh" {
+                gl::VERTEX_SHADER
+            } else if extension == "gsh" {
+                gl::GEOMETRY_SHADER
+            } else if extension == "csh" {
+                gl::COMPUTE_SHADER
+            } else {
+                gl::NONE
+            };
+
+        let shader_content = ShaderFile::temp_merge_shader(file_path, pack_path, &mut file_list);
+        let validation_result = opengl_context.validate_shader(&file_type, &shader_content);
+
+        // Copied from original file
+        match &validation_result {
+            Some(output) => {
+                info!("compilation errors reported"; "errors" => format!("`{}`", output.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap())
+            }
+            None => {
+                info!("compilation reported no errors"; "tree_root" => file_path.to_str().unwrap());
+                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
+                for include_file in file_list {
+                    diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
+                }
+                return diagnostics;
+            },
+        };
+
+        self.diagnostics_parser.parse_diagnostics(validation_result.unwrap(), file_list)
+    }
+
     fn lint_shader(&self, shader_files: &mut HashMap<PathBuf, ShaderFile>,
         include_files: &mut HashMap<PathBuf, IncludeFile>,
-        path: &PathBuf, opengl_context: &opengl::OpenGlContext
+        file_path: &PathBuf, opengl_context: &opengl::OpenGlContext
     ) -> HashMap<Url, Vec<Diagnostic>> {
-        if !path.exists() {
-            self.remove_shader_file(shader_files, include_files, path);
+        if !file_path.exists() {
+            self.remove_shader_file(shader_files, include_files, file_path);
             return HashMap::new();
         }
-        let shader_file = shader_files.get(path).unwrap();
+        let shader_file = shader_files.get(file_path).unwrap();
 
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let shader_content = shader_file.merge_shader_file(include_files, &mut file_list);
@@ -291,12 +342,12 @@ impl MinecraftLanguageServer {
         // Copied from original file
         match &validation_result {
             Some(output) => {
-                info!("compilation errors reported"; "errors" => format!("`{}`", output.replace('\n', "\\n")), "tree_root" => path.to_str().unwrap())
+                info!("compilation errors reported"; "errors" => format!("`{}`", output.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap())
             }
             None => {
-                info!("compilation reported no errors"; "tree_root" => path.to_str().unwrap());
+                info!("compilation reported no errors"; "tree_root" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                diagnostics.entry(Url::from_file_path(path).unwrap()).or_default();
+                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                 for include_file in shader_file.including_files() {
                     diagnostics.entry(Url::from_file_path(&include_file.3).unwrap()).or_default();
                 }
@@ -399,8 +450,26 @@ impl LanguageServer for MinecraftLanguageServer {
     #[logging::with_trace_id]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
+
         let file_path = PathBuf::from_url(params.text_document.uri);
-        let diagnostics = self.update_lint(&file_path);
+        let diagnostics;
+        if self.shader_files.lock().unwrap().contains_key(&file_path) || self.include_files.lock().unwrap().contains_key(&file_path) {
+            diagnostics = self.update_lint(&file_path);
+        }
+        else {
+            warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
+            info!("Trying to automanticly detect related shader pack path...");
+
+            let mut shader_pack = file_path.clone();
+            if !self.temp_shader_pack(&mut shader_pack) {
+                self.set_status_ready().await;
+                return;
+            }
+            info!("Found related shader pack path"; "path" => shader_pack.to_str().unwrap());
+
+            diagnostics = self.temp_lint(&file_path, &shader_pack);
+        }
+
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;
     }
@@ -409,17 +478,20 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
     
-        let mut shader_files = self.shader_files.lock().unwrap().clone();
-        let mut include_files = self.include_files.lock().unwrap().clone();
-    
         let file_path = PathBuf::from_url(params.text_document.uri);
-        self.update_file(&mut shader_files, &mut include_files, &file_path);
-        let diagnostics = self.update_lint(&file_path);
 
-        *self.shader_files.lock().unwrap() = shader_files;
-        *self.include_files.lock().unwrap() = include_files;
+        // If this file is in file system, they will handled by did_change_watched_files
+        if !self.shader_files.lock().unwrap().contains_key(&file_path) && !self.include_files.lock().unwrap().contains_key(&file_path) {
+            let mut shader_pack = file_path.clone();
+            if !self.temp_shader_pack(&mut shader_pack) {
+                self.set_status_ready().await;
+                return;
+            }
 
-        self.publish_diagnostic(diagnostics).await;
+            let diagnostics = self.temp_lint(&file_path, &shader_pack);
+            self.publish_diagnostic(diagnostics).await;
+        }
+
         self.set_status_ready().await;
     }
 
@@ -437,16 +509,10 @@ impl LanguageServer for MinecraftLanguageServer {
             include_list = include_files.get(&doc_path).unwrap().including_files().clone();
         }
         else {
-            warn!("Document not found in file system"; "path" => doc_path.to_str().unwrap());
-            info!("Trying to automanticly detect related shader pack path...");
-            
             let mut shader_pack = doc_path.clone();
-            while shader_pack.file_name().unwrap() != "shaders" {
-                if !shader_pack.pop() {
-                    return Err(Error::parse_error());
-                }
+            if !self.temp_shader_pack(&mut shader_pack) {
+                return Err(Error::parse_error());
             }
-            info!("Found related shader pack path"; "path" => shader_pack.to_str().unwrap());
 
             include_list = IncludeFile::temp_search_include(&shader_pack, &doc_path);
         }

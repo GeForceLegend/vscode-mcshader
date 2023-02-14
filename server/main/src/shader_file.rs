@@ -4,7 +4,6 @@ use std::{
     io::{BufReader, BufRead},
 };
 
-use logging::warn;
 use path_slash::PathBufExt;
 use regex::Regex;
 
@@ -152,7 +151,12 @@ impl ShaderFile {
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
-        let shader_reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
+        let shader_reader = BufReader::new(match std::fs::File::open(&self.file_path) {
+            Ok(inner) => inner,
+            Err(_err) => {
+                return shader_content
+            }
+        });
         shader_reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
@@ -186,6 +190,64 @@ impl ShaderFile {
                     }
                 }
             });
+        shader_content
+    }
+
+    pub fn temp_merge_shader(file_path: &PathBuf, pack_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> String {
+        let mut shader_content: String = String::new();
+        file_list.insert("0".to_owned(), file_path.clone());
+        let mut file_id = 0;
+
+        // If we are in the debug folder, do not add Optifine's macros
+        let mut macro_inserted = pack_path.parent().unwrap().file_name().unwrap() == "debug";
+
+        let shader_reader = BufReader::new(match std::fs::File::open(file_path) {
+            Ok(inner) => inner,
+            Err(_err) => {
+                return shader_content
+            }
+        });
+
+        shader_reader.lines()
+            .enumerate()
+            .filter_map(|line| match line.1 {
+                Ok(t) => Some((line.0, t)),
+                Err(_e) => None,
+            })
+            .for_each(|line| {
+                if RE_MACRO_INCLUDE.is_match(&line.1) {
+                    file_id += 1;
+                    let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
+                    let path: String = cap.as_str().into();
+
+                    let include_path = if path.starts_with('/') {
+                        let path = path.strip_prefix('/').unwrap().to_string();
+                        pack_path.join(PathBuf::from_slash(&path))
+                    } else {
+                        file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    };
+
+                    let include_content = IncludeFile::temp_merge_include(pack_path, &include_path, file_list, line.1, &mut file_id, 1);
+                    shader_content += &include_content;
+
+                    shader_content += &format!("#line {} 0\n", line.0 + 2);
+                }
+                else if RE_MACRO_LINE.is_match(&line.1) {
+                    // Delete existing #line for correct linting
+                    shader_content += "\n";
+                }
+                else {
+                    shader_content += &line.1;
+                    shader_content += "\n";
+                    // If we are not in the debug folder, add Optifine's macros for correct linting
+                    if RE_MACRO_VERSION.is_match(line.1.as_str()) && !macro_inserted {
+                        shader_content += OPTIFINE_MACROS;
+                        shader_content += &format!("#line {} 0\n", line.0 + 2);
+                        macro_inserted = true;
+                    }
+                }
+            });
+
         shader_content
     }
 }
@@ -334,8 +396,13 @@ impl IncludeFile {
             let mut including_files = self.including_files.cursor_front();
             let mut next_include_file = load_cursor_content(including_files.current());
 
-            let shader_reader = BufReader::new(std::fs::File::open(&self.file_path).unwrap());
-            shader_reader.lines()
+            let include_reader = BufReader::new(match std::fs::File::open(&self.file_path) {
+                Ok(inner) => inner,
+                Err(_err) => {
+                    return original_content + "\n"
+                }
+            });
+            include_reader.lines()
                 .enumerate()
                 .filter_map(|line| match line.1 {
                     Ok(t) => Some((line.0, t)),
@@ -402,37 +469,56 @@ impl IncludeFile {
         include_list
     }
 
-    pub fn temp_merge_include(pack_path: &PathBuf, file_path: &PathBuf) {
-        let mut include_list = LinkedList::new();
+    pub fn temp_merge_include(pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
+        original_content: String, file_id: &mut i32, depth: i32
+    ) -> String {
+        if depth > 10 || !file_path.exists() {
+            return original_content + "\n";
+        }
+        let mut include_content = String::new();
+        file_list.insert(file_id.to_string(), file_path.clone());
+        include_content += &format!("#line 1 {}\n", &file_id.to_string());
+        let curr_file_id = file_id.clone();
 
-        let reader = BufReader::new(match std::fs::File::open(&file_path) {
+        let include_reader = BufReader::new(match std::fs::File::open(&file_path) {
             Ok(inner) => inner,
             Err(_err) => {
-                return
+                return original_content + "\n"
             }
         });
-        reader.lines()
+        include_reader.lines()
             .enumerate()
             .filter_map(|line| match line.1 {
                 Ok(t) => Some((line.0, t)),
                 Err(_e) => None,
             })
-            .filter(|line| RE_MACRO_INCLUDE.is_match(line.1.as_str()))
             .for_each(|line| {
-                let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
-                let path: String = cap.as_str().into();
+                if RE_MACRO_INCLUDE.is_match(&line.1) {
+                    *file_id += 1;
+                    let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
+                    let path: String = cap.as_str().into();
 
-                let start = cap.start();
-                let end = cap.end();
+                    let include_path = if path.starts_with('/') {
+                        let path = path.strip_prefix('/').unwrap().to_string();
+                        pack_path.join(PathBuf::from_slash(&path))
+                    } else {
+                        file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    };
 
-                let sub_include_path = if path.starts_with('/') {
-                    let path = path.strip_prefix('/').unwrap().to_string();
-                    pack_path.join(PathBuf::from_slash(&path))
-                } else {
-                    file_path.parent().unwrap().join(PathBuf::from_slash(&path))
-                };
+                    let sub_include_content = Self::temp_merge_include(pack_path, &include_path, file_list, line.1, file_id, 1);
+                    include_content += &sub_include_content;
 
-                include_list.push_back((line.0, start, end, sub_include_path.clone()));
+                    include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
+                }
+                else if RE_MACRO_LINE.is_match(&line.1) {
+                    // Delete existing #line for correct linting
+                    include_content += "\n";
+                }
+                else {
+                    include_content += &line.1;
+                    include_content += "\n";
+                }
             });
+        include_content
     }
 }
