@@ -81,7 +81,7 @@
         "mcshader.extraExtension": {
           "type": "array",
           "default": ["inc"],
-          "description": "Extra file extensions support"
+          "description": "Add extra extension to server file watch list."
         }
       }
     }

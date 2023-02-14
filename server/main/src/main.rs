@@ -7,6 +7,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 mod capability;
+mod configuration;
 mod diagnostics_parser;
 mod enhancer;
 mod notification;

@@ -9,3 +9,5 @@ If you are interested in what I have done before rewrite it with tower-lsp, you 
 Client and some code in server is released under the [MIT License]. Copyright (c) 2021 Noah Santschi-Cooney
 
 Most server code is released under the [MIT License]. Copyright (c) 2023 GeForceLegend
+
+Work spaces support idea from Fayer3

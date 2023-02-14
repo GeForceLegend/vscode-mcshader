@@ -31,6 +31,10 @@ export class LanguageClient extends lsp.LanguageClient {
       traceOutputChannel: traceOutputChannel,
       diagnosticCollectionName: 'mcshader',
       documentSelector: [{ scheme: 'file', language: 'glsl' }],
+      initializationOptions: workspace.getConfiguration('mcshader'),
+      synchronize: {
+        configurationSection: 'mcshader'
+      },
     })
     this.extension = ext
 
