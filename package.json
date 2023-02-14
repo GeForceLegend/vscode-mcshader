@@ -6,6 +6,7 @@
   "publisher": "GeForceLegend",
   "license": "MIT",
   "homepage": "https://github.com/GeForceLegend/vscode-mcshader",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/GeForceLegend/vscode-mcshader"

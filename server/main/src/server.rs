@@ -10,7 +10,7 @@ use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
 use tower_lsp::lsp_types::{*, self};
 use tower_lsp::{Client, LanguageServer};
 
-use lazy_static::{lazy_static, __Deref};
+use lazy_static::lazy_static;
 
 use crate::capability::ServerCapabilitiesFactroy;
 use crate::configuration::Configuration;
@@ -115,49 +115,50 @@ impl MinecraftLanguageServer {
         }
     }
 
-    fn add_shader_file(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, pack_path: &PathBuf, file_path: PathBuf
+    fn add_shader_file(&self, pack_path: &PathBuf, file_path: PathBuf
     ) {
         if DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
             let mut shader_file = ShaderFile::new(pack_path, &file_path);
-            shader_file.read_file(include_files);
+            shader_file.read_file(&self.include_files);
             self.shader_files.lock().unwrap().insert(file_path, shader_file);
         }
     }
 
-    fn update_file(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, file_path: &PathBuf
-    ) {
+    fn update_file(&self, file_path: &PathBuf) {
         let shader_list = &mut self.shader_files.lock().unwrap();
         if shader_list.contains_key(file_path) {
             let shader_file = shader_list.get_mut(file_path).unwrap();
             shader_file.clear_including_files();
-            shader_file.read_file(include_files);
+            shader_file.read_file(&self.include_files);
         }
-        if include_files.contains_key(file_path) {
-            let mut include_file = include_files.remove(file_path).unwrap();
-            include_file.update_include(include_files);
-            include_files.insert(file_path.clone(), include_file);
+        if self.include_files.lock().unwrap().contains_key(file_path) {
+            let mut include_file = self.include_files.lock().unwrap().remove(file_path).unwrap();
+            include_file.update_include(&self.include_files);
+            self.include_files.lock().unwrap().insert(file_path.clone(), include_file);
         }
     }
 
-    fn remove_shader_file(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, file_path: &PathBuf
-    ) {
+    fn remove_shader_file(&self, file_path: &PathBuf) {
         self.shader_files.lock().unwrap().remove(file_path);
-        for include_file in include_files {
+
+        self.include_files
+            .lock()
+            .unwrap()
+            .iter_mut()
+            .for_each(|include_file| {
             let included_shaders = include_file.1.included_shaders_mut();
-            if included_shaders.contains(file_path) {
-                included_shaders.remove(file_path);
-            }
-        }
+                if included_shaders.contains(file_path) {
+                    included_shaders.remove(file_path);
+                }
+            });
     }
 
-    fn scan_new_file(&self, include_files: &mut HashMap<PathBuf, IncludeFile>,
-        shader_packs: &HashSet<PathBuf>, file_path: PathBuf
-    ) {
+    fn scan_new_file(&self, shader_packs: &HashSet<PathBuf>, file_path: PathBuf) {
         for shader_pack in shader_packs {
             if file_path.starts_with(&shader_pack) {
                 let relative_path = file_path.strip_prefix(shader_pack).unwrap();
                 if DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
-                    self.add_shader_file(include_files, shader_pack, file_path);
+                    self.add_shader_file(shader_pack, file_path);
                 }
                 else {
                     let path_str = match relative_path.to_str().unwrap().split_once(std::path::MAIN_SEPARATOR_STR) {
@@ -165,7 +166,7 @@ impl MinecraftLanguageServer {
                         None => break
                     };
                     if RE_DIMENSION_FOLDER.is_match(path_str.0) && DEFAULT_SHADERS.contains(path_str.1) {
-                        self.add_shader_file(include_files, shader_pack, file_path);
+                        self.add_shader_file(shader_pack, file_path);
                     }
                 }
                 break;
@@ -202,8 +203,7 @@ impl MinecraftLanguageServer {
         true
     }
 
-    fn scan_new_root(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, root: &PathBuf
-    ) {
+    fn scan_new_root(&self, root: &PathBuf) {
         info!("generating file framework on current root"; "root" => root.to_str().unwrap());
 
         let shader_packs: HashSet<PathBuf> = self.find_shader_packs(root);
@@ -213,14 +213,14 @@ impl MinecraftLanguageServer {
                 if let Ok(file) = file {
                     let file_path = file.path();
                     if file_path.is_file() {
-                        self.add_shader_file(include_files, shader_pack, file_path);
+                        self.add_shader_file(shader_pack, file_path);
                     }
                     else if file_path.is_dir() && RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                         for dim_file in file_path.read_dir().expect("read dimension folder failed") {
                             if let Ok(dim_file) = dim_file {
                                 let file_path = dim_file.path();
                                 if file_path.is_file() {
-                                    self.add_shader_file(include_files, shader_pack, file_path);
+                                    self.add_shader_file(shader_pack, file_path);
                                 }
                             }
                         }
@@ -232,32 +232,26 @@ impl MinecraftLanguageServer {
         self.shader_packs.lock().unwrap().extend(shader_packs);
     }
 
-    fn build_file_framework(&self) {
-        let mut include_files = self.include_files.lock().unwrap().deref().clone();
-
-        for root in self.roots.lock().unwrap().clone() {
-            self.scan_new_root(&mut include_files, &root)
-        }
-        *self.include_files.lock().unwrap() = include_files;
-    }
-
     fn update_lint(&self, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
         let opengl_context = opengl::OpenGlContext::new();
 
-        let mut include_files = self.include_files.lock().unwrap().deref().clone();
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
         if self.shader_files.lock().unwrap().contains_key(file_path) {
-            diagnostics.extend(self.lint_shader(&mut include_files, file_path, &opengl_context));
-        }
-        if include_files.contains_key(file_path) {
-            let include_file = include_files.get(file_path).unwrap();
-            for shader_path in include_file.included_shaders().clone() {
-                diagnostics.extend(self.lint_shader(&mut include_files, &shader_path, &opengl_context));
-            }
+            diagnostics.extend(self.lint_shader(file_path, &opengl_context));
         }
 
-        *self.include_files.lock().unwrap() = include_files;
+        let include_list = self.include_files.lock().unwrap().clone();
+        let include_file = include_list.get(file_path);
+        match include_file {
+            Some(include_file) => {
+                let include_shader_list = include_file.included_shaders().clone();
+                for shader_path in include_shader_list {
+                    diagnostics.extend(self.lint_shader(&shader_path, &opengl_context));
+                }
+            },
+            None => {}
+        }
 
         diagnostics
     }
@@ -307,18 +301,16 @@ impl MinecraftLanguageServer {
         self.diagnostics_parser.parse_diagnostics(validation_result.unwrap(), file_list)
     }
 
-    fn lint_shader(&self, include_files: &mut HashMap<PathBuf, IncludeFile>,
-        file_path: &PathBuf, opengl_context: &opengl::OpenGlContext
-    ) -> HashMap<Url, Vec<Diagnostic>> {
+    fn lint_shader(&self, file_path: &PathBuf, opengl_context: &opengl::OpenGlContext) -> HashMap<Url, Vec<Diagnostic>> {
         if !file_path.exists() {
-            self.remove_shader_file(include_files, file_path);
+            self.remove_shader_file(file_path);
             return HashMap::new();
         }
         let shader_files = self.shader_files.lock().unwrap();
         let shader_file = shader_files.get(file_path).unwrap();
 
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
-        let shader_content = shader_file.merge_shader_file(include_files, &mut file_list);
+        let shader_content = shader_file.merge_shader_file(&self.include_files, &mut file_list);
 
         let validation_result = opengl_context.validate_shader(shader_file.file_type(), &shader_content);
 
@@ -400,7 +392,10 @@ impl LanguageServer for MinecraftLanguageServer {
             }
         }
         self.roots.lock().unwrap().extend(roots);
-        self.build_file_framework();
+
+        for root in self.roots.lock().unwrap().clone() {
+            self.scan_new_root(&root)
+        }
 
         initialize_result
     }
@@ -485,14 +480,8 @@ impl LanguageServer for MinecraftLanguageServer {
         let file_path = PathBuf::from_url(params.text_document.uri);
 
         if self.shader_files.lock().unwrap().contains_key(&file_path) || self.include_files.lock().unwrap().contains_key(&file_path) {
-            let mut include_files = self.include_files.lock().unwrap().clone();
-
-            self.update_file(&mut include_files, &file_path);
-            let diagnostics = self.update_lint(&file_path);
-
-            *self.include_files.lock().unwrap() = include_files;
-
-            self.publish_diagnostic(diagnostics).await;
+            self.update_file(&file_path);
+            self.publish_diagnostic(self.update_lint(&file_path)).await;
         }
         else {
             let mut shader_pack = file_path.clone();
@@ -500,9 +489,7 @@ impl LanguageServer for MinecraftLanguageServer {
                 self.set_status_ready().await;
                 return;
             }
-
-            let diagnostics = self.temp_lint(&file_path, &shader_pack);
-            self.publish_diagnostic(diagnostics).await;
+            self.publish_diagnostic(self.temp_lint(&file_path, &shader_pack)).await;
         }
 
         self.set_status_ready().await;
@@ -555,7 +542,6 @@ impl LanguageServer for MinecraftLanguageServer {
         self.set_status_loading("Applying work space changes...".to_string()).await;
 
         let mut roots = self.roots.lock().unwrap().clone();
-        let mut include_files = self.include_files.lock().unwrap().clone();
 
         for removed_uri in params.event.removed {
             let removed_path = PathBuf::from_url(removed_uri.uri);
@@ -563,17 +549,15 @@ impl LanguageServer for MinecraftLanguageServer {
             let shader_packup = self.shader_files.lock().unwrap().clone();
             for shader in &shader_packup {
                 if shader.0.starts_with(&removed_path) {
-                    self.remove_shader_file(&mut include_files, shader.0);
+                    self.remove_shader_file(shader.0);
                 }
             }
         }
         for added_uri in params.event.added {
             let added_path = PathBuf::from_url(added_uri.uri);
-            self.scan_new_root(&mut include_files, &added_path);
+            self.scan_new_root(&added_path);
             roots.insert(added_path);
         }
-
-        *self.include_files.lock().unwrap() = include_files;
 
         self.set_status_ready().await;
     }
@@ -582,34 +566,29 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading("Applying changes into file system...".to_string()).await;
 
-        info!("did_change_watched_files");
-
         let shader_packs = self.shader_packs.lock().unwrap().clone();
-        let mut include_files = self.include_files.lock().unwrap().clone();
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
         for change in params.changes {
             let file_path = PathBuf::from_url(change.uri);
             match change.typ {
                 FileChangeType::CREATED => {
-                    self.scan_new_file(&mut include_files, &shader_packs, file_path.clone());
+                    self.scan_new_file(&shader_packs, file_path.clone());
                     diagnostics.extend(self.update_lint(&file_path));
                 },
                 FileChangeType::CHANGED => {
-                    self.update_file(&mut include_files, &file_path);
+                    self.update_file(&file_path);
                     diagnostics.extend(self.update_lint(&file_path));
                 },
                 FileChangeType::DELETED => {
                     diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
                     if self.shader_files.lock().unwrap().contains_key(&file_path) {
-                        self.remove_shader_file(&mut include_files, &file_path);
+                        self.remove_shader_file(&file_path);
                     }
                 },
                 _ => warn!("Invalid change type")
             }
         }
-
-        *self.include_files.lock().unwrap() = include_files;
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;

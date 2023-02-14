@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, LinkedList},
     path::{PathBuf},
-    io::{BufReader, BufRead},
+    io::{BufReader, BufRead}, sync::Mutex,
 };
 
 use logging::warn;
@@ -96,7 +96,7 @@ impl ShaderFile {
         }
     }
 
-    pub fn read_file (&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>) {
+    pub fn read_file (&mut self, include_files: &Mutex<HashMap<PathBuf, IncludeFile>>) {
         let extension = self.file_path.extension().unwrap();
         self.file_type = if extension == "fsh" {
                 gl::FRAGMENT_SHADER
@@ -146,7 +146,7 @@ impl ShaderFile {
             });
     }
 
-    pub fn merge_shader_file(&self, include_files: &HashMap<PathBuf, IncludeFile>, file_list: &mut HashMap<String, PathBuf>) -> String {
+    pub fn merge_shader_file(&self, include_files: &Mutex<HashMap<PathBuf, IncludeFile>>, file_list: &mut HashMap<String, PathBuf>) -> String {
         let mut shader_content: String = String::new();
         file_list.insert("0".to_owned(), self.file_path.clone());
         let mut file_id = 0;
@@ -173,7 +173,9 @@ impl ShaderFile {
             })
             .for_each(|line| {
                 if line.0 == next_include_file.0 {
-                    match include_files.get(&next_include_file.3){
+                    let include_list = include_files.lock().unwrap().clone();
+                    let include_file = include_list.get(&next_include_file.3);
+                    match include_file {
                         Some(include) => {
                             let include_file = include;
                             file_id += 1;
@@ -294,35 +296,37 @@ impl IncludeFile {
         &self.including_files
     }
 
-    pub fn update_parent(include_path: &PathBuf, parent_file: &HashSet<PathBuf>, include_files: &mut HashMap<PathBuf, IncludeFile>, depth: i32) {
+    pub fn update_parent(include_path: &PathBuf, parent_file: &HashSet<PathBuf>, include_files: &Mutex<HashMap<PathBuf, IncludeFile>>, depth: i32
+    ) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
             return;
         }
-        let mut include_file = include_files.remove(include_path).unwrap();
+        let cloned_file;
+        {
+            let mut include_files = include_files.lock().unwrap();
+            let include_file = include_files.get_mut(include_path).unwrap();
+            include_file.included_shaders.extend(parent_file.clone());
 
-        for file in &include_file.including_files {
+            cloned_file = include_file.clone();
+        }
+
+        for file in cloned_file.including_files {
             Self::update_parent(&file.3, parent_file, include_files, depth + 1);
         }
-
-        include_file.included_shaders.extend(parent_file.clone());
-        include_files.insert(include_path.clone(), include_file);
     }
 
-    pub fn get_includes(pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, include_files: &mut HashMap<PathBuf, IncludeFile>, depth: i32) {
+    pub fn get_includes(pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>,
+        include_files: &Mutex<HashMap<PathBuf, IncludeFile>>, depth: i32
+    ) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
             return;
         }
-        if include_files.contains_key(&include_path) {
-            let mut include = include_files.remove(&include_path).unwrap();
-            include.included_shaders.extend(parent_file.clone());
-            for file in &include.including_files {
-                Self::update_parent(&file.3, parent_file, include_files, depth + 1);
-            }
-            include_files.insert(include_path, include);
+        if include_files.lock().unwrap().contains_key(&include_path) {
+            Self::update_parent(&include_path, parent_file, include_files, depth);
         }
         else {
             let mut include = IncludeFile {
@@ -364,11 +368,11 @@ impl IncludeFile {
                 error!("cannot find include file {}", include_path.to_str().unwrap());
             }
 
-            include_files.insert(include_path, include);
+            include_files.lock().unwrap().insert(include_path.clone(), include.clone());
         }
     }
 
-    pub fn update_include(&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>) {
+    pub fn update_include(&mut self, include_files: &Mutex<HashMap<PathBuf, IncludeFile>>) {
         self.including_files.clear();
 
         let include_reader = BufReader::new(match std::fs::File::open(&self.file_path){
@@ -405,7 +409,9 @@ impl IncludeFile {
             });
     }
 
-    pub fn merge_include(&self, original_content: String, include_files: &HashMap<PathBuf, IncludeFile>, file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32) -> String {
+    pub fn merge_include(&self, original_content: String, include_files: &Mutex<HashMap<PathBuf, IncludeFile>>,
+        file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32
+    ) -> String {
         if !self.file_path.exists() || depth > 10 {
             original_content + "\n"
         }
@@ -434,7 +440,11 @@ impl IncludeFile {
                 })
                 .for_each(|line| {
                     if line.0 == next_include_file.0 {
-                        let include_file = include_files.get(&next_include_file.3).unwrap();
+                        let include_file;
+                        {
+                            let include_files = include_files.lock().unwrap();
+                            include_file = include_files.get(&next_include_file.3).unwrap().clone();
+                        }
                         *file_id += 1;
                         let sub_include_content = include_file.merge_include(line.1, include_files, file_list, file_id, depth + 1);
                         include_content += &sub_include_content;
