@@ -7,7 +7,7 @@ use logging::warn;
 use tower_lsp::lsp_types::{Diagnostic, WorkspaceFoldersChangeEvent, FileEvent, FileChangeType};
 use url::Url;
 
-use crate::diagnostics_parser::DiagnosticsParser;
+use crate::{diagnostics_parser::DiagnosticsParser, opengl::OpenGlContext};
 use crate::enhancer::FromUrl;
 
 use super::server_data::ServerData;
@@ -40,7 +40,8 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         if shader_files.contains_key(file_path) || include_files.contains_key(file_path) {
-            return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, diagnostics_parser));
+            let opengl_context = OpenGlContext::new();
+            return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, &opengl_context, diagnostics_parser));
         }
         return None;
     }
@@ -50,8 +51,9 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         if shader_files.contains_key(file_path) || include_files.contains_key(file_path) {
+            let opengl_context = OpenGlContext::new();
             self.update_file(&mut shader_files, &mut include_files, &file_path);
-            return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, diagnostics_parser));
+            return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, &opengl_context, diagnostics_parser));
         }
 
         return None;
@@ -61,11 +63,11 @@ impl DataManager for ServerData {
         let shader_files = self.shader_files().lock().unwrap();
         let include_files = self.include_files().lock().unwrap();
 
-        if let Some(file_path) = shader_files.get(file_path) {
-            return Some(file_path.including_files().clone());
+        if let Some(shader_file) = shader_files.get(file_path) {
+            return Some(shader_file.including_files().clone());
         }
-        else if let Some(file_path) = include_files.get(file_path) {
-            return Some(file_path.including_files().clone());
+        else if let Some(include_file) = include_files.get(file_path) {
+            return Some(include_file.including_files().clone());
         }
         else {
             return None;
@@ -100,17 +102,18 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+        let opengl_context = OpenGlContext::new();
 
         for change in changes {
             let file_path = PathBuf::from_url(change.uri);
             match change.typ {
                 FileChangeType::CREATED => {
                     self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());
-                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, diagnostics_parser));
+                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, &opengl_context, diagnostics_parser));
                 },
                 FileChangeType::CHANGED => {
                     self.update_file(&mut shader_files, &mut include_files, &file_path);
-                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, diagnostics_parser));
+                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, &opengl_context, diagnostics_parser));
                 },
                 FileChangeType::DELETED => {
                     diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());

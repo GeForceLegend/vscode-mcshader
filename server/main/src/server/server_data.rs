@@ -166,10 +166,8 @@ impl ServerData {
 
     pub fn update_lint(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
-        file_path: &PathBuf, diagnostics_parser: &DiagnosticsParser
+        file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser
     ) -> HashMap<Url, Vec<Diagnostic>> {
-        let opengl_context = OpenGlContext::new();
-
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
         if shader_files.contains_key(file_path) {

@@ -8,7 +8,6 @@ use std::{
 use logging::warn;
 use path_slash::PathBufExt;
 
-use lazy_static::lazy_static;
 use slog_scope::error;
 
 use crate::constant::{
@@ -18,9 +17,6 @@ use crate::constant::{
     RE_MACRO_VERSION,
     OPTIFINE_MACROS,
 };
-
-lazy_static! {
-}
 
 fn load_cursor_content(cursor_content: Option<&(usize, usize, usize, PathBuf)>) -> &(usize, usize, usize, PathBuf) {
     match cursor_content {
@@ -109,7 +105,7 @@ impl ShaderFile {
 
                 self.including_files.push_back((line.0, start, end, include_path.clone()));
 
-                IncludeFile::get_includes(&self.pack_path, include_path, &parent_path, include_files, 0);
+                IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
             });
     }
 
@@ -140,11 +136,10 @@ impl ShaderFile {
             })
             .for_each(|line| {
                 if line.0 == next_include_file.0 {
-                    let include_list = include_files.clone();
-                    let include_file = include_list.get(&next_include_file.3);
+                    let include_file = include_files.get(&next_include_file.3);
                     match include_file {
                         Some(include) => {
-                            let include_file = include;
+                            let include_file = include.clone();
                             file_id += 1;
                             let include_content = include_file.merge_include(line.1, include_files, file_list, &mut file_id, 1);
                             shader_content += &include_content;
@@ -270,21 +265,16 @@ impl IncludeFile {
             // Leave the include alone for reporting a error
             return;
         }
-        let cloned_file;
-        {
-            let include_file = include_files.get_mut(include_path).unwrap();
-            include_file.included_shaders.extend(parent_file.clone());
+        let include_file = include_files.get_mut(include_path).unwrap();
+        include_file.included_shaders.extend(parent_file.clone());
 
-            cloned_file = include_file.clone();
-        }
-
-        for file in cloned_file.including_files {
+        for file in include_file.including_files.clone() {
             Self::update_parent(&file.3, parent_file, include_files, depth + 1);
         }
     }
 
-    pub fn get_includes(pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>,
-        include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, depth: i32
+    pub fn get_includes(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
+        pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
     ) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
@@ -327,14 +317,14 @@ impl IncludeFile {
 
                         include.including_files.push_back((line.0, start, end, sub_include_path.clone()));
 
-                        Self::get_includes(pack_path, sub_include_path, parent_file, include_files, depth + 1);
+                        Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
                     });
             }
             else {
                 error!("cannot find include file {}", include_path.to_str().unwrap());
             }
 
-            include_files.insert(include_path.clone(), include.clone());
+            include_files.insert(include_path, include);
         }
     }
 
@@ -371,7 +361,7 @@ impl IncludeFile {
 
                 self.including_files.push_back((line.0, start, end, sub_include_path.clone()));
 
-                Self::get_includes(&self.pack_path, sub_include_path, &self.included_shaders, include_files, 1);
+                Self::get_includes(include_files, &self.pack_path, sub_include_path, &self.included_shaders, 1);
             });
     }
 
