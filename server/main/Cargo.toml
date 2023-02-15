@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 gl = "0.14"
-glutin = "0.28"
+glutin = "0.29"
 lazy_static = "1.4"
 path-slash = "0.1"
 percent-encoding = "2.1"
