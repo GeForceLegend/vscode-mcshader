@@ -1,11 +1,12 @@
 use std::collections::{HashSet, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Mutex;
 
 use logging::{error, info, warn};
 
 use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
-use tower_lsp::lsp_types::{*, self};
+use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 mod data_manager;
@@ -26,6 +27,7 @@ use self::server_data::ServerData;
 pub struct MinecraftLanguageServer {
     pub client: Client,
     diagnostics_parser: DiagnosticsParser,
+    extensions: Mutex<HashSet<String>>,
     server_data: ServerData,
     _log_guard: logging::GlobalLoggerGuard,
 }
@@ -35,6 +37,7 @@ impl MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             diagnostics_parser,
+            extensions: Mutex::from(HashSet::new()),
             server_data: ServerData::new(),
             _log_guard: logging::init_logger(),
         }
@@ -154,6 +157,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
 
         self.server_data.initial_scan(roots);
+        self.extensions.lock().unwrap().clone_from(&constant::BASIC_EXTENSIONS);
 
         initialize_result
     }
@@ -173,26 +177,12 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let config: Configuration = Configuration::new(&params.settings);
 
-        let mut glsl_file_watcher_pattern = "**/*{vsh,gsh,fsh,csh,glsl".to_string();
-        config.extra_extension
-            .iter()
-            .for_each(|extension| {
-                glsl_file_watcher_pattern += &format!(",{}", extension);
-            });
-        glsl_file_watcher_pattern += "}";
+        let mut new_extensions = constant::BASIC_EXTENSIONS.clone();
+        new_extensions.extend(config.extra_extension.clone());
+        self.extensions.lock().unwrap().clone_from(&new_extensions);
 
-        let did_change_watched_files = lsp_types::DidChangeWatchedFilesRegistrationOptions {
-            watchers: Vec::from([FileSystemWatcher{
-                glob_pattern: glsl_file_watcher_pattern,
-                kind: Some(WatchKind::all())
-            }]),
-        };
         let registrations: Vec<Registration> = Vec::from([
-            Registration{
-                id: "workspace/didChangeWatchedFiles".to_string(),
-                method: "workspace/didChangeWatchedFiles".to_string(),
-                register_options: Some(serde_json::to_value(did_change_watched_files).unwrap()),
-            }
+            config.generate_file_watch_registration()
         ]);
         if let Err(_err) = self.client.register_capability(registrations).await {
             warn!("Unable to registe file watch capability");
@@ -237,7 +227,8 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = PathBuf::from_url(params.text_document.uri);
 
-        let diagnostics = match self.server_data.save_file(&file_path, &self.diagnostics_parser) {
+        let extensions = self.extensions.lock().unwrap().clone();
+        let diagnostics = match self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser) {
             Some(diagnostics) => diagnostics,
             None => {
                 let mut shader_pack = file_path.clone();
