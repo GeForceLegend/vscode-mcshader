@@ -18,7 +18,7 @@ use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::enhancer::FromUrl;
 use crate::notification;
-use crate::opengl;
+use crate::opengl::OpenGlContext;
 use crate::shader_file::{IncludeFile, ShaderFile};
 
 use self::data_manager::DataManager;
@@ -29,16 +29,18 @@ pub struct MinecraftLanguageServer {
     diagnostics_parser: DiagnosticsParser,
     extensions: Mutex<HashSet<String>>,
     server_data: ServerData,
+    opengl_context: OpenGlContext,
     _log_guard: logging::GlobalLoggerGuard,
 }
 
 impl MinecraftLanguageServer {
-    pub fn new(client: Client, diagnostics_parser: DiagnosticsParser) -> MinecraftLanguageServer {
+    pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             diagnostics_parser,
             extensions: Mutex::from(HashSet::new()),
             server_data: ServerData::new(),
+            opengl_context,
             _log_guard: logging::init_logger(),
         }
     }
@@ -53,7 +55,7 @@ impl MinecraftLanguageServer {
     }
 
     fn temp_lint(&self, file_path: &PathBuf, pack_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
-        let opengl_context = opengl::OpenGlContext::new();
+        let opengl_context = OpenGlContext::new();
 
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let extension = match file_path.extension(){
@@ -200,7 +202,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = PathBuf::from_url(params.text_document.uri);
 
-        let diagnostics = match self.server_data.open_file(&file_path, &self.diagnostics_parser) {
+        let diagnostics = match self.server_data.open_file(&file_path, &self.diagnostics_parser, &self.opengl_context) {
             Some(diagnostics) => diagnostics,
             None => {
                 warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
@@ -228,7 +230,7 @@ impl LanguageServer for MinecraftLanguageServer {
         let file_path = PathBuf::from_url(params.text_document.uri);
 
         let extensions = self.extensions.lock().unwrap().clone();
-        let diagnostics = match self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser) {
+        let diagnostics = match self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
             Some(diagnostics) => diagnostics,
             None => {
                 let mut shader_pack = file_path.clone();
@@ -293,7 +295,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading("Applying changes into file system...".to_string()).await;
 
-        let diagnostics = self.server_data.update_watched_files(params.changes, &self.diagnostics_parser);
+        let diagnostics = self.server_data.update_watched_files(params.changes, &self.diagnostics_parser, &self.opengl_context);
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;

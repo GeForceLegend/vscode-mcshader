@@ -48,7 +48,8 @@ async fn main() {
     let (service, socket) = LspService::new(|client|
         server::MinecraftLanguageServer::new(
             client,
-            diagnostics_parser
+            diagnostics_parser,
+            opengl_content,
         )
     );
     Server::new(stdin, stdout, socket)

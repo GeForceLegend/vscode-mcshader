@@ -59,3 +59,7 @@ impl OpenGlContext {
         unsafe { String::from_utf8(CStr::from_ptr(gl::GetString(gl::VENDOR) as *const _).to_bytes().to_vec()).unwrap() }
     }
 }
+
+unsafe impl Sync for OpenGlContext {}
+
+unsafe impl Send for OpenGlContext{}
