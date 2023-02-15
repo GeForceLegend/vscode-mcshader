@@ -141,7 +141,7 @@ impl ShaderFile {
                         Some(include) => {
                             let include_file = include.clone();
                             file_id += 1;
-                            let include_content = include_file.merge_include(line.1, include_files, file_list, &mut file_id, 1);
+                            let include_content = include_file.merge_include(include_files, line.1, file_list, &mut file_id, 1);
                             shader_content += &include_content;
                             // Move cursor to the next position and get the value
                             including_files.move_next();
@@ -365,10 +365,12 @@ impl IncludeFile {
             });
     }
 
-    pub fn merge_include(&self, original_content: String, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
-        file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32
+    pub fn merge_include(&self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
+        original_content: String, file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32
     ) -> String {
         if !self.file_path.exists() || depth > 10 {
+            // If include depth reaches 10 or file does not exist
+            // Leave the include alone for reporting a error
             original_content + "\n"
         }
         else {
@@ -398,7 +400,7 @@ impl IncludeFile {
                     if line.0 == next_include_file.0 {
                         let include_file = include_files.get(&next_include_file.3).unwrap().clone();
                         *file_id += 1;
-                        let sub_include_content = include_file.merge_include(line.1, include_files, file_list, file_id, depth + 1);
+                        let sub_include_content = include_file.merge_include(include_files, line.1, file_list, file_id, depth + 1);
                         include_content += &sub_include_content;
                         // Move cursor to the next position and get the value
                         including_files.move_next();
@@ -459,6 +461,8 @@ impl IncludeFile {
         original_content: String, file_id: &mut i32, depth: i32
     ) -> String {
         if depth > 10 || !file_path.exists() {
+            // If include depth reaches 10 or file does not exist
+            // Leave the include alone for reporting a error
             return original_content + "\n";
         }
         let mut include_content = String::new();

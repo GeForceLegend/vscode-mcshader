@@ -106,6 +106,7 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+        let mut updated_shaders: HashSet<PathBuf> = HashSet::new();
         let opengl_context = OpenGlContext::new();
 
         for change in changes {
@@ -113,11 +114,22 @@ impl DataManager for ServerData {
             match change.typ {
                 FileChangeType::CREATED => {
                     self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());
-                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, &opengl_context, diagnostics_parser));
+                    if shader_files.contains_key(&file_path) {
+                        updated_shaders.insert(file_path);
+                    }
                 },
                 FileChangeType::CHANGED => {
                     self.update_file(&mut shader_files, &mut include_files, &file_path);
-                    diagnostics.extend(self.update_lint(&mut shader_files, &mut include_files, &file_path, &opengl_context, diagnostics_parser));
+                    match include_files.get(&file_path) {
+                        Some(include_file) => {
+                            updated_shaders.extend(include_file.included_shaders().clone());
+                        },
+                        None => {
+                            if shader_files.contains_key(&file_path) {
+                                updated_shaders.insert(file_path);
+                            }
+                        }
+                    }
                 },
                 FileChangeType::DELETED => {
                     diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
@@ -127,6 +139,10 @@ impl DataManager for ServerData {
                 },
                 _ => warn!("Invalid change type")
             }
+        }
+
+        for file_path in updated_shaders {
+            diagnostics.extend(self.lint_shader(&mut shader_files, &mut include_files, &file_path, &opengl_context, diagnostics_parser));
         }
 
         diagnostics

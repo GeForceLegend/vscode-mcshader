@@ -188,7 +188,7 @@ impl ServerData {
         diagnostics
     }
 
-    fn lint_shader(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
+    pub fn lint_shader(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
         file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser
     ) -> HashMap<Url, Vec<Diagnostic>> {
