@@ -1,13 +1,13 @@
 #![feature(option_get_or_insert_default)]
 #![feature(linked_list_cursors)]
 
-use server::MinecraftLanguageServer;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
 mod capability;
 mod configuration;
+mod constant;
 mod diagnostics_parser;
 mod enhancer;
 mod notification;
@@ -46,7 +46,7 @@ async fn main() {
     let diagnostics_parser = diagnostics_parser::DiagnosticsParser::new(&opengl_content);
 
     let (service, socket) = LspService::new(|client|
-        MinecraftLanguageServer::new(
+        server::MinecraftLanguageServer::new(
             client,
             diagnostics_parser
         )
