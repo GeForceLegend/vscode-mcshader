@@ -1,13 +1,13 @@
 use std::{
     path::PathBuf,
-    collections::{HashMap, HashSet, LinkedList}
+    collections::{HashMap, HashSet}
 };
 
 use logging::warn;
-use tower_lsp::lsp_types::{Diagnostic, WorkspaceFoldersChangeEvent, FileEvent, FileChangeType};
+use tower_lsp::lsp_types::*;
 use url::Url;
 
-use crate::{diagnostics_parser::DiagnosticsParser, opengl::OpenGlContext};
+use crate::{diagnostics_parser::DiagnosticsParser, opengl::OpenGlContext, shader_file};
 use crate::enhancer::FromUrl;
 
 use super::server_data::ServerData;
@@ -23,7 +23,7 @@ pub trait DataManager {
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext)
          -> Option<HashMap<Url, Vec<Diagnostic>>>;
 
-    fn include_list(&self, file_path: &PathBuf) -> Option<LinkedList<(usize, usize, usize, PathBuf)>>;
+    fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>>;
 
     fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent);
 
@@ -76,19 +76,25 @@ impl DataManager for ServerData {
         return None;
     }
 
-    fn include_list(&self, file_path: &PathBuf) -> Option<LinkedList<(usize, usize, usize, PathBuf)>> {
+    fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>> {
         let shader_files = self.shader_files().lock().unwrap();
         let include_files = self.include_files().lock().unwrap();
 
+        let content;
+        let pack_path;
         if let Some(shader_file) = shader_files.get(file_path) {
-            return Some(shader_file.including_files().clone());
+            content = shader_file.content();
+            pack_path = shader_file.pack_path();
         }
         else if let Some(include_file) = include_files.get(file_path) {
-            return Some(include_file.including_files().clone());
+            content = include_file.content();
+            pack_path = include_file.pack_path();
         }
         else {
             return None;
         }
+
+        Some(shader_file::parse_includes(content, pack_path, file_path))
     }
 
     fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {

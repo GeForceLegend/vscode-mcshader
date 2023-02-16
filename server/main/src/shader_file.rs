@@ -10,6 +10,7 @@ use logging::warn;
 use path_slash::PathBufExt;
 
 use slog_scope::error;
+use tower_lsp::lsp_types::*;
 
 use crate::constant::{
     DEFAULT_INCLUDE_FILE,
@@ -24,6 +25,40 @@ fn load_cursor_content(cursor_content: Option<&(usize, usize, usize, PathBuf)>) 
         Some(include_file) => include_file,
         None => &DEFAULT_INCLUDE_FILE,
     }
+}
+
+pub fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) -> Vec<DocumentLink> {
+    let mut include_links = Vec::new();
+
+    content.lines()
+        .enumerate()
+        .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
+        .for_each(|line| {
+            let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
+            let path: String = cap.as_str().into();
+
+            let start = cap.start();
+            let end = cap.end();
+
+            let include_path = if path.starts_with('/') {
+                let path = path.strip_prefix('/').unwrap().to_string();
+                pack_path.join(PathBuf::from_slash(&path))
+            } else {
+                file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+            };
+            let url = Url::from_file_path(include_path).unwrap();
+
+            include_links.push(DocumentLink {
+                range: Range::new(
+                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
+                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
+                ),
+                tooltip: Some(url.path().to_string()),
+                target: Some(url),
+                data: None,
+            });
+        });
+    include_links
 }
 
 #[derive(Clone)]
@@ -41,12 +76,16 @@ pub struct ShaderFile {
 }
 
 impl ShaderFile {
+    pub fn content(&self) -> &String {
+        &self.content
+    }
+
     pub fn file_type(&self) -> &gl::types::GLenum {
         &self.file_type
     }
 
-    pub fn including_files(&self) -> &LinkedList<(usize, usize, usize, PathBuf)> {
-        &self.including_files
+    pub fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
     }
 
     pub fn clear_including_files(&mut self) {
@@ -238,16 +277,20 @@ pub struct IncludeFile {
 }
 
 impl IncludeFile {
+    pub fn content(&self) -> &String {
+        &self.content
+    }
+
+    pub fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
     pub fn included_shaders(&self) -> &HashSet<PathBuf> {
         &self.included_shaders
     }
 
     pub fn included_shaders_mut(&mut self) -> &mut HashSet<PathBuf> {
         &mut self.included_shaders
-    }
-
-    pub fn including_files(&self) -> &LinkedList<(usize, usize, usize, PathBuf)> {
-        &self.including_files
     }
 
     pub fn update_parent(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, include_path: &PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
@@ -396,42 +439,6 @@ impl IncludeFile {
                 });
             include_content
         }
-    }
-
-    pub fn temp_search_include(pack_path: &PathBuf, file_path: &PathBuf) -> LinkedList<(usize, usize, usize, PathBuf)> {
-        let mut include_list = LinkedList::new();
-
-        let reader = BufReader::new(match std::fs::File::open(&file_path) {
-            Ok(inner) => inner,
-            Err(_err) => {
-                return include_list
-            }
-        });
-        reader.lines()
-            .enumerate()
-            .filter_map(|line| match line.1 {
-                Ok(t) => Some((line.0, t)),
-                Err(_e) => None,
-            })
-            .filter(|line| RE_MACRO_INCLUDE.is_match(line.1.as_str()))
-            .for_each(|line| {
-                let cap = RE_MACRO_INCLUDE.captures(line.1.as_str()).unwrap().get(1).unwrap();
-                let path: String = cap.as_str().into();
-
-                let start = cap.start();
-                let end = cap.end();
-
-                let sub_include_path = if path.starts_with('/') {
-                    let path = path.strip_prefix('/').unwrap().to_string();
-                    pack_path.join(PathBuf::from_slash(&path))
-                } else {
-                    file_path.parent().unwrap().join(PathBuf::from_slash(&path))
-                };
-
-                include_list.push_back((line.0, start, end, sub_include_path.clone()));
-            });
-
-        include_list
     }
 
     pub fn temp_merge_include(pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,

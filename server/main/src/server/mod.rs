@@ -1,4 +1,5 @@
 use std::collections::{HashSet, HashMap};
+use std::fs::read_to_string;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -19,7 +20,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::enhancer::FromUrl;
 use crate::notification;
 use crate::opengl::OpenGlContext;
-use crate::shader_file::{IncludeFile, ShaderFile};
+use crate::shader_file::{ShaderFile, parse_includes};
 
 use self::data_manager::DataManager;
 use self::server_data::ServerData;
@@ -54,9 +55,7 @@ impl MinecraftLanguageServer {
         true
     }
 
-    fn temp_lint(&self, file_path: &PathBuf, pack_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
-        let opengl_context = OpenGlContext::new();
-
+    fn temp_lint(&self, file_path: &PathBuf, pack_path: &PathBuf, opengl_context: &OpenGlContext) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let extension = match file_path.extension(){
             Some(extension) => extension,
@@ -215,7 +214,7 @@ impl LanguageServer for MinecraftLanguageServer {
                 }
                 info!("Found related shader pack path"; "path" => shader_pack.to_str().unwrap());
 
-                self.temp_lint(&file_path, &shader_pack)
+                self.temp_lint(&file_path, &shader_pack, &self.opengl_context)
             }
         };
 
@@ -238,7 +237,7 @@ impl LanguageServer for MinecraftLanguageServer {
                     self.set_status_ready().await;
                     return;
                 }
-                self.temp_lint(&file_path, &shader_pack)
+                self.temp_lint(&file_path, &shader_pack, &self.opengl_context)
             }
         };
 
@@ -250,36 +249,24 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = PathBuf::from_url(params.text_document.uri);
 
-        let include_list = match self.server_data.include_list(&file_path) {
-            Some(includes) => includes,
+        match self.server_data.include_links(&file_path) {
+            Some(include_links) => Ok(Some(include_links)),
             None => {
-                let mut shader_pack = file_path.clone();
-                if !self.temp_shader_pack(&mut shader_pack) {
-                    return Err(Error::parse_error());
+                match read_to_string(&file_path) {
+                    Ok(content) => {
+                        let mut shader_pack = file_path.clone();
+                        if !self.temp_shader_pack(&mut shader_pack) {
+                            return Err(Error::parse_error());
+                        }
+                        
+                        Ok(Some(parse_includes(&content, &shader_pack, &file_path)))
+                    },
+                    Err(_err) => {
+                        return Err(Error::parse_error());
+                    }
                 }
-
-                IncludeFile::temp_search_include(&shader_pack, &file_path)
             }
-        };
-
-        let include_links: Vec<DocumentLink> = include_list
-            .iter()
-            .map(|include_file| {
-                let include_path = &include_file.3;
-                let url = Url::from_file_path(include_path).unwrap();
-                DocumentLink {
-                    range: Range::new(
-                        Position::new(u32::try_from(include_file.0).unwrap(), u32::try_from(include_file.1).unwrap()),
-                        Position::new(u32::try_from(include_file.0).unwrap(), u32::try_from(include_file.2).unwrap()),
-                    ),
-                    tooltip: Some(url.path().to_string()),
-                    target: Some(url),
-                    data: None,
-                }
-            })
-            .collect();
-
-        Ok(Some(include_links))
+        }
     }
 
     #[logging::with_trace_id]
