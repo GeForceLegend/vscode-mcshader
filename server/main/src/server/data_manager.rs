@@ -65,7 +65,8 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         // Leave the files with watched extension to get linted by did_change_watched_files event
-        if extensions.contains(file_path.extension().unwrap().to_str().unwrap()) {
+        // If this file does not exist in file system, return None to enable temp lint.
+        if extensions.contains(file_path.extension().unwrap().to_str().unwrap()) && (include_files.contains_key(file_path) || shader_files.contains_key(file_path)) {
             return Some(HashMap::new());
         }
         else if include_files.contains_key(file_path) {
