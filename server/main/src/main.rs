@@ -1,9 +1,7 @@
 #![feature(option_get_or_insert_default)]
 #![feature(linked_list_cursors)]
 
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tower_lsp::{LspService, Server};
 
 mod capability;
 mod configuration;
@@ -14,28 +12,6 @@ mod notification;
 mod opengl;
 mod server;
 mod shader_file;
-
-#[derive(Debug)]
-struct Backend {
-    client: Client,
-}
-
-#[tower_lsp::async_trait]
-impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
-        Ok(InitializeResult::default())
-    }
-
-    async fn initialized(&self, _: InitializedParams) {
-        self.client
-            .log_message(MessageType::INFO, "server initialized!")
-            .await;
-    }
-
-    async fn shutdown(&self) -> Result<()> {
-        Ok(())
-    }
-}
 
 #[tokio::main]
 async fn main() {

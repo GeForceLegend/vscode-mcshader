@@ -258,7 +258,7 @@ impl IncludeFile {
         &self.including_files
     }
 
-    pub fn update_parent(include_path: &PathBuf, parent_file: &HashSet<PathBuf>, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, depth: i32
+    pub fn update_parent(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, include_path: &PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
     ) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
@@ -269,7 +269,7 @@ impl IncludeFile {
         include_file.included_shaders.extend(parent_file.clone());
 
         for file in include_file.including_files.clone() {
-            Self::update_parent(&file.3, parent_file, include_files, depth + 1);
+            Self::update_parent(include_files, &file.3, parent_file, depth + 1);
         }
     }
 
@@ -282,7 +282,7 @@ impl IncludeFile {
             return;
         }
         if include_files.contains_key(&include_path) {
-            Self::update_parent(&include_path, parent_file, include_files, depth);
+            Self::update_parent(include_files, &include_path, parent_file, depth);
         }
         else {
             let mut include = IncludeFile {
