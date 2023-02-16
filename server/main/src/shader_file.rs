@@ -293,8 +293,7 @@ impl IncludeFile {
         &mut self.included_shaders
     }
 
-    pub fn update_parent(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, include_path: &PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
-    ) {
+    pub fn update_parent(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, include_path: &PathBuf, parent_file: &HashSet<PathBuf>, depth: i32) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error

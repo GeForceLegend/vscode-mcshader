@@ -7,7 +7,6 @@ mod capability;
 mod configuration;
 mod constant;
 mod diagnostics_parser;
-mod enhancer;
 mod notification;
 mod opengl;
 mod server;

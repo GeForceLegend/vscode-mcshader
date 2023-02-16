@@ -7,8 +7,9 @@ use logging::warn;
 use tower_lsp::lsp_types::*;
 use url::Url;
 
-use crate::{diagnostics_parser::DiagnosticsParser, opengl::OpenGlContext, shader_file};
-use crate::enhancer::FromUrl;
+use crate::diagnostics_parser::DiagnosticsParser;
+use crate::opengl::OpenGlContext;
+use crate::shader_file::parse_includes;
 
 use super::server_data::ServerData;
 
@@ -95,7 +96,7 @@ impl DataManager for ServerData {
             return None;
         }
 
-        Some(shader_file::parse_includes(content, pack_path, file_path))
+        Some(parse_includes(content, pack_path, file_path))
     }
 
     fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
@@ -105,7 +106,7 @@ impl DataManager for ServerData {
         let mut include_files = self.include_files().lock().unwrap();
 
         for removed_uri in events.removed {
-            let removed_path = PathBuf::from_url(removed_uri.uri);
+            let removed_path = removed_uri.uri.to_file_path().unwrap();
             roots.remove(&removed_path);
             for shader in shader_files.clone() {
                 if shader.0.starts_with(&removed_path) {
@@ -114,7 +115,7 @@ impl DataManager for ServerData {
             }
         }
         for added_uri in events.added {
-            let added_path = PathBuf::from_url(added_uri.uri);
+            let added_path = added_uri.uri.to_file_path().unwrap();
             self.scan_files_in_root(&mut shader_packs, &mut shader_files, &mut include_files, &added_path);
             roots.insert(added_path);
         }
@@ -131,7 +132,7 @@ impl DataManager for ServerData {
         let mut updated_shaders: HashSet<PathBuf> = HashSet::new();
 
         for change in changes {
-            let file_path = PathBuf::from_url(change.uri);
+            let file_path = change.uri.to_file_path().unwrap();
             match change.typ {
                 FileChangeType::CREATED => {
                     self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());

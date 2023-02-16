@@ -17,7 +17,6 @@ use crate::capability::ServerCapabilitiesFactroy;
 use crate::configuration::Configuration;
 use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
-use crate::enhancer::FromUrl;
 use crate::notification;
 use crate::opengl::OpenGlContext;
 use crate::shader_file::{ShaderFile, parse_includes};
@@ -140,7 +139,7 @@ impl LanguageServer for MinecraftLanguageServer {
         let mut roots: HashSet<PathBuf> = HashSet::new();
         if params.workspace_folders.is_none() {
             let root = match params.root_uri {
-                Some(uri) => PathBuf::from_url(uri),
+                Some(uri) => uri.to_file_path().unwrap(),
                 None => {
                     return Err(Error {
                         code: ErrorCode::InvalidParams,
@@ -153,7 +152,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
         else {
             for root in params.workspace_folders.unwrap() {
-                roots.insert(PathBuf::from_url(root.uri));
+                roots.insert(root.uri.to_file_path().unwrap());
             }
         }
 
@@ -199,7 +198,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
 
-        let file_path = PathBuf::from_url(params.text_document.uri);
+        let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let diagnostics = match self.server_data.open_file(&file_path, &self.diagnostics_parser, &self.opengl_context) {
             Some(diagnostics) => diagnostics,
@@ -223,10 +222,17 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     #[logging::with_trace_id]
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let _ = params;
+        warn!("Got a textDocument/didChange notification, but it is not implemented");
+    }
+
+    #[logging::with_trace_id]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
 
-        let file_path = PathBuf::from_url(params.text_document.uri);
+        info!("{}", params.text_document.uri.to_file_path().unwrap().to_str().unwrap());
+        let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let extensions = self.extensions.lock().unwrap().clone();
         let diagnostics = match self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
@@ -247,7 +253,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
-        let file_path = PathBuf::from_url(params.text_document.uri);
+        let file_path = params.text_document.uri.to_file_path().unwrap();
 
         match self.server_data.include_links(&file_path) {
             Some(include_links) => Ok(Some(include_links)),
