@@ -13,6 +13,17 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::shader_file::{ShaderFile, IncludeFile};
 
+pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
+    for file in source {
+        if let Some(diagnostics) = target.get_mut(&file.0) {
+            diagnostics.extend(file.1);
+        }
+        else {
+            target.insert(file.0, file.1);
+        }
+    }
+}
+
 pub struct ServerData {
     roots: Mutex<HashSet<PathBuf>>,
     shader_packs: Mutex<HashSet<PathBuf>>,
@@ -80,9 +91,7 @@ impl ServerData {
             .iter_mut()
             .for_each(|include_file| {
             let included_shaders = include_file.1.included_shaders_mut();
-                if included_shaders.contains(file_path) {
-                    included_shaders.remove(file_path);
-                }
+                included_shaders.remove(file_path);
             });
     }
 
@@ -170,7 +179,7 @@ impl ServerData {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
         if shader_files.contains_key(file_path) {
-            diagnostics.extend(self.lint_shader(shader_files, include_files, file_path, &opengl_context, diagnostics_parser));
+            extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, file_path, &opengl_context, diagnostics_parser));
         }
 
         let include_file = include_files.get(file_path);
@@ -178,7 +187,7 @@ impl ServerData {
             Some(include_file) => {
                 let include_shader_list = include_file.included_shaders().clone();
                 for shader_path in include_shader_list {
-                    diagnostics.extend(self.lint_shader(shader_files, include_files, &shader_path, &opengl_context, diagnostics_parser));
+                    extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, &shader_path, &opengl_context, diagnostics_parser));
                 }
             },
             None => {}

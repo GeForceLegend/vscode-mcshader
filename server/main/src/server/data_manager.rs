@@ -11,7 +11,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::shader_file::parse_includes;
 
-use super::server_data::ServerData;
+use super::server_data::{ServerData, extend_diagnostics};
 
 pub trait DataManager {
     fn initial_scan(&self, roots: HashSet<PathBuf>);
@@ -204,7 +204,7 @@ impl DataManager for ServerData {
         }
 
         for file_path in updated_shaders {
-            diagnostics.extend(self.lint_shader(&mut shader_files, &mut include_files, &file_path, opengl_context, diagnostics_parser));
+            extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, &file_path, opengl_context, diagnostics_parser));
         }
 
         diagnostics
