@@ -136,9 +136,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(diagnostics) = self.server_data.open_file(&file_path, &self.diagnostics_parser, &self.opengl_context) {
-            self.publish_diagnostic(diagnostics).await;    
-        }
+        self.server_data.open_file(&file_path);
 
         self.set_status_ready().await;
     }
@@ -158,7 +156,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let extensions = self.extensions.lock().unwrap().clone();
         if let Some(diagnostics) = self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
-            self.publish_diagnostic(diagnostics).await;    
+            self.publish_diagnostic(diagnostics).await;
         }
 
         self.set_status_ready().await;
@@ -169,16 +167,15 @@ impl LanguageServer for MinecraftLanguageServer {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         self.server_data.close_file(&file_path);
-
-        warn!("Got a textDocument/didClose notification, but it is not implemented");
     }
 
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(include_links) = self.server_data.include_links(&file_path) {
-            Ok(Some(include_links))
+        if let Some(data) = self.server_data.update_highlight(&file_path, &self.diagnostics_parser, &self.opengl_context) {
+            self.publish_diagnostic(data.1).await;
+            Ok(Some(data.0))
         }
         else {
             Err(Error::parse_error())

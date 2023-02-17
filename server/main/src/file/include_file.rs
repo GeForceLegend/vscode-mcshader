@@ -71,7 +71,7 @@ impl IncludeFile {
                 included_shaders: parent_file.clone(),
                 including_files: HashSet::new(),
             };
-            
+
             if let Ok(content) = read_to_string(&include_path) {
                 content.lines()
                     .enumerate()

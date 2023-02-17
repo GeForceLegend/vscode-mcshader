@@ -239,10 +239,10 @@ impl ServerData {
 
     pub fn temp_lint(&self, tempfile: &TempFile, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
-        
+
         if let Some(result) = tempfile.merge_self(&mut file_list) {
             let validation_result = opengl_context.validate_shader(&result.1, &result.2);
-            
+
             match validation_result {
                 Some(compile_log) => {
                     info!("compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => result.0.to_str().unwrap());

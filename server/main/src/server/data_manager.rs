@@ -52,19 +52,19 @@ fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) ->
 pub trait DataManager {
     fn initial_scan(&self, roots: HashSet<PathBuf>);
 
-    fn open_file(&self, file_path: &PathBuf,
-        diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
-    ) -> Option<HashMap<Url, Vec<Diagnostic>>>;
+    fn open_file(&self, file_path: &PathBuf);
 
     fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>);
 
     fn save_file(&self, file_path: &PathBuf, extensions: &HashSet<String>,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext)
          -> Option<HashMap<Url, Vec<Diagnostic>>>;
-    
+
     fn close_file(&self, file_path: &PathBuf);
 
-    fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>>;
+    fn update_highlight(&self, file_path: &PathBuf,
+        diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
+    ) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)>;
 
     fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent);
 
@@ -87,24 +87,15 @@ impl DataManager for ServerData {
         *work_space_roots = roots;
     }
 
-    fn open_file(&self, file_path: &PathBuf,
-        diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
-    ) -> Option<HashMap<Url, Vec<Diagnostic>>> {
-        let mut shader_files = self.shader_files().lock().unwrap();
-        let mut include_files = self.include_files().lock().unwrap();
+    fn open_file(&self, file_path: &PathBuf) {
+        let shader_files = self.shader_files().lock().unwrap();
+        let include_files = self.include_files().lock().unwrap();
         let mut temp_files = self.temp_files().lock().unwrap();
 
-        let mut diagnostics = self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser);
-
-        if diagnostics.len() == 0 {
+        if !shader_files.contains_key(file_path) && !include_files.contains_key(file_path) {
             if let Some(temp_file) = TempFile::new(file_path) {
-                diagnostics.extend(self.temp_lint(&temp_file, opengl_context, diagnostics_parser));
                 temp_files.insert(file_path.clone(), temp_file);
             }
-            None
-        }
-        else {
-            Some(diagnostics)
         }
     }
 
@@ -179,10 +170,14 @@ impl DataManager for ServerData {
         self.temp_files().lock().unwrap().remove(file_path);
     }
 
-    fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>> {
-        let shader_files = self.shader_files().lock().unwrap();
-        let include_files = self.include_files().lock().unwrap();
+    fn update_highlight(&self, file_path: &PathBuf,
+        diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
+    ) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)> {
+        let mut shader_files = self.shader_files().lock().unwrap();
+        let mut include_files = self.include_files().lock().unwrap();
         let temp_files = self.temp_files().lock().unwrap();
+
+        let mut diagnostics = self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser);
 
         let content;
         let pack_path;
@@ -197,12 +192,14 @@ impl DataManager for ServerData {
         else if let Some(temp_file) = temp_files.get(file_path) {
             content = temp_file.content();
             pack_path = temp_file.pack_path();
+            extend_diagnostics(&mut diagnostics, self.temp_lint(&temp_file, opengl_context, diagnostics_parser));
         }
         else {
             return None;
         }
+        let include_links = parse_includes(content, pack_path, file_path);
 
-        Some(parse_includes(content, pack_path, file_path))
+        Some((include_links, diagnostics))
     }
 
     fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
