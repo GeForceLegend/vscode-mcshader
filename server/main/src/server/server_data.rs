@@ -16,7 +16,11 @@ use crate::file::{ShaderFile, IncludeFile, TempFile};
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
         if let Some(diagnostics) = target.get_mut(&file.0) {
-            diagnostics.extend(file.1);
+            for diagnostic in file.1 {
+                if !diagnostics.contains(&diagnostic) {
+                    diagnostics.push(diagnostic);
+                }
+            }
         }
         else {
             target.insert(file.0, file.1);
