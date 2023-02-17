@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet, LinkedList},
+    collections::{HashMap, HashSet},
     path::{PathBuf},
     io::{BufReader, BufRead},
     sync::MutexGuard,
@@ -63,8 +63,6 @@ pub struct ShaderFile {
     file_type: gl::types::GLenum,
     // The shader pack path that this file in
     pack_path: PathBuf,
-    // Files included in this file (line, start char, end char, file path)
-    including_files: LinkedList<(usize, usize, usize, PathBuf)>,
 }
 
 impl ShaderFile {
@@ -84,17 +82,12 @@ impl ShaderFile {
         &self.pack_path
     }
 
-    pub fn clear_including_files(&mut self) {
-        self.including_files.clear();
-    }
-
     pub fn new(pack_path: &PathBuf, file_path: &PathBuf) -> ShaderFile {
         ShaderFile {
             file_path: file_path.clone(),
             content: String::new(),
             file_type: gl::NONE,
             pack_path: pack_path.clone(),
-            including_files: LinkedList::new(),
         }
     }
 
@@ -122,17 +115,12 @@ impl ShaderFile {
                         let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
                         let path: String = cap.as_str().into();
 
-                        let start = cap.start();
-                        let end = cap.end();
-
                         let include_path = if path.starts_with('/') {
                             let path = path.strip_prefix('/').unwrap().to_string();
                             self.pack_path.join(PathBuf::from_slash(&path))
                         } else {
                             self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
-
-                        self.including_files.push_back((line.0, start, end, include_path.clone()));
 
                         let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
                         IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
@@ -267,7 +255,7 @@ pub struct IncludeFile {
     // Shader files that include this file
     included_shaders: HashSet<PathBuf>,
     // Files included in this file (line, start char, end char, file path)
-    including_files: LinkedList<(usize, usize, usize, PathBuf)>,
+    including_files: HashSet<PathBuf>,
 }
 
 impl IncludeFile {
@@ -301,7 +289,7 @@ impl IncludeFile {
         include_file.included_shaders.extend(parent_file.clone());
 
         for file in include_file.including_files.clone() {
-            Self::update_parent(include_files, &file.3, parent_file, depth + 1);
+            Self::update_parent(include_files, &file, parent_file, depth + 1);
         }
     }
 
@@ -322,7 +310,7 @@ impl IncludeFile {
                 content: String::new(),
                 pack_path: pack_path.clone(),
                 included_shaders: parent_file.clone(),
-                including_files: LinkedList::new(),
+                including_files: HashSet::new(),
             };
             
             match read_to_string(&include_path) {
@@ -334,9 +322,6 @@ impl IncludeFile {
                             let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
                             let path: String = cap.as_str().into();
 
-                            let start = cap.start();
-                            let end = cap.end();
-
                             let sub_include_path = if path.starts_with('/') {
                                 let path = path.strip_prefix('/').unwrap().to_string();
                                 pack_path.join(PathBuf::from_slash(&path))
@@ -344,7 +329,7 @@ impl IncludeFile {
                                 include_path.parent().unwrap().join(PathBuf::from_slash(&path))
                             };
 
-                            include.including_files.push_back((line.0, start, end, sub_include_path.clone()));
+                            include.including_files.insert(sub_include_path.clone());
 
                             Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
                         });
@@ -371,9 +356,6 @@ impl IncludeFile {
                         let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
                         let path: String = cap.as_str().into();
 
-                        let start = cap.start();
-                        let end = cap.end();
-
                         let sub_include_path = if path.starts_with('/') {
                             let path = path.strip_prefix('/').unwrap().to_string();
                             self.pack_path.join(PathBuf::from_slash(&path))
@@ -381,7 +363,7 @@ impl IncludeFile {
                             self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
-                        self.including_files.push_back((line.0, start, end, sub_include_path.clone()));
+                        self.including_files.insert(sub_include_path.clone());
 
                         Self::get_includes(include_files, &self.pack_path, sub_include_path, &self.included_shaders, 1);
                     });

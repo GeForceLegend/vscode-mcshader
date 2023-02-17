@@ -62,7 +62,6 @@ impl ServerData {
     ) {
         if shader_files.contains_key(file_path) {
             let shader_file = shader_files.get_mut(file_path).unwrap();
-            shader_file.clear_including_files();
             shader_file.read_file(include_files);
         }
         if include_files.contains_key(file_path) {
