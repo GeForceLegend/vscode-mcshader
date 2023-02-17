@@ -145,6 +145,7 @@ impl ShaderFile {
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                    file_id += 1;
                     let cap = capture.get(1).unwrap();
                     let path: String = cap.as_str().into();
 
@@ -393,6 +394,7 @@ impl IncludeFile {
                 .enumerate()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                        *file_id += 1;
                         let cap = capture.get(1).unwrap();
                         let path: String = cap.as_str().into();
 
