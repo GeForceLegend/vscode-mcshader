@@ -11,7 +11,7 @@ use url::Url;
 use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
-use crate::shader_file::{ShaderFile, IncludeFile};
+use crate::file::{ShaderFile, IncludeFile, TempFile};
 
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
@@ -29,6 +29,7 @@ pub struct ServerData {
     shader_packs: Mutex<HashSet<PathBuf>>,
     shader_files: Mutex<HashMap<PathBuf, ShaderFile>>,
     include_files: Mutex<HashMap<PathBuf, IncludeFile>>,
+    temp_files: Mutex<HashMap<PathBuf, TempFile>>,
 }
 
 impl ServerData {
@@ -38,6 +39,7 @@ impl ServerData {
             shader_packs: Mutex::from(HashSet::new()),
             shader_files: Mutex::from(HashMap::new()),
             include_files: Mutex::from(HashMap::new()),
+            temp_files: Mutex::from(HashMap::new()),
         }
     }
 
@@ -55,6 +57,10 @@ impl ServerData {
 
     pub fn include_files(&self) -> &Mutex<HashMap<PathBuf, IncludeFile>>{
         &self.include_files
+    }
+
+    pub fn temp_files(&self) -> &Mutex<HashMap<PathBuf, TempFile>>{
+        &self.temp_files
     }
 
     fn add_shader_file(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
@@ -98,13 +104,14 @@ impl ServerData {
     pub fn scan_new_file(&self, shader_packs: &mut MutexGuard<HashSet<PathBuf>>,
         shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: PathBuf
-    ) {
+    ) -> bool{
         let shader_packs = shader_packs.clone();
         for shader_pack in shader_packs {
             if file_path.starts_with(&shader_pack) {
                 let relative_path = file_path.strip_prefix(&shader_pack).unwrap();
                 if constant::DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
                     self.add_shader_file(shader_files, include_files, &shader_pack, file_path);
+                    return true;
                 }
                 else {
                     let path_str = match relative_path.to_str().unwrap().split_once(std::path::MAIN_SEPARATOR_STR) {
@@ -113,11 +120,13 @@ impl ServerData {
                     };
                     if constant::RE_DIMENSION_FOLDER.is_match(path_str.0) && constant::DEFAULT_SHADERS.contains(path_str.1) {
                         self.add_shader_file(shader_files, include_files, &shader_pack, file_path);
+                    return true;
                     }
                 }
                 break;
             }
         }
+        false
     }
 
     fn find_shader_packs(&self, curr_path: &PathBuf) -> HashSet<PathBuf> {
@@ -221,6 +230,33 @@ impl ServerData {
                 }
                 diagnostics
             }
+        }
+    }
+
+    pub fn temp_lint(&self, tempfile: &TempFile, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser) -> HashMap<Url, Vec<Diagnostic>> {
+        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
+        
+        if let Some(result) = tempfile.merge_self(&mut file_list) {
+            let validation_result = opengl_context.validate_shader(&result.1, &result.2);
+            
+            match validation_result {
+                Some(compile_log) => {
+                    info!("compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => result.0.to_str().unwrap());
+                    diagnostics_parser.parse_diagnostics(compile_log, file_list)
+                },
+                None => {
+                    info!("compilation reported no errors"; "shader file" => result.0.to_str().unwrap());
+                    let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+                    diagnostics.entry(Url::from_file_path(result.0).unwrap()).or_default();
+                    for include_file in file_list {
+                        diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
+                    }
+                    diagnostics
+                }
+            }
+        }
+        else {
+            HashMap::new()
         }
     }
 }

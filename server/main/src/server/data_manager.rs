@@ -4,14 +4,50 @@ use std::{
 };
 
 use logging::warn;
+use path_slash::PathBufExt;
 use tower_lsp::lsp_types::*;
 use url::Url;
 
+use crate::constant::RE_MACRO_INCLUDE;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
-use crate::shader_file::parse_includes;
+use crate::file::TempFile;
 
 use super::server_data::{ServerData, extend_diagnostics};
+
+fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) -> Vec<DocumentLink> {
+    let mut include_links = Vec::new();
+
+    content.lines()
+        .enumerate()
+        .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
+        .for_each(|line| {
+            let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
+            let path: String = cap.as_str().into();
+
+            let start = cap.start();
+            let end = cap.end();
+
+            let include_path = if path.starts_with('/') {
+                let path = path.strip_prefix('/').unwrap().to_string();
+                pack_path.join(PathBuf::from_slash(&path))
+            } else {
+                file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+            };
+            let url = Url::from_file_path(include_path).unwrap();
+
+            include_links.push(DocumentLink {
+                range: Range::new(
+                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
+                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
+                ),
+                tooltip: Some(url.path().to_string()),
+                target: Some(url),
+                data: None,
+            });
+        });
+    include_links
+}
 
 pub trait DataManager {
     fn initial_scan(&self, roots: HashSet<PathBuf>);
@@ -54,10 +90,15 @@ impl DataManager for ServerData {
     ) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let mut shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
+        let mut temp_files = self.temp_files().lock().unwrap();
 
-        let diagnostics = self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser);
+        let mut diagnostics = self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser);
 
         if diagnostics.len() == 0 {
+            if let Some(temp_file) = TempFile::new(file_path) {
+                diagnostics.extend(self.temp_lint(&temp_file, opengl_context, diagnostics_parser));
+                temp_files.insert(file_path.clone(), temp_file);
+            }
             None
         }
         else {
@@ -68,6 +109,7 @@ impl DataManager for ServerData {
     fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>) {
         let mut shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
+        let mut temp_files = self.temp_files().lock().unwrap();
 
         let content;
         if let Some(shader_file) = shader_files.get_mut(file_path) {
@@ -75,6 +117,9 @@ impl DataManager for ServerData {
         }
         else if let Some(include_file) = include_files.get_mut(file_path) {
             content = include_file.content_mut();
+        }
+        else if let Some(temp_file) = temp_files.get_mut(file_path) {
+            content = temp_file.content_mut();
         }
         else {
             return;
@@ -109,6 +154,7 @@ impl DataManager for ServerData {
     ) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let mut shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
+        let mut temp_files = self.temp_files().lock().unwrap();
 
         // Leave the files with watched extension to get linted by did_change_watched_files event
         // If this file does not exist in file system, return None to enable temp lint.
@@ -119,6 +165,10 @@ impl DataManager for ServerData {
             self.update_file(&mut shader_files, &mut include_files, file_path);
             return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser));
         }
+        else if let Some(temp_file) = temp_files.get_mut(file_path) {
+            temp_file.update_self();
+            return Some(self.temp_lint(&temp_file, opengl_context, diagnostics_parser));
+        }
 
         return None;
     }
@@ -126,6 +176,7 @@ impl DataManager for ServerData {
     fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>> {
         let shader_files = self.shader_files().lock().unwrap();
         let include_files = self.include_files().lock().unwrap();
+        let temp_files = self.temp_files().lock().unwrap();
 
         let content;
         let pack_path;
@@ -136,6 +187,10 @@ impl DataManager for ServerData {
         else if let Some(include_file) = include_files.get(file_path) {
             content = include_file.content();
             pack_path = include_file.pack_path();
+        }
+        else if let Some(temp_file) = temp_files.get(file_path) {
+            content = temp_file.content();
+            pack_path = temp_file.pack_path();
         }
         else {
             return None;
@@ -184,8 +239,7 @@ impl DataManager for ServerData {
                 let file_path = change.uri.to_file_path().unwrap();
                 match change.typ {
                     FileChangeType::CREATED => {
-                        self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());
-                        if shader_files.contains_key(&file_path) {
+                        if self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone()) {
                             updated_shaders.insert(file_path);
                         }
                     },

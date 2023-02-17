@@ -1,5 +1,4 @@
 use std::collections::{HashSet, HashMap};
-use std::fs::read_to_string;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -19,7 +18,6 @@ use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::notification;
 use crate::opengl::OpenGlContext;
-use crate::shader_file::{ShaderFile, parse_includes};
 
 use self::data_manager::DataManager;
 use self::server_data::ServerData;
@@ -42,56 +40,6 @@ impl MinecraftLanguageServer {
             server_data: ServerData::new(),
             opengl_context,
             _log_guard: logging::init_logger(),
-        }
-    }
-
-    fn temp_shader_pack(&self, file_path: &mut PathBuf) -> bool {
-        while file_path.file_name().unwrap() != "shaders" {
-            if !file_path.pop() {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn temp_lint(&self, file_path: &PathBuf, pack_path: &PathBuf, opengl_context: &OpenGlContext) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
-        let extension = match file_path.extension(){
-            Some(extension) => extension,
-            None => return HashMap::new()
-        };
-        let is_shader = constant::DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap());
-        let file_type = if extension == "fsh" && is_shader {
-                gl::FRAGMENT_SHADER
-            } else if extension == "vsh" && is_shader {
-                gl::VERTEX_SHADER
-            } else if extension == "gsh" && is_shader {
-                gl::GEOMETRY_SHADER
-            } else if extension == "csh" && is_shader {
-                gl::COMPUTE_SHADER
-            } else {
-                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
-                return diagnostics;
-            };
-
-        let shader_content = ShaderFile::temp_merge_shader(file_path, pack_path, &mut file_list);
-        let validation_result = opengl_context.validate_shader(&file_type, &shader_content);
-
-        match validation_result {
-            Some(compile_log) => {
-                info!("compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap());
-                self.diagnostics_parser.parse_diagnostics(compile_log, file_list)
-            },
-            None => {
-                info!("compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
-                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
-                for include_file in file_list {
-                    diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
-                }
-                diagnostics
-            }
         }
     }
 
@@ -188,24 +136,10 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        let diagnostics = match self.server_data.open_file(&file_path, &self.diagnostics_parser, &self.opengl_context) {
-            Some(diagnostics) => diagnostics,
-            None => {
-                warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
-                info!("Trying to automanticly detect related shader pack path...");
+        if let Some(diagnostics) = self.server_data.open_file(&file_path, &self.diagnostics_parser, &self.opengl_context) {
+            self.publish_diagnostic(diagnostics).await;    
+        }
 
-                let mut shader_pack = file_path.clone();
-                if !self.temp_shader_pack(&mut shader_pack) {
-                    self.set_status_ready().await;
-                    return;
-                }
-                info!("Found related shader pack path"; "path" => shader_pack.to_str().unwrap());
-
-                self.temp_lint(&file_path, &shader_pack, &self.opengl_context)
-            }
-        };
-
-        self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;
     }
 
@@ -223,19 +157,10 @@ impl LanguageServer for MinecraftLanguageServer {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let extensions = self.extensions.lock().unwrap().clone();
-        let diagnostics = match self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
-            Some(diagnostics) => diagnostics,
-            None => {
-                let mut shader_pack = file_path.clone();
-                if !self.temp_shader_pack(&mut shader_pack) {
-                    self.set_status_ready().await;
-                    return;
-                }
-                self.temp_lint(&file_path, &shader_pack, &self.opengl_context)
-            }
-        };
+        if let Some(diagnostics) = self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
+            self.publish_diagnostic(diagnostics).await;    
+        }
 
-        self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;
     }
 
@@ -245,14 +170,6 @@ impl LanguageServer for MinecraftLanguageServer {
 
         if let Some(include_links) = self.server_data.include_links(&file_path) {
             Ok(Some(include_links))
-        }
-        else if let Ok(content) = read_to_string(&file_path) {
-            let mut shader_pack = file_path.clone();
-            if !self.temp_shader_pack(&mut shader_pack) {
-                return Err(Error::parse_error());
-            }
-            
-            Ok(Some(parse_includes(&content, &shader_pack, &file_path)))
         }
         else {
             Err(Error::parse_error())

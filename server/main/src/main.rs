@@ -7,10 +7,10 @@ mod capability;
 mod configuration;
 mod constant;
 mod diagnostics_parser;
+mod file;
 mod notification;
 mod opengl;
 mod server;
-mod shader_file;
 
 #[tokio::main]
 async fn main() {
