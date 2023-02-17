@@ -61,6 +61,8 @@ pub trait DataManager {
     fn save_file(&self, file_path: &PathBuf, extensions: &HashSet<String>,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext)
          -> Option<HashMap<Url, Vec<Diagnostic>>>;
+    
+    fn close_file(&self, file_path: &PathBuf);
 
     fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>>;
 
@@ -171,6 +173,10 @@ impl DataManager for ServerData {
         }
 
         return None;
+    }
+
+    fn close_file(&self, file_path: &PathBuf) {
+        self.temp_files().lock().unwrap().remove(file_path);
     }
 
     fn include_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>> {

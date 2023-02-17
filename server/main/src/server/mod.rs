@@ -165,6 +165,15 @@ impl LanguageServer for MinecraftLanguageServer {
     }
 
     #[logging::with_trace_id]
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let file_path = params.text_document.uri.to_file_path().unwrap();
+
+        self.server_data.close_file(&file_path);
+
+        warn!("Got a textDocument/didClose notification, but it is not implemented");
+    }
+
+    #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
