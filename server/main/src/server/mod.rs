@@ -223,8 +223,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let _ = params;
-        warn!("Got a textDocument/didChange notification, but it is not implemented");
+        let file_path = params.text_document.uri.to_file_path().unwrap();
+
+        self.server_data.change_file(&file_path, params.content_changes);
     }
 
     #[logging::with_trace_id]

@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    path::PathBuf,
-};
+use std::collections::HashSet;
 
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -80,7 +77,6 @@ lazy_static! {
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^(?:\s)*?(?:#include) "(.+)"\r?"#).unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"^(?:\s)*?(?:#version) \r?"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^(?:\s)*?(?:#line) \r?"#).unwrap();
-    pub static ref DEFAULT_INCLUDE_FILE: (usize, usize, usize, PathBuf) = (usize::from(u16::MAX), usize::from(u16::MAX), usize::from(u16::MAX), PathBuf::from("/"));
 }
 
 pub const OPTIFINE_MACROS: &str = "#define MC_VERSION 11900

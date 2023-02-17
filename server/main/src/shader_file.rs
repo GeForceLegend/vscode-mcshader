@@ -13,19 +13,11 @@ use slog_scope::error;
 use tower_lsp::lsp_types::*;
 
 use crate::constant::{
-    DEFAULT_INCLUDE_FILE,
     RE_MACRO_INCLUDE,
     RE_MACRO_LINE,
     RE_MACRO_VERSION,
     OPTIFINE_MACROS,
 };
-
-fn load_cursor_content(cursor_content: Option<&(usize, usize, usize, PathBuf)>) -> &(usize, usize, usize, PathBuf) {
-    match cursor_content {
-        Some(include_file) => include_file,
-        None => &DEFAULT_INCLUDE_FILE,
-    }
-}
 
 pub fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) -> Vec<DocumentLink> {
     let mut include_links = Vec::new();
@@ -78,6 +70,10 @@ pub struct ShaderFile {
 impl ShaderFile {
     pub fn content(&self) -> &String {
         &self.content
+    }
+
+    pub fn content_mut(&mut self) -> &mut String {
+        &mut self.content
     }
 
     pub fn file_type(&self) -> &gl::types::GLenum {
@@ -154,35 +150,32 @@ impl ShaderFile {
         file_list.insert("0".to_owned(), self.file_path.clone());
         let mut file_id = 0;
 
-        // Get a cursor pointed to the first position of LinkedList, and we can get data without have to clone one and pop_front()!
-        let mut including_files = self.including_files.cursor_front();
-        let mut next_include_file = load_cursor_content(including_files.current());
-
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
         self.content.lines()
             .enumerate()
             .for_each(|line| {
-                if line.0 == next_include_file.0 {
-                    let include_file = include_files.get(&next_include_file.3);
-                    match include_file {
-                        Some(include) => {
-                            let include_file = include.clone();
-                            file_id += 1;
-                            let include_content = include_file.merge_include(include_files, line.1.to_string(), file_list, &mut file_id, 1);
-                            shader_content += &include_content;
-                            // Move cursor to the next position and get the value
-                            including_files.move_next();
-                            next_include_file = load_cursor_content(including_files.current());
+                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                    let cap = capture.get(1).unwrap();
+                    let path: String = cap.as_str().into();
 
-                            shader_content += &format!("#line {} 0\n", line.0 + 2);
-                        },
-                        None => {
-                            shader_content += line.1;
-                            shader_content += "\n";
-                        }
+                    let include_path = if path.starts_with('/') {
+                        let path = path.strip_prefix('/').unwrap().to_string();
+                        self.pack_path.join(PathBuf::from_slash(&path))
+                    } else {
+                        self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
+
+                    if let Some(include_file) = include_files.get(&include_path) {
+                        let include_content = include_file.clone().merge_include(include_files, line.1.to_string(), file_list, &mut file_id, 1);
+                        shader_content += &include_content;
+                        shader_content += &format!("#line {} 0\n", line.0 + 2);
+                    }
+                    else {
+                        shader_content += line.1;
+                        shader_content += "\n";
+                    }
                 }
                 else if RE_MACRO_LINE.is_match(line.1) {
                     // Delete existing #line for correct linting
@@ -199,6 +192,7 @@ impl ShaderFile {
                     }
                 }
             });
+
         shader_content
     }
 
@@ -279,6 +273,10 @@ pub struct IncludeFile {
 impl IncludeFile {
     pub fn content(&self) -> &String {
         &self.content
+    }
+
+    pub fn content_mut(&mut self) -> &mut String {
+        &mut self.content
     }
 
     pub fn pack_path(&self) -> &PathBuf {
@@ -409,23 +407,29 @@ impl IncludeFile {
             include_content += &format!("#line 1 {}\n", &file_id.to_string());
             let curr_file_id = file_id.clone();
 
-            // Get a cursor pointed to the first position of LinkedList, and we can get data without have to clone one and pop_front()!
-            let mut including_files = self.including_files.cursor_front();
-            let mut next_include_file = load_cursor_content(including_files.current());
-
             self.content.lines()
                 .enumerate()
                 .for_each(|line| {
-                    if line.0 == next_include_file.0 {
-                        let include_file = include_files.get(&next_include_file.3).unwrap().clone();
-                        *file_id += 1;
-                        let sub_include_content = include_file.merge_include(include_files, line.1.to_string(), file_list, file_id, depth + 1);
-                        include_content += &sub_include_content;
-                        // Move cursor to the next position and get the value
-                        including_files.move_next();
-                        next_include_file = load_cursor_content(including_files.current());
+                    if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                        let cap = capture.get(1).unwrap();
+                        let path: String = cap.as_str().into();
 
-                        include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
+                        let include_path = if path.starts_with('/') {
+                            let path = path.strip_prefix('/').unwrap().to_string();
+                            self.pack_path.join(PathBuf::from_slash(&path))
+                        } else {
+                            self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        };
+
+                        if let Some(include_file) = include_files.get(&include_path) {
+                            let sub_include_content = include_file.clone().merge_include(include_files, line.1.to_string(), file_list, file_id, 1);
+                            include_content += &sub_include_content;
+                            include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
+                        }
+                        else {
+                            include_content += line.1;
+                            include_content += "\n";
+                        }
                     }
                     else if RE_MACRO_LINE.is_match(line.1) {
                         // Delete existing #line for correct linting
