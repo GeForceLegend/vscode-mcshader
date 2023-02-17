@@ -55,10 +55,14 @@ impl DataManager for ServerData {
         let mut shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
 
-        if shader_files.contains_key(file_path) || include_files.contains_key(file_path) {
-            return Some(self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser));
+        let diagnostics = self.update_lint(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser);
+
+        if diagnostics.len() == 0 {
+            None
         }
-        return None;
+        else {
+            Some(diagnostics)
+        }
     }
 
     fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>) {
@@ -187,14 +191,12 @@ impl DataManager for ServerData {
                     },
                     FileChangeType::CHANGED => {
                         self.update_file(&mut shader_files, &mut include_files, &file_path);
-                        match include_files.get(&file_path) {
-                            Some(include_file) => {
-                                updated_shaders.extend(include_file.included_shaders().clone());
-                            },
-                            None => {
-                                if shader_files.contains_key(&file_path) {
-                                    updated_shaders.insert(file_path);
-                                }
+                        if let Some(include_file) = include_files.get(&file_path) {
+                            updated_shaders.extend(include_file.included_shaders().clone());
+                        }
+                        else {
+                            if shader_files.contains_key(&file_path) {
+                                updated_shaders.insert(file_path);
                             }
                         }
                     },

@@ -182,15 +182,11 @@ impl ServerData {
             extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, file_path, &opengl_context, diagnostics_parser));
         }
 
-        let include_file = include_files.get(file_path);
-        match include_file {
-            Some(include_file) => {
-                let include_shader_list = include_file.included_shaders().clone();
-                for shader_path in include_shader_list {
-                    extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, &shader_path, &opengl_context, diagnostics_parser));
-                }
-            },
-            None => {}
+        if let Some(include_file) = include_files.get(file_path) {
+            let include_shader_list = include_file.included_shaders().clone();
+            for shader_path in include_shader_list {
+                extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, &shader_path, &opengl_context, diagnostics_parser));
+            }
         }
 
         diagnostics
@@ -211,22 +207,20 @@ impl ServerData {
 
         let validation_result = opengl_context.validate_shader(shader_file.file_type(), &shader_content);
 
-        // Copied from original file
-        match &validation_result {
-            Some(output) => {
-                info!("compilation errors reported"; "errors" => format!("`{}`", output.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap())
-            }
+        match validation_result {
+            Some(compile_log) => {
+                info!("compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap());
+                diagnostics_parser.parse_diagnostics(compile_log, file_list)
+            },
             None => {
-                info!("compilation reported no errors"; "tree_root" => file_path.to_str().unwrap());
+                info!("compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
-                for include_file in &file_list {
-                    diagnostics.entry(Url::from_file_path(include_file.1).unwrap()).or_default();
+                for include_file in file_list {
+                    diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
                 }
-                return diagnostics;
-            },
-        };
-
-        diagnostics_parser.parse_diagnostics(validation_result.unwrap(), file_list)
+                diagnostics
+            }
+        }
     }
 }

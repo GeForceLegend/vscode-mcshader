@@ -78,23 +78,21 @@ impl MinecraftLanguageServer {
         let shader_content = ShaderFile::temp_merge_shader(file_path, pack_path, &mut file_list);
         let validation_result = opengl_context.validate_shader(&file_type, &shader_content);
 
-        // Copied from original file
-        match &validation_result {
-            Some(output) => {
-                info!("compilation errors reported"; "errors" => format!("`{}`", output.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap())
-            }
+        match validation_result {
+            Some(compile_log) => {
+                info!("compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap());
+                self.diagnostics_parser.parse_diagnostics(compile_log, file_list)
+            },
             None => {
-                info!("compilation reported no errors"; "tree_root" => file_path.to_str().unwrap());
+                info!("compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                 for include_file in file_list {
                     diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
                 }
-                return diagnostics;
-            },
-        };
-
-        self.diagnostics_parser.parse_diagnostics(validation_result.unwrap(), file_list)
+                diagnostics
+            }
+        }
     }
 
     async fn publish_diagnostic(&self, diagnostics: HashMap<Url, Vec<Diagnostic>>) {
