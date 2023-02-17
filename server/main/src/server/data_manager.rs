@@ -92,11 +92,12 @@ impl DataManager for ServerData {
                 total_content += line.len() + new_line_length;
             });
 
-        for change in changes {
-            let start = line_location.get(change.range.unwrap().start.line as usize).unwrap() + change.range.unwrap().start.character as usize;
-            let end = start + change.range_length.unwrap() as usize;
-            content.replace_range(start..end, &change.text);
-        }
+        changes.iter()
+            .for_each(|change| {
+                let start = line_location.get(change.range.unwrap().start.line as usize).unwrap() + change.range.unwrap().start.character as usize;
+                let end = start + change.range_length.unwrap() as usize;
+                content.replace_range(start..end, &change.text);
+            });
     }
 
     fn save_file(&self, file_path: &PathBuf, extensions: &HashSet<String>,
@@ -145,20 +146,23 @@ impl DataManager for ServerData {
         let mut shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
 
-        for removed_uri in events.removed {
-            let removed_path = removed_uri.uri.to_file_path().unwrap();
-            roots.remove(&removed_path);
-            for shader in shader_files.clone() {
-                if shader.0.starts_with(&removed_path) {
-                    self.remove_shader_file(&mut shader_files, &mut include_files, &shader.0);
+        events.removed.iter()
+            .for_each(|removed_file|{
+                let removed_path = removed_file.uri.to_file_path().unwrap();
+                roots.remove(&removed_path);
+                for shader in shader_files.clone() {
+                    if shader.0.starts_with(&removed_path) {
+                        self.remove_shader_file(&mut shader_files, &mut include_files, &shader.0);
+                    }
                 }
-            }
-        }
-        for added_uri in events.added {
-            let added_path = added_uri.uri.to_file_path().unwrap();
-            self.scan_files_in_root(&mut shader_packs, &mut shader_files, &mut include_files, &added_path);
-            roots.insert(added_path);
-        }
+            });
+
+        events.added.iter()
+            .for_each(|added_file| {
+                let added_path = added_file.uri.to_file_path().unwrap();
+                self.scan_files_in_root(&mut shader_packs, &mut shader_files, &mut include_files, &added_path);
+                roots.insert(added_path);
+            });
     }
 
     fn update_watched_files(&self, changes: Vec<FileEvent>,
@@ -171,37 +175,38 @@ impl DataManager for ServerData {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let mut updated_shaders: HashSet<PathBuf> = HashSet::new();
 
-        for change in changes {
-            let file_path = change.uri.to_file_path().unwrap();
-            match change.typ {
-                FileChangeType::CREATED => {
-                    self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());
-                    if shader_files.contains_key(&file_path) {
-                        updated_shaders.insert(file_path);
-                    }
-                },
-                FileChangeType::CHANGED => {
-                    self.update_file(&mut shader_files, &mut include_files, &file_path);
-                    match include_files.get(&file_path) {
-                        Some(include_file) => {
-                            updated_shaders.extend(include_file.included_shaders().clone());
-                        },
-                        None => {
-                            if shader_files.contains_key(&file_path) {
-                                updated_shaders.insert(file_path);
+        changes.iter()
+            .for_each(|change| {
+                let file_path = change.uri.to_file_path().unwrap();
+                match change.typ {
+                    FileChangeType::CREATED => {
+                        self.scan_new_file(&mut shader_packs, &mut shader_files, &mut include_files, file_path.clone());
+                        if shader_files.contains_key(&file_path) {
+                            updated_shaders.insert(file_path);
+                        }
+                    },
+                    FileChangeType::CHANGED => {
+                        self.update_file(&mut shader_files, &mut include_files, &file_path);
+                        match include_files.get(&file_path) {
+                            Some(include_file) => {
+                                updated_shaders.extend(include_file.included_shaders().clone());
+                            },
+                            None => {
+                                if shader_files.contains_key(&file_path) {
+                                    updated_shaders.insert(file_path);
+                                }
                             }
                         }
-                    }
-                },
-                FileChangeType::DELETED => {
-                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
-                    if shader_files.contains_key(&file_path) {
-                        self.remove_shader_file(&mut shader_files, &mut include_files, &file_path);
-                    }
-                },
-                _ => warn!("Invalid change type")
-            }
-        }
+                    },
+                    FileChangeType::DELETED => {
+                        diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
+                        if shader_files.contains_key(&file_path) {
+                            self.remove_shader_file(&mut shader_files, &mut include_files, &file_path);
+                        }
+                    },
+                    _ => warn!("Invalid change type")
+                }
+            });
 
         for file_path in updated_shaders {
             extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, &file_path, opengl_context, diagnostics_parser));

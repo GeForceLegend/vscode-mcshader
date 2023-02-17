@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use logging::{error, info, warn};
 
-use tower_lsp::jsonrpc::{Result, Error, ErrorCode};
+use tower_lsp::jsonrpc::{Result, Error};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
@@ -137,23 +137,13 @@ impl LanguageServer for MinecraftLanguageServer {
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
         let mut roots: HashSet<PathBuf> = HashSet::new();
-        if params.workspace_folders.is_none() {
-            let root = match params.root_uri {
-                Some(uri) => uri.to_file_path().unwrap(),
-                None => {
-                    return Err(Error {
-                        code: ErrorCode::InvalidParams,
-                        message: "Must be in workspace".into(),
-                        data: Some(serde_json::to_value(InitializeError { retry: false }).unwrap()),
-                    });
-                }
-            };
-            roots.insert(root);
+        if let Some(work_spaces) = params.workspace_folders {
+            work_spaces.iter().for_each(|work_space| {
+                roots.insert(work_space.uri.to_file_path().unwrap());
+            });
         }
-        else {
-            for root in params.workspace_folders.unwrap() {
-                roots.insert(root.uri.to_file_path().unwrap());
-            }
+        else if let Some(uri) = params.root_uri {
+            roots.insert(uri.to_file_path().unwrap());
         }
 
         self.server_data.initial_scan(roots);
@@ -232,7 +222,6 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         self.set_status_loading("Linting file...".to_string()).await;
 
-        info!("{}", params.text_document.uri.to_file_path().unwrap().to_str().unwrap());
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let extensions = self.extensions.lock().unwrap().clone();
@@ -256,23 +245,19 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        match self.server_data.include_links(&file_path) {
-            Some(include_links) => Ok(Some(include_links)),
-            None => {
-                match read_to_string(&file_path) {
-                    Ok(content) => {
-                        let mut shader_pack = file_path.clone();
-                        if !self.temp_shader_pack(&mut shader_pack) {
-                            return Err(Error::parse_error());
-                        }
-                        
-                        Ok(Some(parse_includes(&content, &shader_pack, &file_path)))
-                    },
-                    Err(_err) => {
-                        return Err(Error::parse_error());
-                    }
-                }
+        if let Some(include_links) = self.server_data.include_links(&file_path) {
+            Ok(Some(include_links))
+        }
+        else if let Ok(content) = read_to_string(&file_path) {
+            let mut shader_pack = file_path.clone();
+            if !self.temp_shader_pack(&mut shader_pack) {
+                return Err(Error::parse_error());
             }
+            
+            Ok(Some(parse_includes(&content, &shader_pack, &file_path)))
+        }
+        else {
+            Err(Error::parse_error())
         }
     }
 

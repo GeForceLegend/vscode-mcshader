@@ -6,7 +6,7 @@ use regex::Regex;
 lazy_static! {
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
-        let mut set = HashSet::with_capacity(1716);
+        let mut set = HashSet::with_capacity(4316);
         for ext in ["fsh", "vsh", "gsh", "csh"] {
             set.insert(format!("composite.{}", ext));
             set.insert(format!("deferred.{}", ext));
