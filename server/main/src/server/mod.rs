@@ -78,7 +78,7 @@ impl MinecraftLanguageServer {
 impl LanguageServer for MinecraftLanguageServer {
     #[logging::with_trace_id]
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        info!("starting server...");
+        info!("Starting server...");
 
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
@@ -109,7 +109,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging_macro::with_trace_id]
     async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
-        info!("got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
+        info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
         let config: Configuration = Configuration::new(&params.settings);
 
@@ -126,7 +126,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         match logging::Level::from_str(config.log_level.as_str()) {
             Ok(level) => logging::set_level(level),
-            Err(_) => error!("got unexpected log level from config"; "level" => &config.log_level),
+            Err(_) => error!("Got unexpected log level from config"; "level" => &config.log_level),
         }
     }
 

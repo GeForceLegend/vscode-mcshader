@@ -60,7 +60,7 @@ impl IncludeFile {
             // Leave the include alone for reporting a error
             return;
         }
-        if include_files.contains_key(&include_path) {
+        else if include_files.contains_key(&include_path) {
             Self::update_parent(include_files, &include_path, parent_file, depth);
         }
         else {
@@ -74,22 +74,19 @@ impl IncludeFile {
 
             if let Ok(content) = read_to_string(&include_path) {
                 content.lines()
-                    .enumerate()
-                    .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
                     .for_each(|line| {
-                        let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
-                        let path: String = cap.as_str().into();
+                        if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
+                            let path: String = capture.get(1).unwrap().as_str().into();
 
-                        let sub_include_path = if path.starts_with('/') {
-                            let path = path.strip_prefix('/').unwrap().to_string();
-                            pack_path.join(PathBuf::from_slash(&path))
-                        } else {
-                            include_path.parent().unwrap().join(PathBuf::from_slash(&path))
-                        };
+                            let sub_include_path = match path.strip_prefix('/') {
+                                Some(path) => pack_path.join(PathBuf::from_slash(path)),
+                                None => include_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                            };
 
-                        include.including_files.insert(sub_include_path.clone());
+                            include.including_files.insert(sub_include_path.clone());
 
-                        Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
+                            Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
+                        }
                     });
                 include.content = content;
             }
@@ -106,22 +103,19 @@ impl IncludeFile {
 
         if let Ok(content) = read_to_string(&self.file_path) {
             content.lines()
-                .enumerate()
-                .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
                 .for_each(|line| {
-                    let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
-                    let path: String = cap.as_str().into();
+                    if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
+                        let path: String = capture.get(1).unwrap().as_str().into();
 
-                    let sub_include_path = if path.starts_with('/') {
-                        let path = path.strip_prefix('/').unwrap().to_string();
-                        self.pack_path.join(PathBuf::from_slash(&path))
-                    } else {
-                        self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
-                    };
+                        let sub_include_path = match path.strip_prefix('/') {
+                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
+                            None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        };
 
-                    self.including_files.insert(sub_include_path.clone());
+                        self.including_files.insert(sub_include_path.clone());
 
-                    Self::get_includes(include_files, &self.pack_path, sub_include_path, &self.included_shaders, 1);
+                        Self::get_includes(include_files, &self.pack_path, sub_include_path, &self.included_shaders, 1);
+                    }
                 });
             self.content = content;
         }
@@ -130,7 +124,7 @@ impl IncludeFile {
         }
     }
 
-    pub fn merge_include(&self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
+    pub fn merge_include(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>,
         original_content: String, file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32
     ) -> String {
         if !self.file_path.exists() || depth > 10 {
@@ -149,18 +143,15 @@ impl IncludeFile {
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                         *file_id += 1;
-                        let cap = capture.get(1).unwrap();
-                        let path: String = cap.as_str().into();
+                        let path: String = capture.get(1).unwrap().as_str().into();
 
-                        let include_path = if path.starts_with('/') {
-                            let path = path.strip_prefix('/').unwrap().to_string();
-                            self.pack_path.join(PathBuf::from_slash(&path))
-                        } else {
-                            self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        let include_path = match path.strip_prefix('/') {
+                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
+                            None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
                         if let Some(include_file) = include_files.get(&include_path) {
-                            let sub_include_content = include_file.clone().merge_include(include_files, line.1.to_string(), file_list, file_id, 1);
+                            let sub_include_content = include_file.merge_include(include_files, line.1.to_string(), file_list, file_id, 1);
                             include_content += &sub_include_content;
                             include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
                         }

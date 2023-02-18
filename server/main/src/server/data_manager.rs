@@ -20,31 +20,30 @@ fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) ->
 
     content.lines()
         .enumerate()
-        .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
         .for_each(|line| {
-            let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
-            let path: String = cap.as_str().into();
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                let cap = capture.get(1).unwrap();
+                let path: String = cap.as_str().into();
 
-            let start = cap.start();
-            let end = cap.end();
+                let start = cap.start();
+                let end = cap.end();
 
-            let include_path = if path.starts_with('/') {
-                let path = path.strip_prefix('/').unwrap().to_string();
-                pack_path.join(PathBuf::from_slash(&path))
-            } else {
-                file_path.parent().unwrap().join(PathBuf::from_slash(&path))
-            };
-            let url = Url::from_file_path(include_path).unwrap();
+                let include_path = match path.strip_prefix('/') {
+                    Some(path) => pack_path.join(PathBuf::from_slash(path)),
+                    None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                };
+                let url = Url::from_file_path(include_path).unwrap();
 
-            include_links.push(DocumentLink {
-                range: Range::new(
-                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
-                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
-                ),
-                tooltip: Some(url.path().to_string()),
-                target: Some(url),
-                data: None,
-            });
+                include_links.push(DocumentLink {
+                    range: Range::new(
+                        Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
+                        Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
+                    ),
+                    tooltip: Some(url.path().to_string()),
+                    target: Some(url),
+                    data: None,
+                });
+            }
         });
     include_links
 }
@@ -118,20 +117,17 @@ impl DataManager for ServerData {
             return;
         }
 
-        let new_line_length: usize;
-        if content.contains("\r\n") {
-            new_line_length = 2;
-        }
-        else {
-            new_line_length = 1;
-        }
+        #[cfg(target_os = "windows")]
+        const NEW_LINE_LENGTH: usize = 2;
+        #[cfg(not(target_os = "windows"))]
+        const NEW_LINE_LENGTH: usize = 1;
 
         let mut total_content: usize = 0;
         let mut line_location: Vec<usize> = Vec::new();
         content.lines()
             .for_each(|line| {
                 line_location.push(total_content.clone());
-                total_content += line.len() + new_line_length;
+                total_content += line.len() + NEW_LINE_LENGTH;
             });
 
         changes.iter()

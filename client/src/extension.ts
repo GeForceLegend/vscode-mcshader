@@ -1,10 +1,8 @@
-import { mkdirSync, promises as fs } from 'fs'
 import * as vscode from 'vscode'
 import * as lsp from 'vscode-languageclient/node'
 import * as commands from './commands'
 import { log } from './log'
 import { LanguageClient } from './lspClient'
-import { download, getReleaseInfo } from './net'
 import { PersistentState } from './persistent_state'
 import * as path from 'path'
 
@@ -41,7 +39,6 @@ export class Extension {
 
     this.registerCommand('restart', commands.restartExtension)
     this.registerCommand('virtualMerge', commands.virtualMergedDocument)
-    this.registerCommand('parseTree', commands.parseTree)
 
     log.info('starting language server...')
 
@@ -76,48 +73,6 @@ export class Extension {
 
   public clearStatus = () => {
     this.statusBarItem?.dispose()
-  }
-
-  private bootstrap = async () => {
-    mkdirSync(this.extensionContext.globalStoragePath, { recursive: true })
-
-    const dest = path.join(this.extensionContext.globalStoragePath, 'mcshader-lsp' + (process.platform === 'win32' ? '.exe' : ''))
-    const exists = await fs.stat(dest).then(() => true, () => false)
-    if (!exists) await this.state.updateServerVersion(undefined)
-
-    const release = await getReleaseInfo(this.package.version)
-    log.info('got release info from Github:\n\t', JSON.stringify(release))
-
-    const platform = platforms[`${process.arch} ${process.platform}`]
-    if (platform === undefined) {
-      vscode.window.showErrorMessage('Unfortunately we don\'t ship binaries for your platform yet.')
-      log.warn(`incompatible architecture/platform:\n\t${process.arch} ${process.platform}`)
-      return
-    }
-
-    if (release.tag_name === this.state.serverVersion) {
-      log.info('server version is same as extension:\n\t', this.state.serverVersion)
-      return
-    }
-
-    const artifact = release.assets.find(artifact => artifact.name === `mcshader-lsp-${platform}${(process.platform === 'win32' ? '.exe' : '')}`)
-
-    log.info(`artifact with url ${artifact.browser_download_url} found`)
-
-    const userResponse = await vscode.window.showInformationMessage(
-      this.state.serverVersion == undefined ?
-        `Language server version ${this.package.version} is not installed.` :
-        `An update is available. Upgrade from ${this.state.serverVersion} to ${release.tag_name}?`,
-      'Download now'
-    )
-    if (userResponse !== 'Download now') {
-      log.info('user chose not to download server...')
-      return
-    }
-
-    await download(artifact.browser_download_url, dest)
-
-    this.state.updateServerVersion(release.tag_name)
   }
 }
 

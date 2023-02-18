@@ -98,14 +98,11 @@ impl TempFile {
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                     file_id += 1;
-                    let cap = capture.get(1).unwrap();
-                    let path: String = cap.as_str().into();
+                    let path: String = capture.get(1).unwrap().as_str().into();
 
-                    let include_path = if path.starts_with('/') {
-                        let path = path.strip_prefix('/').unwrap().to_string();
-                        self.pack_path.join(PathBuf::from_slash(&path))
-                    } else {
-                        self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    let include_path = match path.strip_prefix('/') {
+                        Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
+                        None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
 
                     let include_content = Self::merge_temp(&self.pack_path, &include_path, file_list, line.1.to_string(), &mut file_id, 1);
@@ -148,16 +145,13 @@ impl TempFile {
             content.lines()
                 .enumerate()
                 .for_each(|line| {
-                    if RE_MACRO_INCLUDE.is_match(&line.1) {
+                    if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                         *file_id += 1;
-                        let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
-                        let path: String = cap.as_str().into();
+                        let path: String = capture.get(1).unwrap().as_str().into();
 
-                        let include_path = if path.starts_with('/') {
-                            let path = path.strip_prefix('/').unwrap().to_string();
-                            pack_path.join(PathBuf::from_slash(&path))
-                        } else {
-                            file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        let include_path = match path.strip_prefix('/') {
+                            Some(path) => pack_path.join(PathBuf::from_slash(path)),
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
                         let sub_include_content = Self::merge_temp(pack_path, &include_path, file_list, line.1.to_string(), file_id, depth + 1);

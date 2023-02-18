@@ -62,21 +62,18 @@ impl ShaderFile {
 
         if let Ok(content) =  read_to_string(&self.file_path) {
             content.lines()
-                .enumerate()
-                .filter(|line| RE_MACRO_INCLUDE.is_match(line.1))
                 .for_each(|line| {
-                    let cap = RE_MACRO_INCLUDE.captures(line.1).unwrap().get(1).unwrap();
-                    let path: String = cap.as_str().into();
+                    if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
+                        let path: String = capture.get(1).unwrap().as_str().into();
 
-                    let include_path = if path.starts_with('/') {
-                        let path = path.strip_prefix('/').unwrap().to_string();
-                        self.pack_path.join(PathBuf::from_slash(&path))
-                    } else {
-                        self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
-                    };
+                        let include_path = match path.strip_prefix('/') {
+                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
+                            None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        };
 
-                    let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
-                    IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
+                        let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
+                        IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
+                    }
                 });
             self.content = content;
         }
@@ -85,7 +82,7 @@ impl ShaderFile {
         }
     }
 
-    pub fn merge_shader_file(&self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_list: &mut HashMap<String, PathBuf>) -> String {
+    pub fn merge_shader_file(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, file_list: &mut HashMap<String, PathBuf>) -> String {
         let mut shader_content: String = String::new();
         file_list.insert("0".to_owned(), self.file_path.clone());
         let mut file_id = 0;
@@ -98,18 +95,15 @@ impl ShaderFile {
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                     file_id += 1;
-                    let cap = capture.get(1).unwrap();
-                    let path: String = cap.as_str().into();
+                    let path: String = capture.get(1).unwrap().as_str().into();
 
-                    let include_path = if path.starts_with('/') {
-                        let path = path.strip_prefix('/').unwrap().to_string();
-                        self.pack_path.join(PathBuf::from_slash(&path))
-                    } else {
-                        self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    let include_path = match path.strip_prefix('/') {
+                        Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
+                        None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content = include_file.clone().merge_include(include_files, line.1.to_string(), file_list, &mut file_id, 1);
+                        let include_content = include_file.merge_include(include_files, line.1.to_string(), file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += &format!("#line {} 0\n", line.0 + 2);
                     }

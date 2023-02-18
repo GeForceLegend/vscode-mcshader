@@ -42,7 +42,7 @@ impl DiagnosticsParser {
     pub fn parse_diagnostics(&self, compile_log: String, file_list: HashMap<String, PathBuf>) -> HashMap<Url, Vec<Diagnostic>> {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
-        debug!("diagnostics regex selected"; "regex" => &self.line_regex.to_string());
+        debug!("Diagnostics regex selected"; "regex" => &self.line_regex.to_string());
         let default_path = file_list.get("0").unwrap();
 
         for log_line in compile_log.split('\n').collect::<Vec<&str>>() {
@@ -51,7 +51,7 @@ impl DiagnosticsParser {
                 None => continue,
             };
 
-            debug!("found match for output line"; "line" => log_line, "capture" => format!("{:?}", diagnostic_capture));
+            debug!("Found match for output line"; "line" => log_line, "capture" => format!("{:?}", diagnostic_capture));
 
             let msg = diagnostic_capture.name("output").unwrap().as_str();
 
