@@ -38,21 +38,21 @@ impl IncludeFile {
         &mut self.included_shaders
     }
 
-    pub fn parent_update_list(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, update_list: &mut HashSet<PathBuf>, depth: i32) {
+    pub fn update_parent(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, include_path: &PathBuf, parent_file: &HashSet<PathBuf>, depth: i32) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
             return;
         }
-        for file in self.including_files.clone() {
-            if let Some(include_file) = include_files.get(&file) {
-                update_list.insert(file);
-                include_file.parent_update_list(include_files, update_list, depth + 1);
-            }
+        let include_file = include_files.get_mut(include_path).unwrap();
+        include_file.included_shaders.extend(parent_file.clone());
+
+        for include_path in include_file.including_files.clone() {
+            Self::update_parent(include_files, &include_path, parent_file, depth + 1);
         }
     }
 
-    pub fn get_includes(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, parent_update_list: &mut HashSet<PathBuf>,
+    pub fn get_includes(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
         pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
     ) {
         if !include_path.exists() || depth > 10 {
@@ -60,9 +60,8 @@ impl IncludeFile {
             // Leave the include alone for reporting a error
             return;
         }
-        else if let Some(include_file) = include_files.get(&include_path) {
-            parent_update_list.insert(include_path);
-            include_file.parent_update_list(include_files, parent_update_list, depth + 1);
+        else if include_files.contains_key(&include_path) {
+            Self::update_parent(include_files, &include_path, parent_file, depth);
         }
         else {
             let mut include_file = IncludeFile {
@@ -85,7 +84,7 @@ impl IncludeFile {
 
                             include_file.including_files.insert(sub_include_path.clone());
 
-                            Self::get_includes(include_files, parent_update_list, pack_path, sub_include_path, parent_file, depth + 1);
+                            Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
                         }
                     });
                 include_file.content = content;
@@ -102,7 +101,6 @@ impl IncludeFile {
         self.including_files.clear();
 
         if let Ok(content) = read_to_string(file_path) {
-            let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
@@ -115,12 +113,9 @@ impl IncludeFile {
 
                         self.including_files.insert(sub_include_path.clone());
 
-                        Self::get_includes(include_files, &mut parent_update_list, &self.pack_path, sub_include_path, &self.included_shaders, 1);
+                        Self::get_includes(include_files, &self.pack_path, sub_include_path, &self.included_shaders, 1);
                     }
                 });
-            for include_file in parent_update_list {
-                include_files.get_mut(&include_file).unwrap().included_shaders.extend(self.included_shaders.clone());
-            }
             self.content = content;
         }
         else {

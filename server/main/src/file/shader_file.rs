@@ -63,7 +63,6 @@ impl ShaderFile {
     pub fn update_shader (&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf) {
         if let Ok(content) =  read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
-            let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
@@ -74,12 +73,9 @@ impl ShaderFile {
                             None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
-                        IncludeFile::get_includes(include_files, &mut parent_update_list, &self.pack_path, include_path, &parent_path, 0);
+                        IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
                     }
                 });
-            for include_file in parent_update_list {
-                include_files.get_mut(&include_file).unwrap().included_shaders.insert(file_path.clone());
-            }
             self.content = content;
         }
         else {

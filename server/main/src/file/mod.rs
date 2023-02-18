@@ -25,7 +25,7 @@ pub struct IncludeFile {
     pack_path: PathBuf,
     /// Shader files that include this file
     included_shaders: HashSet<PathBuf>,
-    /// Files included in this file (line, start char, end char, file path)
+    /// Files included in this file
     including_files: HashSet<PathBuf>,
 }
 

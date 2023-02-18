@@ -51,26 +51,17 @@ impl TempFile {
             },
             None => gl::NONE
         };
-        if let Some(pack_path) = Self::temp_shader_pack(file_path) {
-            Some(TempFile {
-                content,
-                file_type,
-                pack_path,
-            })
-        }
-        else {
-            None
-        }
-    }
-
-    fn temp_shader_pack(file_path: &PathBuf) -> Option<PathBuf> {
         let mut pack_path = file_path.clone();
         while pack_path.file_name().unwrap() != "shaders" {
             if !pack_path.pop() {
                 return None;
             }
         }
-        Some(pack_path)
+        Some(TempFile {
+            content,
+            file_type,
+            pack_path,
+        })
     }
 
     pub fn update_self(&mut self, file_path: &PathBuf) {
