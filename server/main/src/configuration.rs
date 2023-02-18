@@ -17,7 +17,7 @@ impl Configuration {
         from_value(value.as_object().unwrap().get("mcshader").unwrap().to_owned()).unwrap()
     }
 
-    pub fn generate_file_watch_registration(&self) -> Registration {
+    pub fn generate_file_watch_registration(&self) -> Vec<Registration> {
         let mut glsl_file_watcher_pattern = "**/*{vsh,gsh,fsh,csh,glsl".to_string();
         self.extra_extension
             .iter()
@@ -32,10 +32,10 @@ impl Configuration {
                 kind: Some(WatchKind::all())
             }]),
         };
-        Registration{
+        Vec::from([Registration{
             id: "workspace/didChangeWatchedFiles".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
             register_options: Some(serde_json::to_value(did_change_watched_files).unwrap()),
-        }
+        }])
     }
 }

@@ -113,9 +113,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let config: Configuration = Configuration::new(&params.settings);
 
-        let registrations: Vec<Registration> = Vec::from([
-            config.generate_file_watch_registration()
-        ]);
+        let registrations: Vec<Registration> = config.generate_file_watch_registration();
         if let Err(_err) = self.client.register_capability(registrations).await {
             warn!("Unable to registe file watch capability");
         }

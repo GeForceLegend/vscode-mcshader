@@ -1,9 +1,6 @@
 import { inspect } from 'util'
 import * as vscode from 'vscode'
 
-export const lspOutputChannel = vscode.window.createOutputChannel('Minecraft Shaders LSP - Server')
-export const traceOutputChannel = vscode.window.createOutputChannel('Minecraft Shaders LSP - Trace')
-
 // from rust-analyzer https://github.com/rust-analyzer/rust-analyzer/blob/ef223b9e6439c228e0be49861efd2067c0b22af4/editors/code/src/util.ts
 export const log = new class {
   readonly output = vscode.window.createOutputChannel('Minecraft Shaders LSP - Client')

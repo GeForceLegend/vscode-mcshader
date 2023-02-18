@@ -3,21 +3,12 @@ import * as lsp from 'vscode-languageclient/node'
 import * as commands from './commands'
 import { log } from './log'
 import { LanguageClient } from './lspClient'
-import { PersistentState } from './persistent_state'
 import * as path from 'path'
-
-const platforms: { [key: string]: string } = {
-  'x64 win32': 'x86_64-windows-msvc',
-  'x64 linux': 'x86_64-unknown-linux-gnu',
-  'x64 darwin': 'x86_64-apple-darwin',
-  'arm64 darwin': 'aarch64-apple-darwin'
-}
 
 export class Extension {
   private statusBarItem: vscode.StatusBarItem | null = null
   private extensionContext: vscode.ExtensionContext | null = null
   private client: lsp.LanguageClient
-  private state: PersistentState
 
   readonly extensionID = 'GeForceLegend.vscode-mcshader'
 
@@ -35,7 +26,6 @@ export class Extension {
 
   public activate = async (context: vscode.ExtensionContext) => {
     this.extensionContext = context
-    this.state = new PersistentState(context.globalState)
 
     this.registerCommand('restart', commands.restartExtension)
     this.registerCommand('virtualMerge', commands.virtualMergedDocument)

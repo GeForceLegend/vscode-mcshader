@@ -1,10 +1,9 @@
 import { ChildProcess, spawn } from 'child_process'
-import { ConfigurationTarget, workspace } from 'vscode'
+import { workspace } from 'vscode'
 import * as lsp from 'vscode-languageclient/node'
-import { LogMessageNotification, StreamInfo, TelemetryEventNotification } from 'vscode-languageclient/node'
-import { ConfigurationFeature } from 'vscode-languageclient/lib/common/configuration'
+import { LogMessageNotification } from 'vscode-languageclient/node'
 import { Extension } from './extension'
-import { log, lspOutputChannel, traceOutputChannel } from './log'
+import { log } from './log'
 import * as constant from './constant'
 
 export class LanguageClient extends lsp.LanguageClient {
@@ -18,20 +17,12 @@ export class LanguageClient extends lsp.LanguageClient {
           ...process.env,
         }
       })
-      childProcess.stderr.on('data', (data: Buffer) => {
-        lspOutputChannel.appendLine(data.toString().trimRight())
-      })
-      childProcess.on('exit', (code, signal) => {
-        lspOutputChannel.appendLine('⚠️⚠️⚠️ Language server exited ' + (signal ? `from signal ${signal}` : `with exit code ${code}`) + ' ⚠️⚠️⚠️')
-      })
       resolve(childProcess)
     })
 
-    super('mcshader', '', serverOptions, {
-      traceOutputChannel: traceOutputChannel,
+    super('mcshader', 'Minecraft Shaders LSP - Server', serverOptions, {
       diagnosticCollectionName: 'mcshader',
       documentSelector: [{ scheme: 'file', language: 'glsl' }],
-      initializationOptions: workspace.getConfiguration('mcshader'),
       synchronize: {
         configurationSection: 'mcshader'
       },
