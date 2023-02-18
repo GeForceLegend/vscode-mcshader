@@ -36,13 +36,15 @@ impl ShaderFile {
         &self.pack_path
     }
 
-    pub fn new(pack_path: &PathBuf, file_path: &PathBuf) -> ShaderFile {
-        ShaderFile {
+    pub fn new(pack_path: &PathBuf, file_path: &PathBuf, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>) -> ShaderFile {
+        let mut shader_file = ShaderFile {
             file_path: file_path.clone(),
             content: String::new(),
             file_type: gl::NONE,
             pack_path: pack_path.clone(),
-        }
+        };
+        shader_file.read_file(include_files);
+        shader_file
     }
 
     pub fn read_file (&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>) {

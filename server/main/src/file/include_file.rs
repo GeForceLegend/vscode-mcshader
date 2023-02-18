@@ -64,7 +64,7 @@ impl IncludeFile {
             Self::update_parent(include_files, &include_path, parent_file, depth);
         }
         else {
-            let mut include = IncludeFile {
+            let mut include_file = IncludeFile {
                 file_path: include_path.clone(),
                 content: String::new(),
                 pack_path: pack_path.clone(),
@@ -83,18 +83,18 @@ impl IncludeFile {
                                 None => include_path.parent().unwrap().join(PathBuf::from_slash(&path))
                             };
 
-                            include.including_files.insert(sub_include_path.clone());
+                            include_file.including_files.insert(sub_include_path.clone());
 
                             Self::get_includes(include_files, pack_path, sub_include_path, parent_file, depth + 1);
                         }
                     });
-                include.content = content;
+                include_file.content = content;
             }
             else {
                 error!("Unable to read file {}", include_path.to_str().unwrap());
             }
 
-            include_files.insert(include_path, include);
+            include_files.insert(include_path, include_file);
         }
     }
 

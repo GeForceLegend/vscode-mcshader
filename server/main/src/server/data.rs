@@ -71,23 +71,8 @@ impl ServerData {
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
         pack_path: &PathBuf, file_path: PathBuf
     ) {
-        if constant::DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
-            let mut shader_file = ShaderFile::new(pack_path, &file_path);
-            shader_file.read_file(include_files);
-            shader_files.insert(file_path, shader_file);
-        }
-    }
-
-    pub fn update_file(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
-        include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf
-    ) {
-        if let Some(shader_file) = shader_files.get_mut(file_path) {
-            shader_file.read_file(include_files);
-        }
-        if let Some(mut include_file) = include_files.remove(file_path) {
-            include_file.update_include(include_files);
-            include_files.insert(file_path.clone(), include_file);
-        }
+        let shader_file = ShaderFile::new(pack_path, &file_path, include_files);
+        shader_files.insert(file_path, shader_file);
     }
 
     pub fn remove_shader_file(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
@@ -162,14 +147,14 @@ impl ServerData {
             for file in shader_pack.read_dir().expect("read work space failed") {
                 if let Ok(file) = file {
                     let file_path = file.path();
-                    if file_path.is_file() {
+                    if file_path.is_file() && constant::DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()){
                         self.add_shader_file(shader_files, include_files, shader_pack, file_path);
                     }
                     else if constant::RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                         for dim_file in file_path.read_dir().expect("read dimension folder failed") {
                             if let Ok(dim_file) = dim_file {
                                 let file_path = dim_file.path();
-                                if file_path.is_file() {
+                                if file_path.is_file() && constant::DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()){
                                     self.add_shader_file(shader_files, include_files, shader_pack, file_path);
                                 }
                             }

@@ -9,8 +9,8 @@ use tower_lsp::jsonrpc::{Result, Error};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-mod data_manager;
-mod server_data;
+mod service;
+mod data;
 
 use crate::capability::ServerCapabilitiesFactroy;
 use crate::configuration::Configuration;
@@ -19,8 +19,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::notification;
 use crate::opengl::OpenGlContext;
 
-use self::data_manager::DataManager;
-use self::server_data::ServerData;
+use self::data::ServerData;
 
 pub struct MinecraftLanguageServer {
     pub client: Client,
@@ -113,10 +112,6 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let config: Configuration = Configuration::new(&params.settings);
 
-        let mut new_extensions = constant::BASIC_EXTENSIONS.clone();
-        new_extensions.extend(config.extra_extension.clone());
-        self.extensions.lock().unwrap().clone_from(&new_extensions);
-
         let registrations: Vec<Registration> = Vec::from([
             config.generate_file_watch_registration()
         ]);
@@ -128,6 +123,10 @@ impl LanguageServer for MinecraftLanguageServer {
             Ok(level) => logging::set_level(level),
             Err(_) => error!("Got unexpected log level from config"; "level" => &config.log_level),
         }
+
+        let mut new_extensions = constant::BASIC_EXTENSIONS.clone();
+        new_extensions.extend(config.extra_extension);
+        self.extensions.lock().unwrap().clone_from(&new_extensions);
     }
 
     #[logging::with_trace_id]
@@ -154,8 +153,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        let extensions = self.extensions.lock().unwrap().clone();
-        if let Some(diagnostics) = self.server_data.save_file(&file_path, &extensions, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(diagnostics) = self.server_data.save_file(&file_path, &self.extensions, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(diagnostics).await;
         }
 
@@ -173,7 +171,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(data) = self.server_data.update_highlight(&file_path, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(data) = self.server_data.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(data.1).await;
             Ok(Some(data.0))
         }
