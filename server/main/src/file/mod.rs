@@ -9,8 +9,6 @@ mod temp_file;
 
 #[derive(Clone)]
 pub struct ShaderFile {
-    /// File path
-    file_path: PathBuf,
     /// Live content for this file
     content: String,
     /// Type of the shader
@@ -21,8 +19,6 @@ pub struct ShaderFile {
 
 #[derive(Clone)]
 pub struct IncludeFile {
-    /// File path
-    file_path: PathBuf,
     /// Live content for this file
     content: String,
     /// The shader pack path that this file in
@@ -35,8 +31,6 @@ pub struct IncludeFile {
 
 #[derive(Clone)]
 pub struct TempFile {
-    /// File path
-    file_path: PathBuf,
     /// Live content for this file
     content: String,
     /// Type of the shader

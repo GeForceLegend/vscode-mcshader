@@ -36,20 +36,15 @@ impl ShaderFile {
         &self.pack_path
     }
 
+    /// Create a new shader file, load contents from given path, and add includes to the list
     pub fn new(pack_path: &PathBuf, file_path: &PathBuf, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>) -> ShaderFile {
         let mut shader_file = ShaderFile {
-            file_path: file_path.clone(),
             content: String::new(),
             file_type: gl::NONE,
             pack_path: pack_path.clone(),
         };
-        shader_file.read_file(include_files);
-        shader_file
-    }
-
-    pub fn read_file (&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>) {
-        let extension = self.file_path.extension().unwrap();
-        self.file_type = if extension == "fsh" {
+        let extension = file_path.extension().unwrap();
+        shader_file.file_type = if extension == "fsh" {
                 gl::FRAGMENT_SHADER
             } else if extension == "vsh" {
                 gl::VERTEX_SHADER
@@ -60,9 +55,15 @@ impl ShaderFile {
             } else {
                 gl::NONE
             };
+        shader_file.update_shader(include_files, file_path);
+        shader_file
+    }
 
-
-        if let Ok(content) =  read_to_string(&self.file_path) {
+    /// Update shader content and includes from file
+    pub fn update_shader (&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf) {
+        if let Ok(content) =  read_to_string(file_path) {
+            let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
+            let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
@@ -70,23 +71,28 @@ impl ShaderFile {
 
                         let include_path = match path.strip_prefix('/') {
                             Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                            None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
-                        let parent_path: HashSet<PathBuf> = HashSet::from([self.file_path.clone()]);
-                        IncludeFile::get_includes(include_files, &self.pack_path, include_path, &parent_path, 0);
+                        IncludeFile::get_includes(include_files, &mut parent_update_list, &self.pack_path, include_path, &parent_path, 0);
                     }
                 });
+            for include_file in parent_update_list {
+                include_files.get_mut(&include_file).unwrap().included_shaders.insert(file_path.clone());
+            }
             self.content = content;
         }
         else {
-            error!("Unable to read file {}", self.file_path.to_str().unwrap());
+            error!("Unable to read file {}", file_path.to_str().unwrap());
         }
     }
 
-    pub fn merge_shader_file(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, file_list: &mut HashMap<String, PathBuf>) -> String {
+    /// Merge all includes to one vitrual file for compiling etc
+    pub fn merge_shader_file(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>,
+        file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>
+    ) -> String {
         let mut shader_content: String = String::new();
-        file_list.insert("0".to_owned(), self.file_path.clone());
+        file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
 
         // If we are in the debug folder, do not add Optifine's macros
@@ -101,11 +107,11 @@ impl ShaderFile {
 
                     let include_path = match path.strip_prefix('/') {
                         Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content = include_file.merge_include(include_files, line.1.to_string(), file_list, &mut file_id, 1);
+                        let include_content = include_file.merge_include(include_files, &include_path, line.1.to_string(), file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += &format!("#line {} 0\n", line.0 + 2);
                     }
@@ -122,7 +128,7 @@ impl ShaderFile {
                     shader_content += line.1;
                     shader_content += "\n";
                     // If we are not in the debug folder, add Optifine's macros for correct linting
-                    if !macro_inserted &&RE_MACRO_VERSION.is_match(line.1) {
+                    if !macro_inserted && RE_MACRO_VERSION.is_match(line.1) {
                         shader_content += OPTIFINE_MACROS;
                         shader_content += &format!("#line {} 0\n", line.0 + 2);
                         macro_inserted = true;

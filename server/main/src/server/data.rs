@@ -167,26 +167,6 @@ impl ServerData {
         shader_packs.extend(sub_shader_packs);
     }
 
-    pub fn update_lint(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
-        include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
-        file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser
-    ) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-
-        if shader_files.contains_key(file_path) {
-            extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, file_path, opengl_context, diagnostics_parser));
-        }
-
-        if let Some(include_file) = include_files.get(file_path) {
-            let include_shader_list = include_file.included_shaders().clone();
-            for shader_path in include_shader_list {
-                extend_diagnostics(&mut diagnostics, self.lint_shader(shader_files, include_files, &shader_path, opengl_context, diagnostics_parser));
-            }
-        }
-
-        diagnostics
-    }
-
     pub fn lint_shader(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
         file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser
@@ -198,7 +178,7 @@ impl ServerData {
         let shader_file = shader_files.get(file_path).unwrap();
 
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
-        let shader_content = shader_file.merge_shader_file(include_files, &mut file_list);
+        let shader_content = shader_file.merge_shader_file(include_files, file_path, &mut file_list);
 
         let validation_result = opengl_context.validate_shader(shader_file.file_type(), &shader_content);
 
@@ -219,10 +199,10 @@ impl ServerData {
         }
     }
 
-    pub fn temp_lint(&self, tempfile: &TempFile, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser) -> HashMap<Url, Vec<Diagnostic>> {
+    pub fn temp_lint(&self, temp_file: &TempFile, file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
 
-        if let Some(result) = tempfile.merge_self(&mut file_list) {
+        if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
             let validation_result = opengl_context.validate_shader(&result.1, &result.2);
 
             match validation_result {

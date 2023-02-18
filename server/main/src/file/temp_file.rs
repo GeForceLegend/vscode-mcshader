@@ -53,7 +53,6 @@ impl TempFile {
         };
         if let Some(pack_path) = Self::temp_shader_pack(file_path) {
             Some(TempFile {
-                file_path: file_path.clone(),
                 content,
                 file_type,
                 pack_path,
@@ -74,20 +73,20 @@ impl TempFile {
         Some(pack_path)
     }
 
-    pub fn update_self(&mut self) {
-        self.content = match read_to_string(&self.file_path) {
+    pub fn update_self(&mut self, file_path: &PathBuf) {
+        self.content = match read_to_string(file_path) {
             Ok(content) => content,
             Err(_err) => String::new(),
         };
     }
 
-    pub fn merge_self(&self, file_list: &mut HashMap<String, PathBuf>) -> Option<(PathBuf, gl::types::GLenum, String)> {
+    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(PathBuf, gl::types::GLenum, String)> {
         if self.file_type == gl::NONE {
             return None;
         }
 
         let mut temp_content = String::new();
-        file_list.insert("0".to_owned(), self.file_path.clone());
+        file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
 
         // If we are in the debug folder, do not add Optifine's macros
@@ -102,7 +101,7 @@ impl TempFile {
 
                     let include_path = match path.strip_prefix('/') {
                         Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => self.file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
 
                     let include_content = Self::merge_temp(&self.pack_path, &include_path, file_list, line.1.to_string(), &mut file_id, 1);
@@ -125,7 +124,7 @@ impl TempFile {
                 }
             });
 
-        Some((self.file_path.clone(), self.file_type, temp_content))
+        Some((file_path.clone(), self.file_type, temp_content))
     }
 
     fn merge_temp(pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
