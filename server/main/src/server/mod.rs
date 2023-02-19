@@ -165,6 +165,13 @@ impl LanguageServer for MinecraftLanguageServer {
         self.server_data.close_file(&file_path);
     }
 
+    // Doesn't implemented yet, here for not reporting method not found
+    #[logging::with_trace_id]
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let _ = params;
+        Ok(None)
+    }
+
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();

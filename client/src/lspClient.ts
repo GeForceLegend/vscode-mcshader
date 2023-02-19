@@ -1,5 +1,4 @@
 import { ChildProcess, spawn } from 'child_process'
-import { workspace } from 'vscode'
 import * as lsp from 'vscode-languageclient/node'
 import { LogMessageNotification } from 'vscode-languageclient/node'
 import { Extension } from './extension'

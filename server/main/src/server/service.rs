@@ -105,6 +105,7 @@ impl ServerData {
                 line_location.push(total_content);
                 total_content += line.len() + NEW_LINE_LENGTH;
             });
+        line_location.push(total_content);
 
         changes.iter()
             .for_each(|change| {
