@@ -117,7 +117,7 @@ impl ServerData {
     pub fn save_file(&self, file_path: PathBuf, extensions: &Mutex<HashSet<String>>,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
     ) -> Option<HashMap<Url, Vec<Diagnostic>>> {
-        let mut shader_files = self.shader_files().lock().unwrap();
+        let shader_files = self.shader_files().lock().unwrap();
         let mut include_files = self.include_files().lock().unwrap();
         let mut temp_files = self.temp_files().lock().unwrap();
         let extensions = extensions.lock().unwrap();
@@ -131,7 +131,8 @@ impl ServerData {
             include_file.update_include(&mut include_files, &file_path);
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
             for shader_path in include_file.included_shaders() {
-                extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, shader_path, opengl_context, diagnostics_parser));
+                let shader_file = shader_files.get(shader_path).unwrap();
+                extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, shader_path, opengl_context, diagnostics_parser));
             }
             include_files.insert(file_path, include_file);
             return Some(diagnostics);
@@ -151,32 +152,27 @@ impl ServerData {
     pub fn document_links(&self, file_path: &PathBuf,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
     ) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)> {
-        let mut shader_files = self.shader_files().lock().unwrap();
-        let mut include_files = self.include_files().lock().unwrap();
+        let shader_files = self.shader_files().lock().unwrap();
+        let include_files = self.include_files().lock().unwrap();
         let temp_files = self.temp_files().lock().unwrap();
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-
-        if shader_files.contains_key(file_path) {
-            extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, file_path, opengl_context, diagnostics_parser));
-        }
-
-        if let Some(include_file) = include_files.get(file_path) {
-            let include_shader_list = include_file.included_shaders().clone();
-            for shader_path in include_shader_list {
-                extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, &shader_path, opengl_context, diagnostics_parser));
-            }
-        }
 
         let content;
         let pack_path;
         if let Some(shader_file) = shader_files.get(file_path) {
             content = shader_file.content();
             pack_path = shader_file.pack_path();
+            extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, file_path, opengl_context, diagnostics_parser));
         }
         else if let Some(include_file) = include_files.get(file_path) {
             content = include_file.content();
             pack_path = include_file.pack_path();
+            let include_shader_list = include_file.included_shaders();
+            for shader_path in include_shader_list {
+                let shader_file = shader_files.get(shader_path).unwrap();
+                extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, shader_path, opengl_context, diagnostics_parser));
+            }
         }
         else if let Some(temp_file) = temp_files.get(file_path) {
             content = temp_file.content();
@@ -263,7 +259,8 @@ impl ServerData {
             });
 
         for file_path in updated_shaders {
-            extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, &file_path, opengl_context, diagnostics_parser));
+            let shader_file = shader_files.get(&file_path).unwrap();
+            extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, &file_path, opengl_context, diagnostics_parser));
         }
 
         diagnostics

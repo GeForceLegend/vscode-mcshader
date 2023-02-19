@@ -93,7 +93,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
 
         self.server_data.initial_scan(roots);
-        self.extensions.lock().unwrap().clone_from(&constant::BASIC_EXTENSIONS);
+        *self.extensions.lock().unwrap() = constant::BASIC_EXTENSIONS.clone();
 
         initialize_result
     }
@@ -111,7 +111,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
         info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
-        let config: Configuration = Configuration::new(&params.settings);
+        let mut config: Configuration = Configuration::new(&params.settings);
 
         let registrations: Vec<Registration> = config.generate_file_watch_registration();
         if let Err(_err) = self.client.register_capability(registrations).await {
@@ -123,9 +123,8 @@ impl LanguageServer for MinecraftLanguageServer {
             Err(_) => error!("Got unexpected log level from config"; "level" => &config.log_level),
         }
 
-        let mut new_extensions = constant::BASIC_EXTENSIONS.clone();
-        new_extensions.extend(config.extra_extension);
-        self.extensions.lock().unwrap().clone_from(&new_extensions);
+        config.extra_extension.extend(constant::BASIC_EXTENSIONS.clone());
+        self.extensions.lock().unwrap().clone_from(&config.extra_extension);
     }
 
     #[logging::with_trace_id]

@@ -155,7 +155,7 @@ impl TempFile {
                         include_content += "\n";
                     }
                 });
-            file_list.insert(file_id.to_string(), file_path);
+            file_list.insert(curr_file_id, file_path);
             include_content
         }
         else {

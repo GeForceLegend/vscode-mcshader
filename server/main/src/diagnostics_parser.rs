@@ -54,6 +54,7 @@ impl DiagnosticsParser {
             debug!("Found match for output line"; "line" => log_line, "capture" => format!("{:?}", diagnostic_capture));
 
             let msg = diagnostic_capture.name("output").unwrap().as_str();
+            let msg = &format!("{}, from file: {}", msg, default_path.to_str().unwrap());
 
             let line = match diagnostic_capture.name("linenum") {
                 Some(c) => c.as_str().parse::<u32>().unwrap_or(0),

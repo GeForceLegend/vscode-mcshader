@@ -16,11 +16,7 @@ use crate::file::{ShaderFile, IncludeFile, TempFile};
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
         if let Some(diagnostics) = target.get_mut(&file.0) {
-            for diagnostic in file.1 {
-                if !diagnostics.contains(&diagnostic) {
-                    diagnostics.push(diagnostic);
-                }
-            }
+            diagnostics.extend(file.1);
         }
         else {
             target.insert(file.0, file.1);
@@ -110,15 +106,15 @@ impl ServerData {
         false
     }
 
-    fn find_shader_packs(&self, curr_path: &PathBuf) -> HashSet<PathBuf> {
-        let mut shader_packs: HashSet<PathBuf> = HashSet::new();
+    fn find_shader_packs(&self, curr_path: &PathBuf) -> Vec<PathBuf> {
+        let mut shader_packs: Vec<PathBuf> = Vec::new();
         for file in curr_path.read_dir().expect("read directory failed") {
             if let Ok(file) = file {
                 let file_path = file.path();
                 if file_path.is_dir() {
                     if file_path.file_name().unwrap() == "shaders" {
                         info!("Find shader pack {}", &file_path.to_str().unwrap());
-                        shader_packs.insert(file_path);
+                        shader_packs.push(file_path);
                     }
                     else {
                         shader_packs.extend(self.find_shader_packs(&file_path));
@@ -135,9 +131,9 @@ impl ServerData {
     ) {
         info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
 
-        let sub_shader_packs: HashSet<PathBuf>;
+        let sub_shader_packs: Vec<PathBuf>;
         if root.file_name().unwrap() == "shaders" {
-            sub_shader_packs = HashSet::from([root.clone()]);
+            sub_shader_packs = Vec::from([root.clone()]);
         }
         else {
             sub_shader_packs = self.find_shader_packs(root);
@@ -167,16 +163,9 @@ impl ServerData {
         shader_packs.extend(sub_shader_packs);
     }
 
-    pub fn lint_shader(&self, shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
-        include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>,
+    pub fn lint_shader(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, shader_file: &ShaderFile,
         file_path: &PathBuf, opengl_context: &OpenGlContext, diagnostics_parser: &DiagnosticsParser
     ) -> HashMap<Url, Vec<Diagnostic>> {
-        if !file_path.exists() {
-            self.remove_shader_file(shader_files, include_files, file_path);
-            return HashMap::new();
-        }
-        let shader_file = shader_files.get(file_path).unwrap();
-
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let shader_content = shader_file.merge_shader_file(include_files, file_path, &mut file_list);
 
