@@ -62,14 +62,14 @@ impl ServerData {
         *work_space_roots = roots;
     }
 
-    pub fn open_file(&self, file_path: &PathBuf) {
+    pub fn open_file(&self, file_path: PathBuf) {
         let shader_files = self.shader_files().lock().unwrap();
         let include_files = self.include_files().lock().unwrap();
         let mut temp_files = self.temp_files().lock().unwrap();
 
-        if !shader_files.contains_key(file_path) && !include_files.contains_key(file_path) {
-            if let Some(temp_file) = TempFile::new(file_path) {
-                temp_files.insert(file_path.clone(), temp_file);
+        if !shader_files.contains_key(&file_path) && !include_files.contains_key(&file_path) {
+            if let Some(temp_file) = TempFile::new(&file_path) {
+                temp_files.insert(file_path, temp_file);
             }
         }
     }
@@ -102,7 +102,7 @@ impl ServerData {
         let mut line_location: Vec<usize> = Vec::new();
         content.lines()
             .for_each(|line| {
-                line_location.push(total_content.clone());
+                line_location.push(total_content);
                 total_content += line.len() + NEW_LINE_LENGTH;
             });
 
@@ -114,7 +114,7 @@ impl ServerData {
             });
     }
 
-    pub fn save_file(&self, file_path: &PathBuf, extensions: &Mutex<HashSet<String>>,
+    pub fn save_file(&self, file_path: PathBuf, extensions: &Mutex<HashSet<String>>,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
     ) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let mut shader_files = self.shader_files().lock().unwrap();
@@ -124,22 +124,21 @@ impl ServerData {
 
         // Leave the files with watched extension to get linted by did_change_watched_files event
         // If this file does not exist in file system, return None to enable temp lint.
-        if extensions.contains(file_path.extension().unwrap().to_str().unwrap()) && (include_files.contains_key(file_path) || shader_files.contains_key(file_path)) {
+        if extensions.contains(file_path.extension().unwrap().to_str().unwrap()) && (include_files.contains_key(&file_path) || shader_files.contains_key(&file_path)) {
             return Some(HashMap::new());
         }
-        else if let Some(mut include_file) = include_files.remove(file_path) {
-            include_file.update_include(&mut include_files, file_path);
-            let include_shader_list = include_file.included_shaders().clone();
+        else if let Some(mut include_file) = include_files.remove(&file_path) {
+            include_file.update_include(&mut include_files, &file_path);
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-            for shader_path in include_shader_list {
-                extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, &shader_path, opengl_context, diagnostics_parser));
+            for shader_path in include_file.included_shaders() {
+                extend_diagnostics(&mut diagnostics, self.lint_shader(&mut shader_files, &mut include_files, shader_path, opengl_context, diagnostics_parser));
             }
-            include_files.insert(file_path.clone(), include_file);
+            include_files.insert(file_path, include_file);
             return Some(diagnostics);
         }
-        else if let Some(temp_file) = temp_files.get_mut(file_path) {
-            temp_file.update_self(file_path);
-            return Some(self.temp_lint(&temp_file, file_path, opengl_context, diagnostics_parser));
+        else if let Some(temp_file) = temp_files.get_mut(&file_path) {
+            temp_file.update_self(&file_path);
+            return Some(self.temp_lint(&temp_file, &file_path, opengl_context, diagnostics_parser));
         }
 
         return None;
@@ -202,11 +201,17 @@ impl ServerData {
             .for_each(|removed_file|{
                 let removed_path = removed_file.uri.to_file_path().unwrap();
                 roots.remove(&removed_path);
-                for shader in shader_files.clone() {
-                    if shader.0.starts_with(&removed_path) {
-                        self.remove_shader_file(&mut shader_files, &mut include_files, &shader.0);
+                shader_files.retain(|file_path, _shader| {
+                    let delete = file_path.starts_with(&removed_path);
+                    if delete {
+                        include_files.values_mut()
+                            .for_each(|include_file|{
+                                let included_shaders = include_file.included_shaders_mut();
+                                included_shaders.remove(file_path);
+                            });
                     }
-                }
+                    !delete
+                });
             });
 
         events.added.iter()

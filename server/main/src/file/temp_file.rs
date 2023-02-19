@@ -71,7 +71,7 @@ impl TempFile {
         };
     }
 
-    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(PathBuf, gl::types::GLenum, String)> {
+    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(gl::types::GLenum, String)> {
         if self.file_type == gl::NONE {
             return None;
         }
@@ -87,7 +87,6 @@ impl TempFile {
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    file_id += 1;
                     let path: String = capture.get(1).unwrap().as_str().into();
 
                     let include_path = match path.strip_prefix('/') {
@@ -95,7 +94,7 @@ impl TempFile {
                         None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                     };
 
-                    let include_content = Self::merge_temp(&self.pack_path, &include_path, file_list, line.1.to_string(), &mut file_id, 1);
+                    let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, line.1.to_string(), &mut file_id, 1);
                     temp_content += &include_content;
                     temp_content += &format!("#line {} 0\n", line.0 + 2);
                 }
@@ -115,10 +114,10 @@ impl TempFile {
                 }
             });
 
-        Some((file_path.clone(), self.file_type, temp_content))
+        Some((self.file_type, temp_content))
     }
 
-    fn merge_temp(pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
+    fn merge_temp(pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>,
         original_content: String, file_id: &mut i32, depth: i32
     ) -> String {
         if depth > 10 || !file_path.exists() {
@@ -126,17 +125,15 @@ impl TempFile {
             // Leave the include alone for reporting a error
             return original_content + "\n";
         }
-        let mut include_content = String::new();
-        file_list.insert(file_id.to_string(), file_path.clone());
-        include_content += &format!("#line 1 {}\n", &file_id.to_string());
-        let curr_file_id = file_id.clone();
+        *file_id += 1;
+        let curr_file_id = file_id.to_string();
+        let mut include_content = format!("#line 1 {}\n", curr_file_id);
 
-        if let Ok(content) = read_to_string(file_path) {
+        if let Ok(content) = read_to_string(&file_path) {
             content.lines()
                 .enumerate()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                        *file_id += 1;
                         let path: String = capture.get(1).unwrap().as_str().into();
 
                         let include_path = match path.strip_prefix('/') {
@@ -144,7 +141,7 @@ impl TempFile {
                             None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
-                        let sub_include_content = Self::merge_temp(pack_path, &include_path, file_list, line.1.to_string(), file_id, depth + 1);
+                        let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, line.1.to_string(), file_id, depth + 1);
                         include_content += &sub_include_content;
 
                         include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
@@ -158,6 +155,7 @@ impl TempFile {
                         include_content += "\n";
                     }
                 });
+            file_list.insert(file_id.to_string(), file_path);
             include_content
         }
         else {

@@ -26,6 +26,8 @@ pub struct IncludeFile {
     /// Shader files that include this file
     included_shaders: HashSet<PathBuf>,
     /// Files included in this file
+    /// Though we can scan its content and get includes,
+    /// keep a collection helps update parents faster
     including_files: HashSet<PathBuf>,
 }
 

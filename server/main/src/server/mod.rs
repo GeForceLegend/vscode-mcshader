@@ -134,7 +134,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        self.server_data.open_file(&file_path);
+        self.server_data.open_file(file_path);
 
         self.set_status_ready().await;
     }
@@ -152,7 +152,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(diagnostics) = self.server_data.save_file(&file_path, &self.extensions, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(diagnostics) = self.server_data.save_file(file_path, &self.extensions, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(diagnostics).await;
         }
 

@@ -184,7 +184,7 @@ impl ServerData {
 
         match validation_result {
             Some(compile_log) => {
-                info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => file_path.to_str().unwrap());
+                info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.to_str().unwrap());
                 diagnostics_parser.parse_diagnostics(compile_log, file_list)
             },
             None => {
@@ -203,17 +203,17 @@ impl ServerData {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
 
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
-            let validation_result = opengl_context.validate_shader(&result.1, &result.2);
+            let validation_result = opengl_context.validate_shader(&result.0, &result.1);
 
             match validation_result {
                 Some(compile_log) => {
-                    info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "tree_root" => result.0.to_str().unwrap());
+                    info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.to_str().unwrap());
                     diagnostics_parser.parse_diagnostics(compile_log, file_list)
                 },
                 None => {
-                    info!("Compilation reported no errors"; "shader file" => result.0.to_str().unwrap());
+                    info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                    diagnostics.entry(Url::from_file_path(result.0).unwrap()).or_default();
+                    diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                     for include_file in file_list {
                         diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
                     }
