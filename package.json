@@ -39,16 +39,6 @@
         "command": "mcshader.restart",
         "title": "Restart Language Server",
         "category": "Minecraft Shader"
-      },
-      {
-        "command": "mcshader.virtualMerge",
-        "title": "Show flattened file",
-        "category": "Minecraft Shader"
-      },
-      {
-        "command": "mcshader.parseTree",
-        "title": "Show parse tree for file",
-        "category": "Minecraft Shader"
       }
     ],
     "languages": [
