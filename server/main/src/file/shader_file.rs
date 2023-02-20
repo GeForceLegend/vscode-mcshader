@@ -6,9 +6,8 @@ use std::{
     fs::read_to_string,
 };
 
+use logging::error;
 use path_slash::PathBufExt;
-
-use slog_scope::error;
 
 use crate::constant::{
     RE_MACRO_INCLUDE,
@@ -68,7 +67,7 @@ impl ShaderFile {
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
-                        let path: String = capture.get(1).unwrap().as_str().into();
+                        let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
                             Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
@@ -84,7 +83,7 @@ impl ShaderFile {
             self.content = content;
         }
         else {
-            error!("Unable to read file {}", file_path.to_str().unwrap());
+            error!("Unable to read file {}", file_path.display());
         }
     }
 
@@ -95,7 +94,7 @@ impl ShaderFile {
         let mut shader_content: String = String::new();
         file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
-        let file_name = file_path.to_str().unwrap();
+        let file_name = file_path.display();
 
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_insert = self.pack_path.parent().unwrap().file_name().unwrap() != "debug";

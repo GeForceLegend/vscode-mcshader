@@ -1,0 +1,6 @@
+{
+    "mcshader.command.restart": "重启服务器",
+    "mcshader.command.virtualMerge": "模拟合并着色器文件",
+    "mcshader.configuration.logLevel": "改变语言服务器的日志等级",
+    "mcshader.configuration.extraExtension": "将额外的后缀添加至语言服务器的文件监视列表"
+}

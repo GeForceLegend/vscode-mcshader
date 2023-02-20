@@ -106,7 +106,7 @@ impl ServerData {
                 let file_path = file.path();
                 if file_path.is_dir() {
                     if file_path.file_name().unwrap() == "shaders" {
-                        info!("Find shader pack {}", &file_path.to_str().unwrap());
+                        info!("Find shader pack {}", file_path.display());
                         shader_packs.push(file_path);
                     }
                     else {
@@ -122,7 +122,7 @@ impl ServerData {
         shader_files: &mut MutexGuard<HashMap<PathBuf, ShaderFile>>,
         include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, root: &PathBuf
     ) {
-        info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
+        info!("Generating file framework on current root"; "root" => root.display());
 
         let sub_shader_packs: Vec<PathBuf>;
         if root.file_name().unwrap() == "shaders" {
@@ -166,11 +166,11 @@ impl ServerData {
 
         match validation_result {
             Some(compile_log) => {
-                info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.to_str().unwrap());
+                info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.display());
                 diagnostics_parser.parse_diagnostics(compile_log, file_list)
             },
             None => {
-                info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
+                info!("Compilation reported no errors"; "shader file" => file_path.display());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                 for include_file in file_list {
@@ -189,11 +189,11 @@ impl ServerData {
 
             match validation_result {
                 Some(compile_log) => {
-                    info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.to_str().unwrap());
+                    info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.display());
                     diagnostics_parser.parse_diagnostics(compile_log, file_list)
                 },
                 None => {
-                    info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
+                    info!("Compilation reported no errors"; "shader file" => file_path.display());
                     let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                     diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                     for include_file in file_list {

@@ -8,7 +8,7 @@ use std::{
 use logging::warn;
 use path_slash::PathBufExt;
 
-use slog_scope::error;
+use logging::error;
 
 use crate::constant::{
     RE_MACRO_INCLUDE,
@@ -45,9 +45,9 @@ impl IncludeFile {
             return;
         }
         // Insert files that need to update parents into a list
-        for file in self.including_files.clone() {
-            if let Some(include_file) = include_files.get(&file) {
-                update_list.insert(file);
+        for file in &self.including_files {
+            if let Some(include_file) = include_files.get(file) {
+                update_list.insert(file.clone());
                 include_file.parent_update_list(include_files, update_list, depth + 1);
             }
         }
@@ -77,7 +77,7 @@ impl IncludeFile {
                 content.lines()
                     .for_each(|line| {
                         if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
-                            let path: String = capture.get(1).unwrap().as_str().into();
+                            let path = capture.get(1).unwrap().as_str();
 
                             let sub_include_path = match path.strip_prefix('/') {
                                 Some(path) => pack_path.join(PathBuf::from_slash(path)),
@@ -92,7 +92,7 @@ impl IncludeFile {
                 include_file.content = content;
             }
             else {
-                error!("Unable to read file {}", include_path.to_str().unwrap());
+                error!("Unable to read file {}", include_path.display());
             }
 
             include_files.insert(include_path, include_file);
@@ -125,7 +125,7 @@ impl IncludeFile {
             self.content = content;
         }
         else {
-            warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
+            warn!("Unable to read file"; "path" => file_path.display());
         }
     }
 
@@ -139,8 +139,8 @@ impl IncludeFile {
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_path.to_str().unwrap());
-        let file_name = file_path.to_str().unwrap();
+        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_path.display());
+        let file_name = file_path.display();
 
         self.content.lines()
             .enumerate()

@@ -1,0 +1,6 @@
+{
+    "mcshader.command.restart": "Restart Language Server",
+    "mcshader.command.virtualMerge": "Virtual merge shader",
+    "mcshader.configuration.logLevel": "Change the log level of the language server.",
+    "mcshader.configuration.extraExtension": "Add extra extension to server file watch list."
+}

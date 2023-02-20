@@ -30,7 +30,7 @@ impl TempFile {
     }
 
     pub fn new(file_path: &PathBuf) -> Option<Self> {
-        warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
+        warn!("Document not found in file system"; "path" => file_path.display());
         let content = match read_to_string(file_path) {
             Ok(content) => content,
             Err(_err) => String::new(),
@@ -134,7 +134,7 @@ impl TempFile {
                 .enumerate()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                        let path: String = capture.get(1).unwrap().as_str().into();
+                        let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
                             Some(path) => pack_path.join(PathBuf::from_slash(path)),
@@ -159,7 +159,7 @@ impl TempFile {
             include_content
         }
         else {
-            warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
+            warn!("Unable to read file"; "path" => file_path.display());
             original_content + "\n"
         }
     }
