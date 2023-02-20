@@ -1,6 +1,6 @@
 {
   "name": "vscode-mcshader",
-  "displayName": "Lsp for Minecraft Shaderpacks",
+  "displayName": "Language Server for Minecraft Shaderpacks",
   "description": "A Visual Studio Code extension for linting/etc Minecraft GLSL Shaders",
   "version": "0.1.0",
   "publisher": "GeForceLegend",
@@ -15,7 +15,7 @@
     "url": "https://github.com/GeForceLegend/vscode-mcshader/issues"
   },
   "engines": {
-    "vscode": "^1.53.0"
+    "vscode": "^1.61.0"
   },
   "keywords": [
     "GLSL",
@@ -61,7 +61,7 @@
       }
     ],
     "configuration": {
-      "title": "Lsp for Minecraft Shaderpacks",
+      "title": "Language Server for Minecraft Shaderpacks",
       "properties": {
         "mcshader.logLevel": {
           "type": "string",
