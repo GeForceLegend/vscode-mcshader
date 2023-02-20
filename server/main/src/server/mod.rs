@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use logging::{error, info, warn};
 
+use serde_json::Value;
 use tower_lsp::jsonrpc::{Result, Error};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
@@ -13,16 +14,25 @@ mod service;
 mod data;
 
 use crate::capability::ServerCapabilitiesFactroy;
+use crate::commands::CommandList;
 use crate::configuration::Configuration;
 use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
+use crate::file::{ShaderFile, IncludeFile, TempFile};
 use crate::notification;
 use crate::opengl::OpenGlContext;
 
-use self::data::ServerData;
+pub struct ServerData {
+    roots: Mutex<HashSet<PathBuf>>,
+    shader_packs: Mutex<HashSet<PathBuf>>,
+    shader_files: Mutex<HashMap<PathBuf, ShaderFile>>,
+    include_files: Mutex<HashMap<PathBuf, IncludeFile>>,
+    temp_files: Mutex<HashMap<PathBuf, TempFile>>,
+}
 
 pub struct MinecraftLanguageServer {
-    pub client: Client,
+    client: Client,
+    command_list: CommandList,
     diagnostics_parser: DiagnosticsParser,
     extensions: Mutex<HashSet<String>>,
     server_data: ServerData,
@@ -34,6 +44,7 @@ impl MinecraftLanguageServer {
     pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
+            command_list: CommandList::new(),
             diagnostics_parser,
             extensions: Mutex::from(HashSet::new()),
             server_data: ServerData::new(),
@@ -105,6 +116,21 @@ impl LanguageServer for MinecraftLanguageServer {
 
     async fn shutdown(&self) -> Result<()> {
         Ok(())
+    }
+
+    #[logging::with_trace_id]
+    async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
+        match self.command_list.execute(&params.command, &params.arguments, &self.server_data) {
+            Ok(response) => Ok(Some(response)),
+            Err(error) => {
+                self.client.show_message(MessageType::ERROR, &error).await;
+                Err(Error {
+                    code: tower_lsp::jsonrpc::ErrorCode::InvalidRequest,
+                    message: error,
+                    data: None
+                })
+            },
+        }
     }
 
     #[logging_macro::with_trace_id]

@@ -13,6 +13,8 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::file::{ShaderFile, IncludeFile, TempFile};
 
+use super::ServerData;
+
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
         if let Some(diagnostics) = target.get_mut(&file.0) {
@@ -22,14 +24,6 @@ pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: Ha
             target.insert(file.0, file.1);
         }
     }
-}
-
-pub struct ServerData {
-    roots: Mutex<HashSet<PathBuf>>,
-    shader_packs: Mutex<HashSet<PathBuf>>,
-    shader_files: Mutex<HashMap<PathBuf, ShaderFile>>,
-    include_files: Mutex<HashMap<PathBuf, IncludeFile>>,
-    temp_files: Mutex<HashMap<PathBuf, TempFile>>,
 }
 
 impl ServerData {
@@ -78,8 +72,7 @@ impl ServerData {
 
         include_files.values_mut()
             .for_each(|include_file|{
-                let included_shaders = include_file.included_shaders_mut();
-                included_shaders.remove(file_path);
+                include_file.included_shaders_mut().remove(file_path);
             });
     }
 

@@ -13,7 +13,8 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::file::TempFile;
 
-use super::data::{ServerData, extend_diagnostics};
+use super::data::extend_diagnostics;
+use super::ServerData;
 
 fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) -> Vec<DocumentLink> {
     let mut include_links = Vec::new();

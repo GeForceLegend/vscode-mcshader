@@ -4,6 +4,7 @@
 use tower_lsp::{LspService, Server};
 
 mod capability;
+mod commands;
 mod configuration;
 mod constant;
 mod diagnostics_parser;

@@ -139,7 +139,8 @@ impl IncludeFile {
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
-        let mut include_content = format!("#line 1 {}\n", curr_file_id);
+        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_path.to_str().unwrap());
+        let file_name = file_path.to_str().unwrap();
 
         self.content.lines()
             .enumerate()
@@ -155,7 +156,7 @@ impl IncludeFile {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let sub_include_content = include_file.merge_include(include_files, include_path, line.1.to_string(), file_list, file_id, 1);
                         include_content += &sub_include_content;
-                        include_content += &format!("#line {} {}\n", line.0 + 2, curr_file_id);
+                        include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);
                     }
                     else {
                         include_content += line.1;

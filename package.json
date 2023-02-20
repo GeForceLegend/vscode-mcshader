@@ -39,6 +39,11 @@
         "command": "mcshader.restart",
         "title": "Restart Language Server",
         "category": "Minecraft Shader"
+      },
+      {
+        "command": "mcshader.virtualMerge",
+        "title": "Virtual merge shader",
+        "category": "Minecraft Shader"
       }
     ],
     "languages": [
@@ -58,11 +63,6 @@
     "configuration": {
       "title": "Lsp for Minecraft Shaderpacks",
       "properties": {
-        "mcshader.skipBootstrap": {
-          "type": "boolean",
-          "default": false,
-          "description": "[DEBUG] Enable to skip bootstrapping the language server binary from Github. Set this to use a manually provided language server binary."
-        },
         "mcshader.logLevel": {
           "type": "string",
           "default": "info",
