@@ -27,8 +27,8 @@ impl ShaderFile {
         &mut self.content
     }
 
-    pub fn file_type(&self) -> &gl::types::GLenum {
-        &self.file_type
+    pub fn file_type(&self) -> gl::types::GLenum {
+        self.file_type
     }
 
     pub fn pack_path(&self) -> &PathBuf {

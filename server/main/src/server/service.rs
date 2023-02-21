@@ -94,17 +94,12 @@ impl ServerData {
             return;
         }
 
-        #[cfg(target_os = "windows")]
-        const NEW_LINE_LENGTH: usize = 2;
-        #[cfg(not(target_os = "windows"))]
-        const NEW_LINE_LENGTH: usize = 1;
-
         let mut total_content: usize = 0;
         let mut line_location: Vec<usize> = Vec::new();
-        content.lines()
+        content.split("\n")
             .for_each(|line| {
                 line_location.push(total_content);
-                total_content += line.len() + NEW_LINE_LENGTH;
+                total_content += line.len() + 1;
             });
         line_location.push(total_content);
 

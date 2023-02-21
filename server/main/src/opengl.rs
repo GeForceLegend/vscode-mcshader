@@ -48,9 +48,9 @@ impl OpenGlContext {
         result
     }
 
-    pub fn validate_shader(&self, file_type: &gl::types::GLenum, source: &str) -> Option<String> {
+    pub fn validate_shader(&self, file_type: gl::types::GLenum, source: &str) -> Option<String> {
         unsafe {
-            let shader = gl::CreateShader(file_type.clone());
+            let shader = gl::CreateShader(file_type);
             self.compile_and_get_shader_log(shader, source)
         }
     }

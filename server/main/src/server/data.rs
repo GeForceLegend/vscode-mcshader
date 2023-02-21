@@ -185,7 +185,7 @@ impl ServerData {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
 
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
-            let validation_result = opengl_context.validate_shader(&result.0, &result.1);
+            let validation_result = opengl_context.validate_shader(result.0, &result.1);
 
             match validation_result {
                 Some(compile_log) => {
