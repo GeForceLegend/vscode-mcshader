@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Mutex, MutexGuard}};
 
 use serde_json::Value;
 
@@ -19,14 +19,15 @@ impl CommandList {
         command_list
     }
 
-    pub fn execute(&self, command: &String, arguments: &[Value], server_data: &ServerData) -> Result<Value, String> {
+    pub fn execute(&self, command: &String, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Value, String> {
+        let server_data = server_data.lock().unwrap();
         if let Some(command) = self.commands.get(command) {
-            return command.run(arguments, server_data);
+            return command.run(arguments, &server_data);
         }
         return Err("Invalid command".to_string());
     }
 }
 
 pub trait Command {
-    fn run(&self, arguments: &[Value], server_data: &ServerData) -> Result<Value, String>;
+    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Value, String>;
 }

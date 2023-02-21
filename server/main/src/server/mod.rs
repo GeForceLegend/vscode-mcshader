@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{HashSet, HashMap};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -23,19 +24,19 @@ use crate::notification;
 use crate::opengl::OpenGlContext;
 
 pub struct ServerData {
-    roots: Mutex<HashSet<PathBuf>>,
-    shader_packs: Mutex<HashSet<PathBuf>>,
-    shader_files: Mutex<HashMap<PathBuf, ShaderFile>>,
-    include_files: Mutex<HashMap<PathBuf, IncludeFile>>,
-    temp_files: Mutex<HashMap<PathBuf, TempFile>>,
+    extensions: RefCell<HashSet<String>>,
+    roots: RefCell<HashSet<PathBuf>>,
+    shader_packs: RefCell<HashSet<PathBuf>>,
+    shader_files: RefCell<HashMap<PathBuf, ShaderFile>>,
+    include_files: RefCell<HashMap<PathBuf, IncludeFile>>,
+    temp_files: RefCell<HashMap<PathBuf, TempFile>>,
 }
 
 pub struct MinecraftLanguageServer {
     client: Client,
     command_list: CommandList,
     diagnostics_parser: DiagnosticsParser,
-    extensions: Mutex<HashSet<String>>,
-    server_data: ServerData,
+    server_data: Mutex<ServerData>,
     opengl_context: OpenGlContext,
     _log_guard: logging::GlobalLoggerGuard,
 }
@@ -46,8 +47,7 @@ impl MinecraftLanguageServer {
             client,
             command_list: CommandList::new(),
             diagnostics_parser,
-            extensions: Mutex::from(HashSet::new()),
-            server_data: ServerData::new(),
+            server_data: Mutex::from(ServerData::new()),
             opengl_context,
             _log_guard: logging::init_logger(),
         }
@@ -103,8 +103,7 @@ impl LanguageServer for MinecraftLanguageServer {
             roots = HashSet::new();
         }
 
-        self.server_data.initial_scan(roots);
-        *self.extensions.lock().unwrap() = constant::BASIC_EXTENSIONS.clone();
+        self.initial_scan(roots, constant::BASIC_EXTENSIONS.clone());
 
         initialize_result
     }
@@ -150,7 +149,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
 
         config.extra_extension.extend(constant::BASIC_EXTENSIONS.clone());
-        self.extensions.lock().unwrap().clone_from(&config.extra_extension);
+        *self.server_data.lock().unwrap().extensions.borrow_mut() = config.extra_extension;
     }
 
     #[logging::with_trace_id]
@@ -159,7 +158,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        self.server_data.open_file(file_path);
+        self.open_file(file_path);
 
         self.set_status_ready().await;
     }
@@ -168,7 +167,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        self.server_data.change_file(&file_path, params.content_changes);
+        self.change_file(&file_path, params.content_changes);
     }
 
     #[logging::with_trace_id]
@@ -177,7 +176,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(diagnostics) = self.server_data.save_file(file_path, &self.extensions, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(diagnostics) = self.save_file(file_path, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(diagnostics).await;
         }
 
@@ -188,7 +187,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        self.server_data.close_file(&file_path);
+        self.close_file(&file_path);
     }
 
     // Doesn't implemented yet, here for not reporting method not found
@@ -202,7 +201,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(data) = self.server_data.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(data) = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(data.1).await;
             Ok(Some(data.0))
         }
@@ -215,7 +214,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
         self.set_status_loading("Applying work space changes...".to_string()).await;
 
-        self.server_data.update_work_spaces(params.event);
+        self.update_work_spaces(params.event);
 
         self.set_status_ready().await;
     }
@@ -224,7 +223,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading("Applying changes into file system...".to_string()).await;
 
-        let diagnostics = self.server_data.update_watched_files(params.changes, &self.diagnostics_parser, &self.opengl_context);
+        let diagnostics = self.update_watched_files(params.changes, &self.diagnostics_parser, &self.opengl_context);
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;

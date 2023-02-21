@@ -1,4 +1,8 @@
-use std::{path::PathBuf, collections::HashMap};
+use std::{
+    path::PathBuf,
+    collections::HashMap,
+    sync::MutexGuard
+};
 
 use path_slash::PathBufExt;
 use serde_json::Value;
@@ -10,7 +14,7 @@ use super::Command;
 pub struct VirtualMerge {}
 
 impl Command for VirtualMerge {
-    fn run(&self, arguments: &[Value], server_data: &ServerData) -> Result<Value, String> {
+    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Value, String> {
         let value = arguments.get(0).unwrap();
         if !value.is_string() {
             return Err("Invalid arguments".to_string());
@@ -21,9 +25,9 @@ impl Command for VirtualMerge {
         #[cfg(not(target_os = "windows"))]
         let file_path = PathBuf::from_slash(file_uri.strip_prefix("\"").unwrap().strip_suffix("\"").unwrap());
 
-        let shader_files = server_data.shader_files().lock().unwrap();
-        let include_files = server_data.include_files().lock().unwrap();
-        let temp_files = server_data.temp_files().lock().unwrap();
+        let shader_files = server_data.shader_files().borrow();
+        let include_files = server_data.include_files().borrow();
+        let temp_files = server_data.temp_files().borrow();
 
         let content: String;
         let mut file_list = HashMap::new();

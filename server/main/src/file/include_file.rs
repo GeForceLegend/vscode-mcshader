@@ -1,8 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    sync::MutexGuard,
-    fs::read_to_string,
+    fs::read_to_string, cell::RefMut,
 };
 
 use logging::warn;
@@ -38,7 +37,7 @@ impl IncludeFile {
         &mut self.included_shaders
     }
 
-    pub fn parent_update_list(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, update_list: &mut HashSet<PathBuf>, depth: i32) {
+    pub fn parent_update_list(&self, include_files: &HashMap<PathBuf, IncludeFile>, update_list: &mut HashSet<PathBuf>, depth: i32) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
@@ -53,7 +52,7 @@ impl IncludeFile {
         }
     }
 
-    pub fn get_includes(include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, parent_update_list: &mut HashSet<PathBuf>,
+    pub fn get_includes(include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, parent_update_list: &mut HashSet<PathBuf>,
         pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
     ) {
         if !include_path.exists() || depth > 10 {
@@ -99,7 +98,7 @@ impl IncludeFile {
         }
     }
 
-    pub fn update_include(&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf) {
+    pub fn update_include(&mut self, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, file_path: &PathBuf) {
         self.including_files.clear();
 
         if let Ok(content) = read_to_string(file_path) {
@@ -129,7 +128,7 @@ impl IncludeFile {
         }
     }
 
-    pub fn merge_include(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: PathBuf,
+    pub fn merge_include(&self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf,
         original_content: String, file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32
     ) -> String {
         if !file_path.exists() || depth > 10 {
@@ -139,8 +138,8 @@ impl IncludeFile {
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_path.display());
         let file_name = file_path.display();
+        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
 
         self.content.lines()
             .enumerate()

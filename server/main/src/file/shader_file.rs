@@ -2,8 +2,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    sync::MutexGuard,
-    fs::read_to_string,
+    fs::read_to_string, cell::RefMut,
 };
 
 use logging::error;
@@ -36,7 +35,7 @@ impl ShaderFile {
     }
 
     /// Create a new shader file, load contents from given path, and add includes to the list
-    pub fn new(pack_path: &PathBuf, file_path: &PathBuf, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>) -> ShaderFile {
+    pub fn new(pack_path: &PathBuf, file_path: &PathBuf, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>) -> ShaderFile {
         let extension = file_path.extension().unwrap();
         let mut shader_file = ShaderFile {
             content: String::new(),
@@ -60,7 +59,7 @@ impl ShaderFile {
     }
 
     /// Update shader content and includes from file
-    pub fn update_shader (&mut self, include_files: &mut MutexGuard<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf) {
+    pub fn update_shader (&mut self, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, file_path: &PathBuf) {
         if let Ok(content) =  read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
@@ -88,7 +87,7 @@ impl ShaderFile {
     }
 
     /// Merge all includes to one vitrual file for compiling etc
-    pub fn merge_shader_file(&self, include_files: &MutexGuard<HashMap<PathBuf, IncludeFile>>,
+    pub fn merge_shader_file(&self, include_files: &HashMap<PathBuf, IncludeFile>,
         file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>
     ) -> String {
         let mut shader_content: String = String::new();
@@ -130,7 +129,7 @@ impl ShaderFile {
                     // If we are not in the debug folder, add Optifine's macros for correct linting
                     if macro_insert && RE_MACRO_VERSION.is_match(line.1) {
                         shader_content += OPTIFINE_MACROS;
-                        shader_content += &format!("#line {} 0\n", line.0 + 2);
+                        shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
                         macro_insert = false;
                     }
                 }
