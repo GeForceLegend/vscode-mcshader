@@ -71,17 +71,6 @@ impl MinecraftLanguageServer {
         shader_files.insert(file_path, shader_file);
     }
 
-    pub fn remove_shader_file(&self, shader_files: &mut RefMut<HashMap<PathBuf, ShaderFile>>,
-        include_files: &mut RefMut<HashMap<PathBuf, IncludeFile>>, file_path: &PathBuf
-    ) {
-        shader_files.remove(file_path);
-
-        include_files.values_mut()
-            .for_each(|include_file|{
-                include_file.included_shaders_mut().remove(file_path);
-            });
-    }
-
     pub fn scan_new_file(&self, shader_files: &mut RefMut<HashMap<PathBuf,ShaderFile>>,
         include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, shader_packs: &Ref<HashSet<PathBuf>>, file_path: PathBuf
     ) -> bool {
@@ -413,9 +402,14 @@ impl MinecraftLanguageServer {
                     },
                     FileChangeType::DELETED => {
                         diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
-                        if shader_files.contains_key(&file_path) {
-                            self.remove_shader_file(&mut shader_files, &mut include_files, &file_path);
-                        }
+                        shader_files.remove(&file_path);
+                        include_files.remove(&file_path);
+
+                        include_files.values_mut()
+                            .for_each(|include_file|{
+                                include_file.included_shaders_mut().remove(&file_path);
+                                include_file.including_files_mut().remove(&file_path);
+                            });
                     },
                     _ => warn!("Invalid change type")
                 }

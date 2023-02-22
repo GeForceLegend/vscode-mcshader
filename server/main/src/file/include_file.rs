@@ -37,6 +37,10 @@ impl IncludeFile {
         &mut self.included_shaders
     }
 
+    pub fn including_files_mut(&mut self) -> &mut HashSet<PathBuf> {
+        &mut self.including_files
+    }
+
     pub fn parent_update_list(&self, include_files: &HashMap<PathBuf, IncludeFile>, update_list: &mut HashSet<PathBuf>, depth: i32) {
         if depth > 10 {
             // If include depth reaches 10 or file does not exist
