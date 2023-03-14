@@ -24,14 +24,14 @@ fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) ->
         .for_each(|line| {
             if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                 let cap = capture.get(1).unwrap();
-                let path: String = cap.as_str().into();
+                let path = cap.as_str();
 
                 let start = cap.start();
                 let end = cap.end();
 
                 let include_path = match path.strip_prefix('/') {
                     Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                    None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                    None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                 };
                 let url = Url::from_file_path(include_path).unwrap();
 

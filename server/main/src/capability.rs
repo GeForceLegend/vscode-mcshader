@@ -27,7 +27,32 @@ impl ServerCapabilitiesFactroy {
                         supported: Some(true),
                         change_notifications: Some(OneOf::Left(true)),
                     }),
-                    file_operations: None,
+                    file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                        did_create: None,
+                        will_create: None,
+                        did_rename: Some(FileOperationRegistrationOptions {
+                            filters: vec![FileOperationFilter{
+                                scheme: Some("file".to_string()),
+                                pattern: FileOperationPattern {
+                                    glob: "**/*.{vsh,gsh,fsh,csh,glsl}".to_string(),
+                                    matches: Some(FileOperationPatternKind::File),
+                                    options: None
+                                }
+                            }]
+                        }),
+                        will_rename: Some(FileOperationRegistrationOptions {
+                            filters: vec![FileOperationFilter{
+                                scheme: Some("file".to_string()),
+                                pattern: FileOperationPattern {
+                                    glob: "**/*.{vsh,gsh,fsh,csh,glsl}".to_string(),
+                                    matches: Some(FileOperationPatternKind::File),
+                                    options: None
+                                }
+                            }]
+                        }),
+                        did_delete: None,
+                        will_delete: None
+                    }),
                 }),
                 document_link_provider: Some(DocumentLinkOptions{
                     resolve_provider: Some(true),

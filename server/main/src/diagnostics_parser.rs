@@ -91,7 +91,7 @@ impl DiagnosticsParser {
                 code: None,
                 severity: Some(severity),
                 source: Some("mcshader-glsl".into()),
-                message: msg.trim().into(),
+                message: msg.into(),
                 related_information: None,
                 tags: None,
                 code_description: Option::None,

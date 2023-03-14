@@ -110,11 +110,11 @@ impl IncludeFile {
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
-                        let path: String = capture.get(1).unwrap().as_str().into();
+                        let path = capture.get(1).unwrap().as_str();
 
                         let sub_include_path = match path.strip_prefix('/') {
                             Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                         };
 
                         self.including_files.insert(sub_include_path.clone());
@@ -149,11 +149,11 @@ impl IncludeFile {
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let path: String = capture.get(1).unwrap().as_str().into();
+                    let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
                         Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {

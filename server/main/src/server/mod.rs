@@ -137,10 +137,11 @@ impl LanguageServer for MinecraftLanguageServer {
         info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
         let mut config: Configuration = Configuration::new(&params.settings);
+        let glsl_pattern = config.generate_glsl_pattern();
 
-        let registrations: Vec<Registration> = config.generate_file_watch_registration();
-        if let Err(_err) = self.client.register_capability(registrations).await {
-            warn!("Unable to registe file watch capability");
+        let registrations: Vec<Registration> = config.generate_file_watch_registration(glsl_pattern);
+        if let Err(err) = self.client.register_capability(registrations).await {
+            warn!("Unable to registe file watch capability, error:{}", err);
         }
 
         match logging::Level::from_str(config.log_level.as_str()) {
@@ -154,13 +155,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.set_status_loading("Linting file...".to_string()).await;
-
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         self.open_file(file_path);
-
-        self.set_status_ready().await;
     }
 
     #[logging::with_trace_id]
@@ -172,15 +169,11 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        self.set_status_loading("Linting file...".to_string()).await;
-
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         if let Some(diagnostics) = self.save_file(file_path, &self.diagnostics_parser, &self.opengl_context) {
             self.publish_diagnostic(diagnostics).await;
         }
-
-        self.set_status_ready().await;
     }
 
     #[logging::with_trace_id]
@@ -190,10 +183,22 @@ impl LanguageServer for MinecraftLanguageServer {
         self.close_file(&file_path);
     }
 
+    #[logging::with_trace_id]
+    async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
+        let _ = params;
+        error!("Got a workspace/willRenameFiles request, but it is not implemented");
+        Err(Error::method_not_found())
+    }
+
+    #[logging::with_trace_id]
+    async fn did_rename_files(&self, params: RenameFilesParams) {
+        let _ = params;
+        warn!("Got a workspace/didRenameFiles notification, but it is not implemented");
+    }
+
     // Doesn't implemented yet, here for not reporting method not found
     #[logging::with_trace_id]
-    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        let _ = params;
+    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
         Ok(None)
     }
 

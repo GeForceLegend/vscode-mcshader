@@ -88,11 +88,11 @@ impl TempFile {
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let path: String = capture.get(1).unwrap().as_str().into();
+                    let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
                         Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                     };
 
                     let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, line.1.to_string(), &mut file_id, 1);
@@ -140,7 +140,7 @@ impl TempFile {
 
                         let include_path = match path.strip_prefix('/') {
                             Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                         };
 
                         let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, line.1.to_string(), file_id, depth + 1);
