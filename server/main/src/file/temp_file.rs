@@ -77,7 +77,7 @@ impl TempFile {
         }
 
         let mut temp_content = String::new();
-        file_list.insert("0".to_owned(), file_path.clone());
+        file_list.insert(String::from("0"), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display();
 
@@ -95,7 +95,7 @@ impl TempFile {
                         None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                     };
 
-                    let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, line.1.to_string(), &mut file_id, 1);
+                    let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, String::from(line.1), &mut file_id, 1);
                     temp_content += &include_content;
                     temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
                 }
@@ -143,7 +143,7 @@ impl TempFile {
                             None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                         };
 
-                        let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, line.1.to_string(), file_id, depth + 1);
+                        let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, String::from(line.1), file_id, depth + 1);
                         include_content += &sub_include_content;
 
                         include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);

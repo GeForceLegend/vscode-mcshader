@@ -13,13 +13,13 @@ impl ServerCapabilitiesFactroy {
                 )),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string()]),
+                    trigger_characters: Some(vec![String::from(".")]),
                     work_done_progress_options: Default::default(),
                     all_commit_characters: None,
                     ..Default::default()
                 }),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["virtualMerge".to_string()],
+                    commands: vec![String::from("virtualMerge")],
                     work_done_progress_options: Default::default(),
                 }),
                 workspace: Some(WorkspaceServerCapabilities {
@@ -32,9 +32,9 @@ impl ServerCapabilitiesFactroy {
                         will_create: None,
                         did_rename: Some(FileOperationRegistrationOptions {
                             filters: vec![FileOperationFilter{
-                                scheme: Some("file".to_string()),
+                                scheme: Some(String::from("file")),
                                 pattern: FileOperationPattern {
-                                    glob: "**/*.{vsh,gsh,fsh,csh,glsl}".to_string(),
+                                    glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
                                     matches: Some(FileOperationPatternKind::File),
                                     options: None
                                 }
@@ -42,9 +42,9 @@ impl ServerCapabilitiesFactroy {
                         }),
                         will_rename: Some(FileOperationRegistrationOptions {
                             filters: vec![FileOperationFilter{
-                                scheme: Some("file".to_string()),
+                                scheme: Some(String::from("file")),
                                 pattern: FileOperationPattern {
-                                    glob: "**/*.{vsh,gsh,fsh,csh,glsl}".to_string(),
+                                    glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
                                     matches: Some(FileOperationPatternKind::File),
                                     options: None
                                 }

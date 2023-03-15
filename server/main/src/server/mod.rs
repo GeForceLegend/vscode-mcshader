@@ -63,9 +63,9 @@ impl MinecraftLanguageServer {
         self.client
             .send_notification::<notification::StatusNotification>(
                 notification::StatusNotificationParams{
-                    status: "loading".to_string(),
+                    status: String::from("loading"),
                     message,
-                    icon: "$(loading~spin)".to_string(),
+                    icon: String::from("$(loading~spin)"),
                 }
             )
             .await;
@@ -75,9 +75,9 @@ impl MinecraftLanguageServer {
         self.client
             .send_notification::<notification::StatusNotification>(
                 notification::StatusNotificationParams{
-                    status: "ready".to_string(),
-                    message: "ready".to_string(),
-                    icon: "$(check)".to_string(),
+                    status: String::from("ready"),
+                    message: String::from("ready"),
+                    icon: String::from("$(check)"),
                 }
             )
             .await;
@@ -137,9 +137,8 @@ impl LanguageServer for MinecraftLanguageServer {
         info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
         let mut config: Configuration = Configuration::new(&params.settings);
-        let glsl_pattern = config.generate_glsl_pattern();
 
-        let registrations: Vec<Registration> = config.generate_file_watch_registration(glsl_pattern);
+        let registrations: Vec<Registration> = config.generate_file_watch_registration();
         if let Err(err) = self.client.register_capability(registrations).await {
             warn!("Unable to registe file watch capability, error:{}", err);
         }
@@ -217,7 +216,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-        self.set_status_loading("Applying work space changes...".to_string()).await;
+        self.set_status_loading(String::from("Applying work space changes...")).await;
 
         self.update_work_spaces(params.event);
 
@@ -226,7 +225,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging_macro::with_trace_id]
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        self.set_status_loading("Applying changes into file system...".to_string()).await;
+        self.set_status_loading(String::from("Applying changes into file system...")).await;
 
         let diagnostics = self.update_watched_files(params.changes, &self.diagnostics_parser, &self.opengl_context);
 

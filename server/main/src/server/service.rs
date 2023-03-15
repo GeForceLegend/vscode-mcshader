@@ -40,7 +40,7 @@ fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) ->
                         Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
                         Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
                     ),
-                    tooltip: Some(url.path().to_string()),
+                    tooltip: Some(String::from(url.path())),
                     target: Some(url),
                     data: None,
                 });

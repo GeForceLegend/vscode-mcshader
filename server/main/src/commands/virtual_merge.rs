@@ -17,7 +17,7 @@ impl Command for VirtualMerge {
     fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Value, String> {
         let value = arguments.get(0).unwrap();
         if !value.is_string() {
-            return Err("Invalid arguments".to_string());
+            return Err(String::from("Invalid arguments"));
         }
         let file_uri = value.to_string();
         #[cfg(target_os = "windows")]
@@ -37,11 +37,11 @@ impl Command for VirtualMerge {
         else if let Some(temp_file) = temp_files.get(&file_path) {
             content = match temp_file.merge_self(&file_path, &mut file_list) {
                 Some(temp_content) => temp_content.1,
-                None => return Err("This is not a base shader file".to_string()),
+                None => return Err(String::from("This is not a base shader file")),
             }
         }
         else {
-            return Err("This is not a base shader file".to_string());
+            return Err(String::from("This is not a base shader file"));
         }
 
         Ok(Value::String(content))

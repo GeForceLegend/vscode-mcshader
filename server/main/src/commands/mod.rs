@@ -24,7 +24,7 @@ impl CommandList {
         if let Some(command) = self.commands.get(command) {
             return command.run(arguments, &server_data);
         }
-        return Err("Invalid command".to_string());
+        return Err(String::from("Invalid command"));
     }
 }
 

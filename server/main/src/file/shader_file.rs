@@ -91,7 +91,7 @@ impl ShaderFile {
         file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>
     ) -> String {
         let mut shader_content: String = String::new();
-        file_list.insert("0".to_owned(), file_path.clone());
+        file_list.insert(String::from("0"), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display();
 
@@ -110,7 +110,7 @@ impl ShaderFile {
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content = include_file.merge_include(include_files, include_path, line.1.to_string(), file_list, &mut file_id, 1);
+                        let include_content = include_file.merge_include(include_files, include_path, String::from(line.1), file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
                     }
