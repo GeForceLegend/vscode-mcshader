@@ -11,13 +11,8 @@ impl ServerCapabilitiesFactroy {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::INCREMENTAL,
                 )),
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![String::from(".")]),
-                    work_done_progress_options: Default::default(),
-                    all_commit_characters: None,
-                    ..Default::default()
-                }),
+                definition_provider: Some(OneOf::Left(true)),
+                references_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
                     commands: vec![String::from("virtualMerge")],
                     work_done_progress_options: Default::default(),
@@ -27,32 +22,33 @@ impl ServerCapabilitiesFactroy {
                         supported: Some(true),
                         change_notifications: Some(OneOf::Left(true)),
                     }),
-                    file_operations: Some(WorkspaceFileOperationsServerCapabilities {
-                        did_create: None,
-                        will_create: None,
-                        did_rename: Some(FileOperationRegistrationOptions {
-                            filters: vec![FileOperationFilter{
-                                scheme: Some(String::from("file")),
-                                pattern: FileOperationPattern {
-                                    glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
-                                    matches: Some(FileOperationPatternKind::File),
-                                    options: None
-                                }
-                            }]
-                        }),
-                        will_rename: Some(FileOperationRegistrationOptions {
-                            filters: vec![FileOperationFilter{
-                                scheme: Some(String::from("file")),
-                                pattern: FileOperationPattern {
-                                    glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
-                                    matches: Some(FileOperationPatternKind::File),
-                                    options: None
-                                }
-                            }]
-                        }),
-                        did_delete: None,
-                        will_delete: None
-                    }),
+                    file_operations: None,
+                    // file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                    //     did_create: None,
+                    //     will_create: None,
+                    //     did_rename: Some(FileOperationRegistrationOptions {
+                    //         filters: vec![FileOperationFilter{
+                    //             scheme: Some(String::from("file")),
+                    //             pattern: FileOperationPattern {
+                    //                 glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
+                    //                 matches: Some(FileOperationPatternKind::File),
+                    //                 options: None
+                    //             }
+                    //         }]
+                    //     }),
+                    //     will_rename: Some(FileOperationRegistrationOptions {
+                    //         filters: vec![FileOperationFilter{
+                    //             scheme: Some(String::from("file")),
+                    //             pattern: FileOperationPattern {
+                    //                 glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
+                    //                 matches: Some(FileOperationPatternKind::File),
+                    //                 options: None
+                    //             }
+                    //         }]
+                    //     }),
+                    //     did_delete: None,
+                    //     will_delete: None
+                    // }),
                 }),
                 document_link_provider: Some(DocumentLinkOptions{
                     resolve_provider: Some(true),

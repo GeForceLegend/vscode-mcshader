@@ -2,6 +2,7 @@
 #![feature(linked_list_cursors)]
 
 use tower_lsp::{LspService, Server};
+use tree_sitter::Parser;
 
 mod capability;
 mod commands;
@@ -12,6 +13,7 @@ mod file;
 mod notification;
 mod opengl;
 mod server;
+mod tree_parser;
 
 #[tokio::main]
 async fn main() {
@@ -20,12 +22,15 @@ async fn main() {
 
     let opengl_content = opengl::OpenGlContext::new();
     let diagnostics_parser = diagnostics_parser::DiagnosticsParser::new(&opengl_content);
+    let mut tree_sitter_parser = Parser::new();
+    tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
 
     let (service, socket) = LspService::new(|client|
         server::MinecraftLanguageServer::new(
             client,
             diagnostics_parser,
             opengl_content,
+            tree_sitter_parser,
         )
     );
     Server::new(stdin, stdout, socket)

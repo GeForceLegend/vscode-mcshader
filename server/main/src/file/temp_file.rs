@@ -2,10 +2,12 @@ use std::{
     collections::HashMap,
     path::PathBuf,
     fs::read_to_string,
+    cell::RefCell,
 };
 
 use logging::warn;
 use path_slash::PathBufExt;
+use tree_sitter::{Parser, Tree};
 
 use crate::constant::{
     RE_MACRO_INCLUDE,
@@ -17,23 +19,23 @@ use crate::constant::{
 use super::TempFile;
 
 impl TempFile {
-    pub fn content(&self) -> &String {
-        &self.content
-    }
-
-    pub fn content_mut(&mut self) -> &mut String {
-        &mut self.content
-    }
-
     pub fn pack_path(&self) -> &PathBuf {
         &self.pack_path
     }
 
-    pub fn new(file_path: &PathBuf) -> Option<Self> {
+    pub fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    pub fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
+    }
+
+    pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
         warn!("Document not found in file system"; "path" => file_path.display());
         let content = match read_to_string(file_path) {
-            Ok(content) => content,
-            Err(_err) => String::new(),
+            Ok(content) => RefCell::from(content),
+            Err(_err) => RefCell::from(String::new()),
         };
         let file_type = match file_path.extension() {
             Some(extension) => {
@@ -61,11 +63,12 @@ impl TempFile {
             content,
             file_type,
             pack_path,
+            tree: RefCell::from(parser.parse("", None).unwrap()),
         })
     }
 
     pub fn update_self(&mut self, file_path: &PathBuf) {
-        self.content = match read_to_string(file_path) {
+        *self.content.borrow_mut() = match read_to_string(file_path) {
             Ok(content) => content,
             Err(_err) => String::new(),
         };
@@ -84,7 +87,7 @@ impl TempFile {
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
-        self.content.lines()
+        self.content.borrow().lines()
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {

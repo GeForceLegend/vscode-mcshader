@@ -2,11 +2,13 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    fs::read_to_string, cell::RefMut,
+    fs::read_to_string,
+    cell::RefCell,
 };
 
 use logging::error;
 use path_slash::PathBufExt;
+use tree_sitter::{Parser, Tree};
 
 use crate::constant::{
     RE_MACRO_INCLUDE,
@@ -18,14 +20,6 @@ use crate::constant::{
 use super::{ShaderFile, IncludeFile};
 
 impl ShaderFile {
-    pub fn content(&self) -> &String {
-        &self.content
-    }
-
-    pub fn content_mut(&mut self) -> &mut String {
-        &mut self.content
-    }
-
     pub fn file_type(&self) -> gl::types::GLenum {
         self.file_type
     }
@@ -34,11 +28,18 @@ impl ShaderFile {
         &self.pack_path
     }
 
+    pub fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    pub fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
+    }
+
     /// Create a new shader file, load contents from given path, and add includes to the list
-    pub fn new(pack_path: &PathBuf, file_path: &PathBuf, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>) -> ShaderFile {
+    pub fn new(include_files: &mut HashMap<PathBuf,IncludeFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf) -> ShaderFile {
         let extension = file_path.extension().unwrap();
         let mut shader_file = ShaderFile {
-            content: String::new(),
             file_type: {
                 if extension == "fsh" {
                     gl::FRAGMENT_SHADER
@@ -53,13 +54,15 @@ impl ShaderFile {
                 }
             },
             pack_path: pack_path.clone(),
+            content: RefCell::from(String::new()),
+            tree: RefCell::from(parser.parse("", None).unwrap()),
         };
-        shader_file.update_shader(include_files, file_path);
+        shader_file.update_shader(include_files, parser, file_path);
         shader_file
     }
 
     /// Update shader content and includes from file
-    pub fn update_shader (&mut self, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, file_path: &PathBuf) {
+    pub fn update_shader (&mut self, include_files: &mut HashMap<PathBuf,IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
         if let Ok(content) =  read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
@@ -73,13 +76,14 @@ impl ShaderFile {
                             None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
                         };
 
-                        IncludeFile::get_includes(include_files, &mut parent_update_list, &self.pack_path, include_path, &parent_path, 0);
+                        IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0);
                     }
                 });
             for include_file in parent_update_list {
-                include_files.get_mut(&include_file).unwrap().included_shaders.insert(file_path.clone());
+                include_files.get_mut(&include_file).unwrap().included_shaders.borrow_mut().insert(file_path.clone());
             }
-            self.content = content;
+            self.tree = RefCell::from(parser.parse(&content, None).unwrap());
+            self.content = RefCell::from(content);
         }
         else {
             error!("Unable to read file {}", file_path.display());
@@ -98,7 +102,7 @@ impl ShaderFile {
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_insert = self.pack_path.parent().unwrap().file_name().unwrap() != "debug";
 
-        self.content.lines()
+        self.content.borrow().lines()
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {

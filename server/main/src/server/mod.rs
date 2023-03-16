@@ -10,6 +10,7 @@ use serde_json::Value;
 use tower_lsp::jsonrpc::{Result, Error};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
+use tree_sitter::Parser;
 
 mod service;
 mod data;
@@ -30,6 +31,7 @@ pub struct ServerData {
     shader_files: RefCell<HashMap<PathBuf, ShaderFile>>,
     include_files: RefCell<HashMap<PathBuf, IncludeFile>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
+    tree_sitter_parser: RefCell<Parser>,
 }
 
 pub struct MinecraftLanguageServer {
@@ -42,12 +44,12 @@ pub struct MinecraftLanguageServer {
 }
 
 impl MinecraftLanguageServer {
-    pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext) -> MinecraftLanguageServer {
+    pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             command_list: CommandList::new(),
             diagnostics_parser,
-            server_data: Mutex::from(ServerData::new()),
+            server_data: Mutex::from(ServerData::new(parser)),
             opengl_context,
             _log_guard: logging::init_logger(),
         }
@@ -182,6 +184,7 @@ impl LanguageServer for MinecraftLanguageServer {
         self.close_file(&file_path);
     }
 
+    // Doesn't implemented yet, cannot recieve notification from client. Why?
     #[logging::with_trace_id]
     async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
         let _ = params;
@@ -189,6 +192,7 @@ impl LanguageServer for MinecraftLanguageServer {
         Err(Error::method_not_found())
     }
 
+    // Doesn't implemented yet, cannot recieve notification from client. Why?
     #[logging::with_trace_id]
     async fn did_rename_files(&self, params: RenameFilesParams) {
         let _ = params;
@@ -213,6 +217,25 @@ impl LanguageServer for MinecraftLanguageServer {
             Err(Error::parse_error())
         }
     }
+
+    #[logging::with_trace_id]
+    async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
+        let result = match self.find_definitions(params).unwrap() {
+            Some(locatons) => locatons,
+            None => Vec::new()
+        };
+        Ok(Some(GotoDefinitionResponse::Array(result)))
+    }
+
+    // #[logging::with_trace_id]
+    // async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+    //     let result = match self.find_references(params).unwrap() {
+    //         Some(locatons) => locatons,
+    //         None => Vec::new()
+    //     };
+    //     error!("Got a textDocument/references request, but it is not implemented");
+    //     Ok(Some(result))
+    // }
 
     #[logging::with_trace_id]
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {

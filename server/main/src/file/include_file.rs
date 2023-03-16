@@ -1,13 +1,15 @@
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    fs::read_to_string, cell::RefMut,
+    fs::read_to_string,
+    cell::RefCell,
 };
 
 use logging::warn;
 use path_slash::PathBufExt;
 
 use logging::error;
+use tree_sitter::{Parser, Tree};
 
 use crate::constant::{
     RE_MACRO_INCLUDE,
@@ -17,28 +19,24 @@ use crate::constant::{
 use super::IncludeFile;
 
 impl IncludeFile {
-    pub fn content(&self) -> &String {
-        &self.content
-    }
-
-    pub fn content_mut(&mut self) -> &mut String {
-        &mut self.content
-    }
-
     pub fn pack_path(&self) -> &PathBuf {
         &self.pack_path
     }
 
-    pub fn included_shaders(&self) -> &HashSet<PathBuf> {
+    pub fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    pub fn included_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
         &self.included_shaders
     }
 
-    pub fn included_shaders_mut(&mut self) -> &mut HashSet<PathBuf> {
-        &mut self.included_shaders
+    pub fn including_files(&self) -> &RefCell<HashSet<PathBuf>> {
+        &self.including_files
     }
 
-    pub fn including_files_mut(&mut self) -> &mut HashSet<PathBuf> {
-        &mut self.including_files
+    pub fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
     }
 
     pub fn parent_update_list(&self, include_files: &HashMap<PathBuf, IncludeFile>, update_list: &mut HashSet<PathBuf>, depth: i32) {
@@ -48,7 +46,7 @@ impl IncludeFile {
             return;
         }
         // Insert files that need to update parents into a list
-        for file in &self.including_files {
+        for file in self.including_files.borrow().iter() {
             if let Some(include_file) = include_files.get(file) {
                 update_list.insert(file.clone());
                 include_file.parent_update_list(include_files, update_list, depth + 1);
@@ -56,8 +54,8 @@ impl IncludeFile {
         }
     }
 
-    pub fn get_includes(include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, parent_update_list: &mut HashSet<PathBuf>,
-        pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
+    pub fn get_includes(include_files: &mut HashMap<PathBuf,IncludeFile>, parent_update_list: &mut HashSet<PathBuf>,
+        parser: &mut Parser, pack_path: &PathBuf, include_path: PathBuf, parent_file: &HashSet<PathBuf>, depth: i32
     ) {
         if !include_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
@@ -69,14 +67,8 @@ impl IncludeFile {
             include_file.parent_update_list(include_files, parent_update_list, depth + 1);
         }
         else {
-            let mut include_file = IncludeFile {
-                content: String::new(),
-                pack_path: pack_path.clone(),
-                included_shaders: parent_file.clone(),
-                including_files: HashSet::new(),
-            };
-
             if let Ok(content) = read_to_string(&include_path) {
+                let mut including_files = HashSet::new();
                 content.lines()
                     .for_each(|line| {
                         if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
@@ -87,26 +79,33 @@ impl IncludeFile {
                                 None => include_path.parent().unwrap().join(PathBuf::from_slash(&path))
                             };
 
-                            include_file.including_files.insert(sub_include_path.clone());
+                            including_files.insert(sub_include_path.clone());
 
-                            Self::get_includes(include_files, parent_update_list, pack_path, sub_include_path, parent_file, depth + 1);
+                            Self::get_includes(include_files, parent_update_list, parser, pack_path, sub_include_path, parent_file, depth + 1);
                         }
                     });
-                include_file.content = content;
+                let include_file = IncludeFile {
+                    tree: RefCell::from(parser.parse(&content, None).unwrap()),
+                    content: RefCell::from(content),
+                    pack_path: pack_path.clone(),
+                    included_shaders: RefCell::from(parent_file.clone()),
+                    including_files: RefCell::from(including_files),
+                };
+                include_files.insert(include_path, include_file);
             }
             else {
                 error!("Unable to read file {}", include_path.display());
             }
-
-            include_files.insert(include_path, include_file);
         }
     }
 
-    pub fn update_include(&mut self, include_files: &mut RefMut<HashMap<PathBuf,IncludeFile>>, file_path: &PathBuf) {
-        self.including_files.clear();
+    pub fn update_include(&mut self, include_files: &mut HashMap<PathBuf,IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
+        let mut including_files = self.including_files.borrow_mut();
+        including_files.clear();
 
         if let Ok(content) = read_to_string(file_path) {
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
+            let included_shaders = self.included_shaders.borrow();
             content.lines()
                 .for_each(|line| {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
@@ -117,15 +116,15 @@ impl IncludeFile {
                             None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
                         };
 
-                        self.including_files.insert(sub_include_path.clone());
+                        including_files.insert(sub_include_path.clone());
 
-                        Self::get_includes(include_files, &mut parent_update_list, &self.pack_path, sub_include_path, &self.included_shaders, 1);
+                        Self::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, sub_include_path, &included_shaders, 1);
                     }
                 });
             for include_file in parent_update_list {
-                include_files.get_mut(&include_file).unwrap().included_shaders.extend(self.included_shaders.clone());
+                include_files.get_mut(&include_file).unwrap().included_shaders.borrow_mut().extend(included_shaders.clone());
             }
-            self.content = content;
+            *self.content.borrow_mut() = content;
         }
         else {
             warn!("Unable to read file"; "path" => file_path.display());
@@ -145,7 +144,7 @@ impl IncludeFile {
         let file_name = file_path.display();
         let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
 
-        self.content.lines()
+        self.content.borrow().lines()
             .enumerate()
             .for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {

@@ -1834,6 +1834,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter"
+version = "0.20.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4423c784fe11398ca91e505cdc71356b07b1a924fc8735cfab5333afe3e18bc"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter-glsl"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4741090d286612f5f7d27dcbb489bf176dfabb60a1ca7453ab007fe25c60e8bb"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "unicode-bidi"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1895,6 +1915,8 @@ dependencies = [
  "slog-scope",
  "tokio",
  "tower-lsp",
+ "tree-sitter",
+ "tree-sitter-glsl",
  "url",
 ]
 
