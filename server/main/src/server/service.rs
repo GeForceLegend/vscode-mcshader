@@ -411,35 +411,35 @@ impl MinecraftLanguageServer {
         TreeParser::find_definitions(&file_path, &position, &tree, &content)
     }
 
-    // pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>, String> {
-    //     let server_data = self.server_data.lock().unwrap();
-    //     let shader_files = server_data.shader_files.borrow();
-    //     let include_files = server_data.include_files.borrow();
-    //     let temp_files = server_data.temp_files.borrow();
+    pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>, String> {
+        let server_data = self.server_data.lock().unwrap();
+        let shader_files = server_data.shader_files.borrow();
+        let include_files = server_data.include_files.borrow();
+        let temp_files = server_data.temp_files.borrow();
 
-    //     let file_path = params.text_document_position.text_document.uri.to_file_path().unwrap();
-    //     let position = params.text_document_position.position;
+        let file_path = params.text_document_position.text_document.uri.to_file_path().unwrap();
+        let position = params.text_document_position.position;
 
-    //     let tree;
-    //     let content;
-    //     if let Some(include_file) = include_files.get(&file_path) {
-    //         tree = include_file.tree().borrow();
-    //         content = include_file.content().borrow();
-    //     }
-    //     else if let Some(shader_file) = shader_files.get(&file_path) {
-    //         tree = shader_file.tree().borrow();
-    //         content = shader_file.content().borrow();
-    //     }
-    //     else if let Some(temp_file) = temp_files.get(&file_path) {
-    //         tree = temp_file.tree().borrow();
-    //         content = temp_file.content().borrow();
-    //     }
-    //     else {
-    //         return Err(String::from("Unable to load file content"));
-    //     }
+        let tree;
+        let content;
+        if let Some(include_file) = include_files.get(&file_path) {
+            tree = include_file.tree().borrow();
+            content = include_file.content().borrow();
+        }
+        else if let Some(shader_file) = shader_files.get(&file_path) {
+            tree = shader_file.tree().borrow();
+            content = shader_file.content().borrow();
+        }
+        else if let Some(temp_file) = temp_files.get(&file_path) {
+            tree = temp_file.tree().borrow();
+            content = temp_file.content().borrow();
+        }
+        else {
+            return Err(String::from("Unable to load file content"));
+        }
 
-    //     TreeParser::find_references(&file_path, &position, &tree, &content)
-    // }
+        TreeParser::find_references(&file_path, &position, &tree, &content)
+    }
 
     pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
         let server_data = self.server_data.lock().unwrap();

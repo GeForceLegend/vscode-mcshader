@@ -227,15 +227,15 @@ impl LanguageServer for MinecraftLanguageServer {
         Ok(Some(GotoDefinitionResponse::Array(result)))
     }
 
-    // #[logging::with_trace_id]
-    // async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
-    //     let result = match self.find_references(params).unwrap() {
-    //         Some(locatons) => locatons,
-    //         None => Vec::new()
-    //     };
-    //     error!("Got a textDocument/references request, but it is not implemented");
-    //     Ok(Some(result))
-    // }
+    #[logging::with_trace_id]
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
+        let result = match self.find_references(params).unwrap() {
+            Some(locatons) => locatons,
+            None => Vec::new()
+        };
+        error!("Got a textDocument/references request, but it is not implemented");
+        Ok(Some(result))
+    }
 
     #[logging::with_trace_id]
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {

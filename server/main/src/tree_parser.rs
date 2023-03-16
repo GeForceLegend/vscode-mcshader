@@ -16,17 +16,17 @@ macro_rules! find_function_def_str {
     };
 }
 
-// macro_rules! find_function_refs_str {
-//     () => {
-//         r#"
-//             (
-//                 (call_expression 
-//                     (identifier) @call)
-//                 (#match? @call "^{}$")
-//             )
-//         "#
-//     };
-// }
+macro_rules! find_function_refs_str {
+    () => {
+        r#"
+            (
+                (call_expression 
+                    (identifier) @call)
+                (#match? @call "^{}$")
+            )
+        "#
+    };
+}
 
 macro_rules! find_variable_def_str {
     () => {
@@ -106,44 +106,44 @@ impl TreeParser {
         Ok(Some(locations))
     }
 
-    // pub fn find_references(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>, String> {
-    //     let line_mapping = Self::generate_line_mapping(&content);
-    //     let position_offset = line_mapping[position.line as usize] + position.character as usize;
+    pub fn find_references(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>, String> {
+        let line_mapping = Self::generate_line_mapping(&content);
+        let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
-    //     let mut start = Point {
-    //         row: position.line as usize,
-    //         column: position.character as usize,
-    //     };
-    //     let mut end = Point {
-    //         row: position.line as usize,
-    //         column: position.character as usize,
-    //     };
-    //     if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
-    //         end.column += 1;
-    //     }
-    //     else {
-    //         start.column -= 1;
-    //     }
+        let mut start = Point {
+            row: position.line as usize,
+            column: position.character as usize,
+        };
+        let mut end = Point {
+            row: position.line as usize,
+            column: position.character as usize,
+        };
+        if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
+            end.column += 1;
+        }
+        else {
+            start.column -= 1;
+        }
 
-    //     let current_node = match tree.root_node().named_descendant_for_point_range(start, end) {
-    //         Some(node) => node,
-    //         None => return Ok(None),
-    //     };
+        let current_node = match tree.root_node().named_descendant_for_point_range(start, end) {
+            Some(node) => node,
+            None => return Ok(None),
+        };
 
-    //     let parent = match current_node.parent() {
-    //         Some(parent) => parent,
-    //         None => return Ok(None),
-    //     };
+        let parent = match current_node.parent() {
+            Some(parent) => parent,
+            None => return Ok(None),
+        };
 
-    //     let locations = match (current_node.kind(), parent.kind()) {
-    //         (_, "function_declarator") => {
-    //             let query_str = format!(find_function_refs_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
-    //             Self::simple_global_search(file_path, tree, content, &query_str)
-    //         }
-    //         _ => return Ok(None),
-    //     };
-    //     Ok(Some(locations))
-    // }
+        let locations = match (current_node.kind(), parent.kind()) {
+            (_, "function_declarator") => {
+                let query_str = format!(find_function_refs_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
+                Self::simple_global_search(file_path, tree, content, &query_str)
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(locations))
+    }
 
     fn simple_global_search(path: &PathBuf, tree: &Tree, content: &String, query_str: &str) -> Vec<Location> {
         let query = Query::new(tree_sitter_glsl::language(), query_str).unwrap();
