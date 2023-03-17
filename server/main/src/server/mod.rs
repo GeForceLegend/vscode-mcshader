@@ -233,7 +233,6 @@ impl LanguageServer for MinecraftLanguageServer {
             Some(locatons) => locatons,
             None => Vec::new()
         };
-        error!("Got a textDocument/references request, but it is not implemented");
         Ok(Some(result))
     }
 

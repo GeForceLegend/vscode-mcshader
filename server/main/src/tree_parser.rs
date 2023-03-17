@@ -12,7 +12,7 @@ macro_rules! find_function_def_str {
                     (identifier) @function)
 
                 (preproc_function_def 
-                    name: (identifier) @call)
+                    name: (identifier) @function)
 
                 (#match? @function "^{}$")
             ]
@@ -108,7 +108,10 @@ impl TreeParser {
             | ("identifier", "binary_expression")
             | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, &file_path, current_node),
             ("identifier", "init_declarator") => {
-                Self::tree_climbing_search(&content, &file_path, current_node)
+                match current_node.prev_sibling() {
+                    Some(_) => Self::tree_climbing_search(&content, &file_path, current_node),
+                    None => Vec::new()
+                }
             },
             _ => return Ok(None),
         };
