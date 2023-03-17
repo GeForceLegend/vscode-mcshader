@@ -279,18 +279,13 @@ impl MinecraftLanguageServer {
                 content.replace_range(start..end, &change.text);
 
                 let new_end_position = match change.text.matches("\n").count() {
-                    0 => {
-                        Point {
-                            row: range.start.line as usize,
-                            column: range.start.character as usize + change.text.len(),
-                        }
+                    0 => Point {
+                        row: range.start.line as usize,
+                        column: range.start.character as usize + change.text.len(),
                     },
-                    lines => {
-                        let original_lines = original_content.matches("\n").count();
-                        Point {
-                            row: range.start.line as usize + lines - original_lines,
-                            column: change.text.split("\n").collect::<Vec<_>>().last().unwrap().len(),
-                        }
+                    lines => Point {
+                        row: range.start.line as usize + lines - original_content.matches("\n").count(),
+                        column: change.text.split("\n").collect::<Vec<_>>().last().unwrap().len(),
                     },
                 };
                 tree.edit(&InputEdit{

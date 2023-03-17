@@ -106,6 +106,7 @@ impl TreeParser {
             ("identifier", "argument_list")
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")
+            | ("identifier", "return_statement")
             | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, &file_path, current_node),
             ("identifier", "init_declarator") => {
                 match current_node.prev_sibling() {
