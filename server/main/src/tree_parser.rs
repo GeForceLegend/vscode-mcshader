@@ -7,11 +7,15 @@ use url::Url;
 macro_rules! find_function_def_str {
     () => {
         r#"
-            (
+            [
                 (function_declarator 
                     (identifier) @function)
+
+                (preproc_function_def 
+                    name: (identifier) @call)
+
                 (#match? @function "^{}$")
-            )
+            ]
         "#
     };
 }
@@ -93,7 +97,9 @@ impl TreeParser {
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
-            (_, "call_expression") => {
+            (_, "call_expression")
+            | (_, "function_declarator")
+            | (_, "preproc_function_def") => {
                 let query_str = format!(find_function_def_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
                 Self::simple_global_search(file_path, tree, content, &query_str)
             }
@@ -101,6 +107,9 @@ impl TreeParser {
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")
             | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, &file_path, current_node),
+            ("identifier", "init_declarator") => {
+                Self::tree_climbing_search(&content, &file_path, current_node)
+            },
             _ => return Ok(None),
         };
         Ok(Some(locations))
@@ -136,7 +145,8 @@ impl TreeParser {
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
-            (_, "function_declarator") => {
+            (_, "function_declarator")
+            | (_, "preproc_function_def") => {
                 let query_str = format!(find_function_refs_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
                 Self::simple_global_search(file_path, tree, content, &query_str)
             }

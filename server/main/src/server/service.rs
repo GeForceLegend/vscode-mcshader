@@ -315,7 +315,7 @@ impl MinecraftLanguageServer {
         let mut temp_files = server_data.temp_files.borrow_mut();
 
         // Leave the files with watched extension to get linted by did_change_watched_files event
-        // If this file does not exist in file system, return None to enable temp lint.
+        // If this file does not exist in file system, enable temp lint.
         if server_data.extensions.borrow().contains(file_path.extension().unwrap().to_str().unwrap()) &&
             (include_files.contains_key(&file_path) || shader_files.contains_key(&file_path)
         ) {
