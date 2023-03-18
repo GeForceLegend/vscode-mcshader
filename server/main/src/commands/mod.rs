@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::{Mutex, MutexGuard}};
 
 use serde_json::Value;
+use tower_lsp::jsonrpc::Result;
 
-use crate::server::ServerData;
+use crate::server::{ServerData, LanguageServerError};
 
 mod virtual_merge;
 
@@ -19,15 +20,15 @@ impl CommandList {
         command_list
     }
 
-    pub fn execute(&self, command: &String, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Value, String> {
+    pub fn execute(&self, command: &String, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Option<Value>> {
         let server_data = server_data.lock().unwrap();
         if let Some(command) = self.commands.get(command) {
             return command.run(arguments, &server_data);
         }
-        return Err(String::from("Invalid command"));
+        return Err(LanguageServerError::invalid_command_error());
     }
 }
 
 pub trait Command {
-    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Value, String>;
+    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>>;
 }

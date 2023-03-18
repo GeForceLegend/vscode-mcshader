@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{Position, Location, Range};
 use tree_sitter::{Tree, Point, QueryCursor, Query, Node};
 use url::Url;
@@ -67,7 +68,7 @@ impl TreeParser {
         line_mapping
     }
 
-    pub fn find_definitions(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>, String> {
+    pub fn find_definitions(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
         let line_mapping = Self::generate_line_mapping(&content);
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
@@ -119,7 +120,7 @@ impl TreeParser {
         Ok(Some(locations))
     }
 
-    pub fn find_references(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>, String> {
+    pub fn find_references(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
         let line_mapping = Self::generate_line_mapping(&content);
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 

@@ -5,6 +5,7 @@ use std::{
 
 use logging::{info, warn};
 use path_slash::PathBufExt;
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{*, request::*};
 use tree_sitter::{Point, Parser, InputEdit};
 use url::Url;
@@ -14,7 +15,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::file::{ShaderFile, IncludeFile, TempFile};
 
-use super::MinecraftLanguageServer;
+use super::{MinecraftLanguageServer, LanguageServerError};
 
 fn generate_line_mapping(content: &String) -> Vec<usize> {
     let mut line_mapping: Vec<usize> = vec![0];
@@ -376,7 +377,7 @@ impl MinecraftLanguageServer {
         Some((include_links, diagnostics))
     }
 
-    pub fn find_definitions(&self, params: GotoDeclarationParams) -> Result<Option<Vec<Location>>, String> {
+    pub fn find_definitions(&self, params: GotoDeclarationParams) -> Result<Option<Vec<Location>>> {
         let server_data = self.server_data.lock().unwrap();
         let shader_files = server_data.shader_files.borrow();
         let include_files = server_data.include_files.borrow();
@@ -400,13 +401,13 @@ impl MinecraftLanguageServer {
             content = temp_file.content().borrow();
         }
         else {
-            return Err(String::from("Unable to load file content"));
+            return Err(LanguageServerError::content_load_error());
         }
 
         TreeParser::find_definitions(&file_path, &position, &tree, &content)
     }
 
-    pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>, String> {
+    pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let server_data = self.server_data.lock().unwrap();
         let shader_files = server_data.shader_files.borrow();
         let include_files = server_data.include_files.borrow();
@@ -430,7 +431,7 @@ impl MinecraftLanguageServer {
             content = temp_file.content().borrow();
         }
         else {
-            return Err(String::from("Unable to load file content"));
+            return Err(LanguageServerError::content_load_error());
         }
 
         TreeParser::find_references(&file_path, &position, &tree, &content)

@@ -6,18 +6,19 @@ use std::{
 
 use path_slash::PathBufExt;
 use serde_json::Value;
+use tower_lsp::jsonrpc::Result;
 
-use crate::server::ServerData;
+use crate::server::{ServerData, LanguageServerError};
 
 use super::Command;
 
 pub struct VirtualMerge {}
 
 impl Command for VirtualMerge {
-    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Value, String> {
+    fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>> {
         let value = arguments.get(0).unwrap();
         if !value.is_string() {
-            return Err(String::from("Invalid arguments"));
+            return Err(LanguageServerError::invalid_argument_error());
         }
         let file_uri = value.to_string();
         #[cfg(target_os = "windows")]
@@ -37,13 +38,13 @@ impl Command for VirtualMerge {
         else if let Some(temp_file) = temp_files.get(&file_path) {
             content = match temp_file.merge_self(&file_path, &mut file_list) {
                 Some(temp_content) => temp_content.1,
-                None => return Err(String::from("This is not a base shader file")),
+                None => return Err(LanguageServerError::not_shader_error()),
             }
         }
         else {
-            return Err(String::from("This is not a base shader file"));
+            return Err(LanguageServerError::not_shader_error());
         }
 
-        Ok(Value::String(content))
+        Ok(Some(Value::String(content)))
     }
 }

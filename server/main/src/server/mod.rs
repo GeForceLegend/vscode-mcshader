@@ -12,8 +12,9 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 use tree_sitter::Parser;
 
-mod service;
 mod data;
+mod error;
+mod service;
 
 use crate::capability::ServerCapabilitiesFactroy;
 use crate::commands::CommandList;
@@ -42,6 +43,8 @@ pub struct MinecraftLanguageServer {
     opengl_context: OpenGlContext,
     _log_guard: logging::GlobalLoggerGuard,
 }
+
+pub struct LanguageServerError {}
 
 impl MinecraftLanguageServer {
     pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser) -> MinecraftLanguageServer {
@@ -121,17 +124,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
-        match self.command_list.execute(&params.command, &params.arguments, &self.server_data) {
-            Ok(response) => Ok(Some(response)),
-            Err(error) => {
-                self.client.show_message(MessageType::ERROR, &error).await;
-                Err(Error {
-                    code: tower_lsp::jsonrpc::ErrorCode::InvalidRequest,
-                    message: error,
-                    data: None
-                })
-            },
-        }
+        self.command_list.execute(&params.command, &params.arguments, &self.server_data)
     }
 
     #[logging_macro::with_trace_id]
