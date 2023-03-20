@@ -22,10 +22,10 @@ impl CommandList {
 
     pub fn execute(&self, command: &String, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Option<Value>> {
         let server_data = server_data.lock().unwrap();
-        if let Some(command) = self.commands.get(command) {
-            return command.run(arguments, &server_data);
+        match self.commands.get(command) {
+            Some(command) => command.run(arguments, &server_data),
+            None => Err(LanguageServerError::invalid_command_error()),
         }
-        return Err(LanguageServerError::invalid_command_error());
     }
 }
 

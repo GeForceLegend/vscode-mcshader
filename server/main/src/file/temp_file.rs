@@ -54,9 +54,14 @@ impl TempFile {
             None => gl::NONE
         };
         let mut pack_path = file_path.clone();
-        while pack_path.file_name().unwrap() != "shaders" {
+        loop {
             if !pack_path.pop() {
                 return None;
+            }
+            match pack_path.file_name() {
+                Some(file_name) if file_name == "shaders" => break,
+                Some(_) => continue,
+                None => return None,
             }
         }
         Some(TempFile {
