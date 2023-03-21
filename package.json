@@ -32,7 +32,7 @@
         "onLanguage:glsl",
         "workspaceContains:shaders/"
     ],
-    "main": "./client/out/extension",
+    "main": "./client/out/main",
     "contributes": {
         "commands": [
             {

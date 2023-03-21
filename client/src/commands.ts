@@ -1,12 +1,20 @@
-import path = require('path')
+import * as path from 'path'
 import * as vscode from 'vscode'
-import * as lsp from 'vscode-languageclient/node'
-import { Extension } from './extension'
+import * as lc from 'vscode-languageclient/node'
+import { Extension } from './main'
 import { log } from './log'
+import { Disposable } from 'vscode-languageclient/node'
 
-export type Command = (...args: any[]) => unknown
+export function commandList(extension: Extension): Disposable[] {
+  let commandList = []
+  commandList.push(vscode.commands.registerCommand('mcshader.restart', restartExtension(extension)))
+  commandList.push(vscode.commands.registerCommand('mcshader.virtualMerge', virtualMergedDocument(extension)))
+  return commandList
+}
 
-export function restartExtension(e: Extension): Command {
+type Command = (...args: any[]) => unknown
+
+function restartExtension(e: Extension): Command {
   return async () => {
     vscode.window.showInformationMessage('Reloading Minecraft shaders language server...')
     await e.deactivate()
@@ -14,12 +22,12 @@ export function restartExtension(e: Extension): Command {
   }
 }
 
-export function virtualMergedDocument(e: Extension): Command {
+function virtualMergedDocument(e: Extension): Command {
   const getVirtualDocument = async (path: string): Promise<string | null> => {
     let content: string = ''
     log.info(path)
     try {
-      content = await e.lspClient.sendRequest<string>(lsp.ExecuteCommandRequest.type.method, {
+      content = await e.client.sendRequest<string>(lc.ExecuteCommandRequest.type.method, {
         command: 'virtualMerge',
         arguments: [path]
       })
