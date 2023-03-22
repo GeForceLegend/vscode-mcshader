@@ -4,61 +4,18 @@ use std::{
 };
 
 use logging::{info, warn};
-use path_slash::PathBufExt;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{*, request::*};
-use tree_sitter::{Point, Parser, InputEdit};
+use tree_sitter::Parser;
 use url::Url;
 
-use crate::{constant::*, tree_parser::TreeParser};
+use crate::constant::*;
+use crate::tree_parser::TreeParser;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
-use crate::file::{ShaderFile, IncludeFile, TempFile};
+use crate::file::{ShaderFile, IncludeFile, TempFile, File};
 
 use super::{MinecraftLanguageServer, LanguageServerError};
-
-fn generate_line_mapping(content: &String) -> Vec<usize> {
-    let mut line_mapping: Vec<usize> = vec![0];
-    for (i, char) in content.char_indices() {
-        if char == '\n' {
-            line_mapping.push(i + 1);
-        }
-    }
-    line_mapping
-}
-
-fn parse_includes(content: &String, pack_path: &PathBuf, file_path: &PathBuf) -> Vec<DocumentLink> {
-    let mut include_links = Vec::new();
-
-    content.lines()
-        .enumerate()
-        .for_each(|line| {
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                let cap = capture.get(1).unwrap();
-                let path = cap.as_str();
-
-                let start = cap.start();
-                let end = cap.end();
-
-                let include_path = match path.strip_prefix('/') {
-                    Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                    None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
-                };
-                let url = Url::from_file_path(include_path).unwrap();
-
-                include_links.push(DocumentLink {
-                    range: Range::new(
-                        Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
-                        Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
-                    ),
-                    tooltip: Some(String::from(url.path())),
-                    target: Some(url),
-                    data: None,
-                });
-            }
-        });
-    include_links
-}
 
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
@@ -246,59 +203,19 @@ impl MinecraftLanguageServer {
     pub fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
-        let mut shader_files = server_data.shader_files.borrow_mut();
-        let mut include_files = server_data.include_files.borrow_mut();
-        let mut temp_files = server_data.temp_files.borrow_mut();
+        let shader_files = server_data.shader_files.borrow_mut();
+        let include_files = server_data.include_files.borrow_mut();
+        let temp_files = server_data.temp_files.borrow_mut();
 
-        let mut content;
-        let mut tree;
-        if let Some(shader_file) = shader_files.get_mut(file_path) {
-            content = shader_file.content().borrow_mut();
-            tree = shader_file.tree().borrow_mut();
+        if let Some(shader_file) = shader_files.get(file_path) {
+            shader_file.apply_edit(changes, &mut parser);
         }
-        else if let Some(include_file) = include_files.get_mut(file_path) {
-            content = include_file.content().borrow_mut();
-            tree = include_file.tree().borrow_mut();
+        else if let Some(include_file) = include_files.get(file_path) {
+            include_file.apply_edit(changes, &mut parser);
         }
-        else if let Some(temp_file) = temp_files.get_mut(file_path) {
-            content = temp_file.content().borrow_mut();
-            tree = temp_file.tree().borrow_mut();
+        else if let Some(temp_file) = temp_files.get(file_path) {
+            temp_file.apply_edit(changes, &mut parser);
         }
-        else {
-            return;
-        }
-
-        let line_mapping = generate_line_mapping(&content);
-
-        changes.iter()
-            .for_each(|change| {
-                let range = change.range.unwrap();
-                let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
-                let end = start + change.range_length.unwrap() as usize;
-
-                let original_content = content.get(start .. end).unwrap().to_owned();
-                content.replace_range(start..end, &change.text);
-
-                let new_end_position = match change.text.matches("\n").count() {
-                    0 => Point {
-                        row: range.start.line as usize,
-                        column: range.start.character as usize + change.text.len(),
-                    },
-                    lines => Point {
-                        row: range.start.line as usize + lines - original_content.matches("\n").count(),
-                        column: change.text.split("\n").collect::<Vec<_>>().last().unwrap().len(),
-                    },
-                };
-                tree.edit(&InputEdit{
-                    start_byte: start,
-                    old_end_byte: end,
-                    new_end_byte: start + change.text.len(),
-                    start_position: Point { row: range.start.line as usize, column: range.start.character as usize },
-                    old_end_position: Point { row: range.end.line as usize, column: range.end.character as usize },
-                    new_end_position,
-                })
-            });
-        *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
     }
 
     pub fn save_file(&self, file_path: PathBuf,
@@ -348,16 +265,13 @@ impl MinecraftLanguageServer {
         let include_files = server_data.include_files.borrow();
         let temp_files = server_data.temp_files.borrow();
 
-        let content;
-        let pack_path;
+        let file: &dyn File;
         if let Some(shader_file) = shader_files.get(file_path) {
-            content = shader_file.content().borrow();
-            pack_path = shader_file.pack_path();
+            file = shader_file;
             extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, file_path, opengl_context, diagnostics_parser));
         }
         else if let Some(include_file) = include_files.get(file_path) {
-            content = include_file.content().borrow();
-            pack_path = include_file.pack_path();
+            file = include_file;
             let include_shader_list = include_file.included_shaders().borrow();
             for shader_path in include_shader_list.iter() {
                 let shader_file = shader_files.get(shader_path).unwrap();
@@ -365,14 +279,13 @@ impl MinecraftLanguageServer {
             }
         }
         else if let Some(temp_file) = temp_files.get(file_path) {
-            content = temp_file.content().borrow();
-            pack_path = temp_file.pack_path();
+            file = temp_file;
             extend_diagnostics(&mut diagnostics, self.temp_lint(&temp_file, file_path, opengl_context, diagnostics_parser));
         }
         else {
             return None;
         }
-        let include_links = parse_includes(&content, pack_path, file_path);
+        let include_links = file.parse_includes(file_path);
 
         Some((include_links, diagnostics))
     }
@@ -386,23 +299,21 @@ impl MinecraftLanguageServer {
         let file_path = params.text_document_position_params.text_document.uri.to_file_path().unwrap();
         let position = params.text_document_position_params.position;
 
-        let tree;
-        let content;
+        let file: &dyn File;
         if let Some(include_file) = include_files.get(&file_path) {
-            tree = include_file.tree().borrow();
-            content = include_file.content().borrow();
+            file = include_file;
         }
         else if let Some(shader_file) = shader_files.get(&file_path) {
-            tree = shader_file.tree().borrow();
-            content = shader_file.content().borrow();
+            file = shader_file;
         }
         else if let Some(temp_file) = temp_files.get(&file_path) {
-            tree = temp_file.tree().borrow();
-            content = temp_file.content().borrow();
+            file = temp_file;
         }
         else {
             return Err(LanguageServerError::content_load_error());
         }
+        let content = file.content().borrow();
+        let tree = file.tree().borrow();
 
         TreeParser::find_definitions(&file_path, &position, &tree, &content)
     }
@@ -416,23 +327,21 @@ impl MinecraftLanguageServer {
         let file_path = params.text_document_position.text_document.uri.to_file_path().unwrap();
         let position = params.text_document_position.position;
 
-        let tree;
-        let content;
+        let file: &dyn File;
         if let Some(include_file) = include_files.get(&file_path) {
-            tree = include_file.tree().borrow();
-            content = include_file.content().borrow();
+            file = include_file;
         }
         else if let Some(shader_file) = shader_files.get(&file_path) {
-            tree = shader_file.tree().borrow();
-            content = shader_file.content().borrow();
+            file = shader_file;
         }
         else if let Some(temp_file) = temp_files.get(&file_path) {
-            tree = temp_file.tree().borrow();
-            content = temp_file.content().borrow();
+            file = temp_file;
         }
         else {
             return Err(LanguageServerError::content_load_error());
         }
+        let content = file.content().borrow();
+        let tree = file.tree().borrow();
 
         TreeParser::find_references(&file_path, &position, &tree, &content)
     }

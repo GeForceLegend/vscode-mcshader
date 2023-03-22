@@ -16,21 +16,9 @@ use crate::constant::{
     OPTIFINE_MACROS,
 };
 
-use super::TempFile;
+use super::{TempFile, File};
 
 impl TempFile {
-    pub fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
-    pub fn content(&self) -> &RefCell<String> {
-        &self.content
-    }
-
-    pub fn tree(&self) -> &RefCell<Tree> {
-        &self.tree
-    }
-
     pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
         warn!("Document not found in file system"; "path" => file_path.display());
         let content = match read_to_string(file_path) {
@@ -172,5 +160,19 @@ impl TempFile {
             warn!("Unable to read file"; "path" => file_path.display());
             original_content + "\n"
         }
+    }
+}
+
+impl File for TempFile {
+    fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
+    fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
     }
 }

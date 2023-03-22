@@ -16,27 +16,15 @@ use crate::constant::{
     RE_MACRO_LINE,
 };
 
-use super::IncludeFile;
+use super::{IncludeFile, File};
 
 impl IncludeFile {
-    pub fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
-    pub fn content(&self) -> &RefCell<String> {
-        &self.content
-    }
-
     pub fn included_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
         &self.included_shaders
     }
 
     pub fn including_files(&self) -> &RefCell<HashSet<PathBuf>> {
         &self.including_files
-    }
-
-    pub fn tree(&self) -> &RefCell<Tree> {
-        &self.tree
     }
 
     pub fn parent_update_list(&self, include_files: &HashMap<PathBuf, IncludeFile>, update_list: &mut HashSet<PathBuf>, depth: i32) {
@@ -176,5 +164,19 @@ impl IncludeFile {
             });
         file_list.insert(curr_file_id, file_path);
         include_content
+    }
+}
+
+impl File for IncludeFile {
+    fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
+    fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
     }
 }

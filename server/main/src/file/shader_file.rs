@@ -17,23 +17,11 @@ use crate::constant::{
     OPTIFINE_MACROS,
 };
 
-use super::{ShaderFile, IncludeFile};
+use super::{ShaderFile, IncludeFile, File};
 
 impl ShaderFile {
     pub fn file_type(&self) -> gl::types::GLenum {
         self.file_type
-    }
-
-    pub fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
-    pub fn content(&self) -> &RefCell<String> {
-        &self.content
-    }
-
-    pub fn tree(&self) -> &RefCell<Tree> {
-        &self.tree
     }
 
     /// Create a new shader file, load contents from given path, and add includes to the list
@@ -140,5 +128,19 @@ impl ShaderFile {
             });
 
         shader_content
+    }
+}
+
+impl File for ShaderFile {
+    fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
+    fn content(&self) -> &RefCell<String> {
+        &self.content
+    }
+
+    fn tree(&self) -> &RefCell<Tree> {
+        &self.tree
     }
 }
