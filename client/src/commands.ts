@@ -1,7 +1,7 @@
 import * as path from 'path'
 import * as vscode from 'vscode'
 import * as lc from 'vscode-languageclient/node'
-import { Extension } from './main'
+import { Extension } from './extension'
 import { log } from './log'
 import { Disposable } from 'vscode-languageclient/node'
 

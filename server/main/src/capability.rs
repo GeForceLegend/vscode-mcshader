@@ -22,33 +22,19 @@ impl ServerCapabilitiesFactroy {
                         supported: Some(true),
                         change_notifications: Some(OneOf::Left(true)),
                     }),
-                    file_operations: None,
-                    // file_operations: Some(WorkspaceFileOperationsServerCapabilities {
-                    //     did_create: None,
-                    //     will_create: None,
-                    //     did_rename: Some(FileOperationRegistrationOptions {
-                    //         filters: vec![FileOperationFilter{
-                    //             scheme: Some(String::from("file")),
-                    //             pattern: FileOperationPattern {
-                    //                 glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
-                    //                 matches: Some(FileOperationPatternKind::File),
-                    //                 options: None
-                    //             }
-                    //         }]
-                    //     }),
-                    //     will_rename: Some(FileOperationRegistrationOptions {
-                    //         filters: vec![FileOperationFilter{
-                    //             scheme: Some(String::from("file")),
-                    //             pattern: FileOperationPattern {
-                    //                 glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
-                    //                 matches: Some(FileOperationPatternKind::File),
-                    //                 options: None
-                    //             }
-                    //         }]
-                    //     }),
-                    //     did_delete: None,
-                    //     will_delete: None
-                    // }),
+                    file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                        // will_rename: Some(FileOperationRegistrationOptions {
+                        //     filters: vec![FileOperationFilter{
+                        //         scheme: Some(String::from("file")),
+                        //         pattern: FileOperationPattern {
+                        //             glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
+                        //             matches: Some(FileOperationPatternKind::File),
+                        //             options: None
+                        //         }
+                        //     }]
+                        // }),
+                        ..Default::default()
+                    }),
                 }),
                 document_link_provider: Some(DocumentLinkOptions{
                     resolve_provider: Some(true),
@@ -56,7 +42,7 @@ impl ServerCapabilitiesFactroy {
                         work_done_progress: None
                     }
                 }),
-                ..ServerCapabilities::default()
+                ..Default::default()
             },
             ..Default::default()
         })

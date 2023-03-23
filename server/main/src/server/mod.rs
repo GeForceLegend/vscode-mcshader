@@ -177,19 +177,12 @@ impl LanguageServer for MinecraftLanguageServer {
         self.close_file(&file_path);
     }
 
-    // Doesn't implemented yet, cannot recieve notification from client. Why?
+    // Doesn't implemented yet
     // #[logging::with_trace_id]
     // async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
     //     let _ = params;
     //     error!("Got a workspace/willRenameFiles request, but it is not implemented");
     //     Err(Error::method_not_found())
-    // }
-
-    // Doesn't implemented yet, cannot recieve notification from client. Why?
-    // #[logging::with_trace_id]
-    // async fn did_rename_files(&self, params: RenameFilesParams) {
-    //     let _ = params;
-    //     warn!("Got a workspace/didRenameFiles notification, but it is not implemented");
     // }
 
     // Doesn't implemented yet, here for not reporting method not found

@@ -101,6 +101,10 @@ pub trait File {
     }
 }
 
+pub trait BaseShader: File {
+    fn full_content(&self) -> &String;
+}
+
 #[derive(Clone)]
 pub struct ShaderFile {
     /// Type of the shader

@@ -2,7 +2,7 @@
     "name": "vscode-mcshader",
     "displayName": "Language Server for Minecraft Shaderpacks",
     "description": "A Visual Studio Code extension for linting/etc Minecraft GLSL Shaders",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "publisher": "GeForceLegend",
     "license": "MIT",
     "homepage": "https://github.com/GeForceLegend/vscode-mcshader",
@@ -32,7 +32,7 @@
         "onLanguage:glsl",
         "workspaceContains:shaders/"
     ],
-    "main": "./client/out/main",
+    "main": "./client/out/extension.js",
     "contributes": {
         "commands": [
             {
@@ -85,6 +85,8 @@
         "postinstall": "cd client && npm install",
         "lint": "eslint 'client/**/*.ts' --max-warnings 1",
         "fix": "eslint 'client/**/*.ts' --fix"
+    },
+    "dependencies": {
     },
     "devDependencies": {
         "@types/node": "^17.0.21",
