@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    path::PathBuf,
+    path::{PathBuf, Path},
     cell::RefCell,
 };
 
@@ -13,6 +13,23 @@ use crate::constant::RE_MACRO_INCLUDE;
 mod include_file;
 mod shader_file;
 mod temp_file;
+
+fn include_path_join(base_path: &Path, additional: &Path) -> Result<PathBuf, String> {
+    let mut include_path: PathBuf = base_path.into();
+    for component in additional.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                if !include_path.pop() {
+                    return Err("Unable to find parent while creating include path".into());
+                }
+            },
+            std::path::Component::Normal(path) => include_path.push(path),
+            std::path::Component::CurDir => {},
+            _ => return Err("Invalid component in include path".into()),
+        }
+    }
+    Ok(include_path)
+}
 
 pub trait File {
     fn pack_path(&self) -> &PathBuf;

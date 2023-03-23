@@ -56,8 +56,8 @@ impl ShaderFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
-                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
+                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
+                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                         };
 
                         IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0);
@@ -93,8 +93,8 @@ impl ShaderFile {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
+                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {

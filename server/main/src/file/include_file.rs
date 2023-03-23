@@ -63,8 +63,8 @@ impl IncludeFile {
                             let path = capture.get(1).unwrap().as_str();
 
                             let sub_include_path = match path.strip_prefix('/') {
-                                Some(path) => pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
-                                None => include_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
+                                Some(path) => include_path_join(pack_path, &PathBuf::from_slash(path)).unwrap(),
+                                None => include_path_join(include_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                             };
 
                             including_files.insert(sub_include_path.clone());
@@ -100,8 +100,8 @@ impl IncludeFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let sub_include_path = match path.strip_prefix('/') {
-                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
+                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
+                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                         };
 
                         including_files.insert(sub_include_path.clone());
@@ -139,8 +139,8 @@ impl IncludeFile {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
+                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                     };
 
                     if let Some(include_file) = include_files.get(&include_path) {
