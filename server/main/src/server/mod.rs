@@ -44,7 +44,7 @@ pub struct MinecraftLanguageServer {
     _log_guard: logging::GlobalLoggerGuard,
 }
 
-pub struct LanguageServerError {}
+pub struct LanguageServerError;
 
 impl MinecraftLanguageServer {
     pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser) -> MinecraftLanguageServer {
@@ -195,9 +195,9 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(data) = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
-            self.publish_diagnostic(data.1).await;
-            Ok(Some(data.0))
+        if let Ok(result) = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
+            self.publish_diagnostic(result.1).await;
+            Ok(result.0)
         }
         else {
             Err(Error::parse_error())

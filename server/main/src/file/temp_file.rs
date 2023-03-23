@@ -16,7 +16,7 @@ use crate::constant::{
     OPTIFINE_MACROS,
 };
 
-use super::{TempFile, File};
+use super::*;
 
 impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {

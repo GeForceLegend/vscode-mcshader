@@ -17,13 +17,9 @@ use crate::constant::{
     OPTIFINE_MACROS,
 };
 
-use super::{ShaderFile, IncludeFile, File};
+use super::*;
 
 impl ShaderFile {
-    pub fn file_type(&self) -> gl::types::GLenum {
-        self.file_type
-    }
-
     /// Create a new shader file, load contents from given path, and add includes to the list
     pub fn new(include_files: &mut HashMap<PathBuf,IncludeFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf) -> ShaderFile {
         let extension = file_path.extension().unwrap();
@@ -60,8 +56,8 @@ impl ShaderFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
-                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
                         };
 
                         IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0);
@@ -142,5 +138,11 @@ impl File for ShaderFile {
 
     fn tree(&self) -> &RefCell<Tree> {
         &self.tree
+    }
+}
+
+impl BaseShader for ShaderFile {
+    fn file_type(&self) -> gl::types::GLenum {
+        self.file_type
     }
 }

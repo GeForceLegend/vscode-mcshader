@@ -13,7 +13,7 @@ use crate::constant::*;
 use crate::tree_parser::TreeParser;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
-use crate::file::{ShaderFile, IncludeFile, TempFile, File};
+use crate::file::*;
 
 use super::{MinecraftLanguageServer, LanguageServerError};
 
@@ -258,7 +258,7 @@ impl MinecraftLanguageServer {
 
     pub fn document_links(&self, file_path: &PathBuf,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
-    ) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)> {
+    ) -> Result<(Option<Vec<DocumentLink>>, HashMap<Url, Vec<Diagnostic>>)> {
         let server_data = self.server_data.lock().unwrap();
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let shader_files = server_data.shader_files.borrow();
@@ -283,11 +283,11 @@ impl MinecraftLanguageServer {
             extend_diagnostics(&mut diagnostics, self.temp_lint(&temp_file, file_path, opengl_context, diagnostics_parser));
         }
         else {
-            return None;
+            return Err(LanguageServerError::content_load_error());
         }
         let include_links = file.parse_includes(file_path);
 
-        Some((include_links, diagnostics))
+        Ok((Some(include_links), diagnostics))
     }
 
     pub fn find_definitions(&self, params: GotoDeclarationParams) -> Result<Option<Vec<Location>>> {
@@ -409,9 +409,11 @@ impl MinecraftLanguageServer {
                     FileChangeType::DELETED => {
                         diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
                         shader_files.remove(&file_path);
-                        include_files.remove(&file_path);
+                        if let Some(include_file) = include_files.remove(&file_path) {
+                            updated_shaders.extend(include_file.included_shaders().borrow().clone());
+                        };
 
-                        include_files.values_mut()
+                        include_files.values()
                             .for_each(|include_file|{
                                 include_file.included_shaders().borrow_mut().remove(&file_path);
                                 include_file.including_files().borrow_mut().remove(&file_path);

@@ -16,7 +16,7 @@ use crate::constant::{
     RE_MACRO_LINE,
 };
 
-use super::{IncludeFile, File};
+use super::*;
 
 impl IncludeFile {
     pub fn included_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
@@ -63,8 +63,8 @@ impl IncludeFile {
                             let path = capture.get(1).unwrap().as_str();
 
                             let sub_include_path = match path.strip_prefix('/') {
-                                Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                                None => include_path.parent().unwrap().join(PathBuf::from_slash(&path))
+                                Some(path) => pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
+                                None => include_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
                             };
 
                             including_files.insert(sub_include_path.clone());
@@ -100,8 +100,8 @@ impl IncludeFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let sub_include_path = match path.strip_prefix('/') {
-                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                            Some(path) => self.pack_path.join(PathBuf::from_slash(path)).canonicalize().unwrap(),
+                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path)).canonicalize().unwrap()
                         };
 
                         including_files.insert(sub_include_path.clone());

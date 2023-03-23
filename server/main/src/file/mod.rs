@@ -102,7 +102,9 @@ pub trait File {
 }
 
 pub trait BaseShader: File {
-    fn full_content(&self) -> &String;
+    fn file_type(&self) -> gl::types::GLenum;
+    // fn full_content(&self) -> &RefCell<String>;
+    // fn full_tree(&self) -> &RefCell<Tree>;
 }
 
 #[derive(Clone)]
