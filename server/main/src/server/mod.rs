@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use logging::{error, info, warn};
 
 use serde_json::Value;
-use tower_lsp::jsonrpc::{Result, Error};
+use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 use tree_sitter::Parser;
@@ -195,31 +195,26 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Ok(result) = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context) {
-            self.publish_diagnostic(result.1).await;
-            Ok(result.0)
-        }
-        else {
-            Err(Error::parse_error())
-        }
+        let result = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context);
+        self.publish_diagnostic(result.1).await;
+
+        Ok(result.0)
     }
 
     #[logging::with_trace_id]
     async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
-        let result = match self.find_definitions(params).unwrap() {
-            Some(locatons) => locatons,
-            None => Vec::new()
-        };
-        Ok(Some(GotoDefinitionResponse::Array(result)))
+        match self.find_definitions(params).unwrap() {
+            Some(locatons) => Ok(Some(GotoDefinitionResponse::Array(locatons))),
+            None => Ok(None)
+        }
     }
 
     #[logging::with_trace_id]
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
-        let result = match self.find_references(params).unwrap() {
-            Some(locatons) => locatons,
-            None => Vec::new()
-        };
-        Ok(Some(result))
+        match self.find_references(params).unwrap() {
+            Some(locatons) => Ok(Some(locatons)),
+            None => Ok(None)
+        }
     }
 
     #[logging::with_trace_id]

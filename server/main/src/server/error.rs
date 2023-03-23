@@ -4,15 +4,6 @@ use super::LanguageServerError;
 
 impl LanguageServerError{
     #[inline]
-    pub fn content_load_error() -> Error {
-        Error {
-            code: ErrorCode::ServerError(-20001),
-            message: String::from("Unable to load content"),
-            data: None
-        }
-    }
-
-    #[inline]
     pub fn not_shader_error() -> Error {
         Error {
             code: ErrorCode::ServerError(-20002),

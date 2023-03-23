@@ -15,7 +15,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 use crate::file::*;
 
-use super::{MinecraftLanguageServer, LanguageServerError};
+use super::MinecraftLanguageServer;
 
 pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
     for file in source {
@@ -258,7 +258,7 @@ impl MinecraftLanguageServer {
 
     pub fn document_links(&self, file_path: &PathBuf,
         diagnostics_parser: &DiagnosticsParser, opengl_context: &OpenGlContext
-    ) -> Result<(Option<Vec<DocumentLink>>, HashMap<Url, Vec<Diagnostic>>)> {
+    ) -> (Option<Vec<DocumentLink>>, HashMap<Url, Vec<Diagnostic>>) {
         let server_data = self.server_data.lock().unwrap();
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let shader_files = server_data.shader_files.borrow();
@@ -283,11 +283,12 @@ impl MinecraftLanguageServer {
             extend_diagnostics(&mut diagnostics, self.temp_lint(&temp_file, file_path, opengl_context, diagnostics_parser));
         }
         else {
-            return Err(LanguageServerError::content_load_error());
+            warn!("This file cannot found in server data! File path: {}", file_path.display());
+            return (None, diagnostics);
         }
         let include_links = file.parse_includes(file_path);
 
-        Ok((Some(include_links), diagnostics))
+        (Some(include_links), diagnostics)
     }
 
     pub fn find_definitions(&self, params: GotoDeclarationParams) -> Result<Option<Vec<Location>>> {
@@ -310,7 +311,7 @@ impl MinecraftLanguageServer {
             file = temp_file;
         }
         else {
-            return Err(LanguageServerError::content_load_error());
+            return Ok(None);
         }
         let content = file.content().borrow();
         let tree = file.tree().borrow();
@@ -338,7 +339,7 @@ impl MinecraftLanguageServer {
             file = temp_file;
         }
         else {
-            return Err(LanguageServerError::content_load_error());
+            return Ok(None);
         }
         let content = file.content().borrow();
         let tree = file.tree().borrow();
