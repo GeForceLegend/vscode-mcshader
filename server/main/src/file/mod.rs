@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
-    path::{PathBuf, Path},
-    cell::RefCell,
+    path::{Component, MAIN_SEPARATOR_STR, PathBuf, Path},
+    cell::RefCell, ffi::OsString,
 };
 
 use path_slash::PathBufExt;
@@ -15,20 +15,32 @@ mod shader_file;
 mod temp_file;
 
 fn include_path_join(base_path: &Path, additional: &Path) -> Result<PathBuf, String> {
-    let mut include_path: PathBuf = base_path.into();
+    let mut buffer: Vec<Component> = base_path.components().collect();
     for component in additional.components() {
         match component {
-            std::path::Component::ParentDir => {
-                if !include_path.pop() {
+            Component::ParentDir => {
+                if let Some(Component::Normal(_)) = buffer.last() {
+                    buffer.pop();
+                }
+                else {
                     return Err("Unable to find parent while creating include path".into());
                 }
             },
-            std::path::Component::Normal(path) => include_path.push(path),
-            std::path::Component::CurDir => {},
+            Component::Normal(_) => buffer.push(component),
+            Component::CurDir => {},
             _ => return Err("Invalid component in include path".into()),
         }
     }
-    Ok(include_path)
+
+    let mut resource = OsString::new();
+    let last = buffer.pop().unwrap();
+    for component in buffer {
+        resource.push(component.as_os_str());
+        resource.push(MAIN_SEPARATOR_STR);
+    }
+    resource.push(last);
+
+    Ok(PathBuf::from(resource))
 }
 
 pub trait File {
@@ -51,8 +63,8 @@ pub trait File {
                     let end = cap.end();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                        Some(path) => include_path_join(pack_path, &PathBuf::from_slash(path)).unwrap(),
+                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
                     };
                     let url = Url::from_file_path(include_path).unwrap();
 
