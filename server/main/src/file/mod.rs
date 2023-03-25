@@ -93,10 +93,10 @@ pub trait File {
     }
 
     fn apply_edit(&self, changes: Vec<TextDocumentContentChangeEvent>, parser: &mut Parser) {
+        let line_mapping = self.generate_line_mapping();
+
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
-
-        let line_mapping = self.generate_line_mapping();
 
         changes.iter()
             .for_each(|change| {
