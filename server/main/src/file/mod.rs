@@ -5,7 +5,6 @@ use std::{
 };
 
 use logging::error;
-use path_slash::PathBufExt;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{Tree, InputEdit, Point, Parser};
 
@@ -15,8 +14,20 @@ mod include_file;
 mod shader_file;
 mod temp_file;
 
-fn include_path_join(base_path: &Path, additional: &Path) -> Result<PathBuf, String> {
-    let mut buffer: Vec<Component> = base_path.components().collect();
+fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, String> {
+    let mut buffer: Vec<Component>;
+    let additional = match additional.strip_prefix("/") {
+        Some(path) => {
+            buffer = root_path.components().collect();
+            PathBuf::from(path)
+        },
+        None => {
+            buffer = curr_path.components().collect();
+            buffer.pop();
+            PathBuf::from(additional)
+        },
+    };
+
     for component in additional.components() {
         match component {
             Component::ParentDir => {
@@ -63,12 +74,7 @@ pub trait File {
                     let start = cap.start();
                     let end = cap.end();
 
-                    let include_path = match path.strip_prefix('/') {
-                        Some(path) => include_path_join(pack_path, &PathBuf::from_slash(path)),
-                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path))
-                    };
-
-                    match include_path {
+                    match include_path_join(pack_path, file_path, path) {
                         Ok(include_path) => {
                             let url = Url::from_file_path(include_path).unwrap();
 

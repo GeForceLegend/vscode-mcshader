@@ -63,12 +63,7 @@ impl IncludeFile {
                         if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
                             let path = capture.get(1).unwrap().as_str();
 
-                            let sub_include_path = match path.strip_prefix('/') {
-                                Some(path) => include_path_join(pack_path, &PathBuf::from(path)),
-                                None => include_path_join(include_path.parent().unwrap(), &PathBuf::from(path))
-                            };
-
-                            match sub_include_path {
+                            match include_path_join(pack_path, &include_path, path) {
                                 Ok(sub_include_path) => {
                                     including_files.insert(sub_include_path.clone());
                                     Self::get_includes(include_files, parent_update_list, parser, pack_path, sub_include_path, parent_file, depth + 1);
@@ -105,12 +100,12 @@ impl IncludeFile {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
                         let path = capture.get(1).unwrap().as_str();
 
-                        let sub_include_path = match path.strip_prefix('/') {
-                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                        };
+                        // let sub_include_path = match path.strip_prefix('/') {
+                        //     Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
+                        //     None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
+                        // };
 
-                        match sub_include_path {
+                        match include_path_join(&self.pack_path, file_path, path) {
                             Ok(sub_include_path) => {
                                 including_files.insert(sub_include_path.clone());
                                 Self::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, sub_include_path, &included_shaders, 1);
@@ -148,12 +143,12 @@ impl IncludeFile {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                     let path = capture.get(1).unwrap().as_str();
 
-                    let include_path = match path.strip_prefix('/') {
-                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                    };
+                    // let include_path = match path.strip_prefix('/') {
+                    //     Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
+                    //     None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
+                    // };
 
-                    if let Ok(include_path) = include_path {
+                    if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
                         if let Some(include_file) = include_files.get(&include_path) {
                             let sub_include_content = include_file.merge_include(include_files, include_path, String::from(line.1), file_list, file_id, depth + 1);
                             include_content += &sub_include_content;

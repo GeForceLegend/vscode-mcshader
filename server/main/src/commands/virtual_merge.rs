@@ -1,10 +1,9 @@
 use std::{
-    path::PathBuf,
+    path::{PathBuf, MAIN_SEPARATOR_STR},
     collections::HashMap,
     sync::MutexGuard
 };
 
-use path_slash::PathBufExt;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 
@@ -22,9 +21,9 @@ impl Command for VirtualMerge {
         }
         let file_uri = value.to_string();
         #[cfg(target_os = "windows")]
-        let file_path = PathBuf::from_slash(file_uri.strip_prefix("\"/").unwrap().strip_suffix("\"").unwrap());
+        let file_path = PathBuf::from(file_uri.strip_prefix("\"/").unwrap().strip_suffix("\"").unwrap().replace("/", MAIN_SEPARATOR_STR));
         #[cfg(not(target_os = "windows"))]
-        let file_path = PathBuf::from_slash(file_uri.strip_prefix("\"").unwrap().strip_suffix("\"").unwrap());
+        let file_path = PathBuf::from(file_uri.strip_prefix("\"").unwrap().strip_suffix("\"").unwrap().replace("/", MAIN_SEPARATOR_STR));
 
         let shader_files = server_data.shader_files().borrow();
         let include_files = server_data.include_files().borrow();

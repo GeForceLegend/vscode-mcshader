@@ -6,7 +6,6 @@ use std::{
 };
 
 use logging::warn;
-use path_slash::PathBufExt;
 use tree_sitter::{Parser, Tree};
 
 use crate::constant::{
@@ -87,8 +86,8 @@ impl TempFile {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => self.pack_path.join(PathBuf::from_slash(path)),
-                        None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                        Some(path) => self.pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                        None => file_path.parent().unwrap().join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR)))
                     };
 
                     let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, String::from(line.1), &mut file_id, 1);
@@ -135,8 +134,8 @@ impl TempFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
-                            Some(path) => pack_path.join(PathBuf::from_slash(path)),
-                            None => file_path.parent().unwrap().join(PathBuf::from_slash(path))
+                            Some(path) => pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                            None => file_path.parent().unwrap().join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR)))
                         };
 
                         let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, String::from(line.1), file_id, depth + 1);

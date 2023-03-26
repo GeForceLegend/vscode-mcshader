@@ -54,12 +54,7 @@ impl ShaderFile {
                     if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
                         let path = capture.get(1).unwrap().as_str();
 
-                        let include_path = match path.strip_prefix('/') {
-                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                        };
-
-                        match include_path {
+                        match include_path_join(&self.pack_path, file_path, path) {
                             Ok(include_path) => IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0),
                             Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                         }
@@ -94,12 +89,7 @@ impl ShaderFile {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                     let path = capture.get(1).unwrap().as_str();
 
-                    let include_path = match path.strip_prefix('/') {
-                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                    };
-
-                    if let Ok(include_path) = include_path {
+                    if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
                         if let Some(include_file) = include_files.get(&include_path) {
                             let include_content = include_file.merge_include(include_files, include_path, String::from(line.1), file_list, &mut file_id, 1);
                             shader_content += &include_content;
