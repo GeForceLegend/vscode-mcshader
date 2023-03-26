@@ -7,7 +7,6 @@ use std::{
 };
 
 use logging::error;
-use path_slash::PathBufExt;
 use tree_sitter::{Parser, Tree};
 
 use crate::constant::{
@@ -56,11 +55,14 @@ impl ShaderFile {
                         let path = capture.get(1).unwrap().as_str();
 
                         let include_path = match path.strip_prefix('/') {
-                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
-                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
+                            Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
+                            None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
                         };
 
-                        IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0);
+                        match include_path {
+                            Ok(include_path) => IncludeFile::get_includes(include_files, &mut parent_update_list, parser, &self.pack_path, include_path, &parent_path, 0),
+                            Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                        }
                     }
                 });
             for include_file in parent_update_list {
@@ -93,14 +95,20 @@ impl ShaderFile {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from_slash(path)).unwrap(),
-                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
+                        Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
+                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
                     };
 
-                    if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content = include_file.merge_include(include_files, include_path, String::from(line.1), file_list, &mut file_id, 1);
-                        shader_content += &include_content;
-                        shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                    if let Ok(include_path) = include_path {
+                        if let Some(include_file) = include_files.get(&include_path) {
+                            let include_content = include_file.merge_include(include_files, include_path, String::from(line.1), file_list, &mut file_id, 1);
+                            shader_content += &include_content;
+                            shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                        }
+                        else {
+                            shader_content += line.1;
+                            shader_content += "\n";
+                        }
                     }
                     else {
                         shader_content += line.1;

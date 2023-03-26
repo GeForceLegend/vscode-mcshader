@@ -4,6 +4,7 @@ use std::{
     cell::RefCell, ffi::OsString,
 };
 
+use logging::error;
 use path_slash::PathBufExt;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{Tree, InputEdit, Point, Parser};
@@ -63,20 +64,26 @@ pub trait File {
                     let end = cap.end();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => include_path_join(pack_path, &PathBuf::from_slash(path)).unwrap(),
-                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path)).unwrap()
+                        Some(path) => include_path_join(pack_path, &PathBuf::from_slash(path)),
+                        None => include_path_join(file_path.parent().unwrap(), &PathBuf::from_slash(path))
                     };
-                    let url = Url::from_file_path(include_path).unwrap();
 
-                    include_links.push(DocumentLink {
-                        range: Range::new(
-                            Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
-                            Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
-                        ),
-                        tooltip: Some(String::from(url.path())),
-                        target: Some(url),
-                        data: None,
-                    });
+                    match include_path {
+                        Ok(include_path) => {
+                            let url = Url::from_file_path(include_path).unwrap();
+
+                            include_links.push(DocumentLink {
+                                range: Range::new(
+                                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
+                                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
+                                ),
+                                tooltip: Some(String::from(url.path())),
+                                target: Some(url),
+                                data: None,
+                            });
+                        },
+                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                    }
                 }
             });
         include_links

@@ -19,6 +19,10 @@ export class Extension {
         this.statusBarItem.show()
     }
 
+    clearStatus = () => {
+        this.statusBarItem?.dispose()
+    }
+
     onStatusChange = (params: {
         status: 'loading' | 'ready' | 'failed' | 'clear'
         message: string
@@ -34,10 +38,6 @@ export class Extension {
                 this.clearStatus()
                 break
         }
-    }
-
-    clearStatus = () => {
-        this.statusBarItem?.dispose()
     }
 
     get context(): vscode.ExtensionContext {
