@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{Position, Location, Range};
-use tree_sitter::{Tree, Point, QueryCursor, Query, Node};
+use tower_lsp::lsp_types::{Location, Position, Range};
+use tree_sitter::{Node, Point, Query, QueryCursor, Tree};
 use url::Url;
 
 macro_rules! find_function_def_str {
@@ -82,8 +82,7 @@ impl TreeParser {
         };
         if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
             end.column += 1;
-        }
-        else {
+        } else {
             start.column -= 1;
         }
 
@@ -98,9 +97,7 @@ impl TreeParser {
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
-            (_, "call_expression")
-            | (_, "function_declarator")
-            | (_, "preproc_function_def") => {
+            (_, "call_expression") | (_, "function_declarator") | (_, "preproc_function_def") => {
                 let query_str = format!(find_function_def_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
                 Self::simple_global_search(file_path, tree, content, &query_str)
             }
@@ -109,11 +106,9 @@ impl TreeParser {
             | ("identifier", "binary_expression")
             | ("identifier", "return_statement")
             | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, &file_path, current_node),
-            ("identifier", "init_declarator") => {
-                match current_node.prev_sibling() {
-                    Some(_) => Self::tree_climbing_search(&content, &file_path, current_node),
-                    None => Vec::new()
-                }
+            ("identifier", "init_declarator") => match current_node.prev_sibling() {
+                Some(_) => Self::tree_climbing_search(&content, &file_path, current_node),
+                None => Vec::new(),
             },
             _ => return Ok(None),
         };
@@ -134,8 +129,7 @@ impl TreeParser {
         };
         if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
             end.column += 1;
-        }
-        else {
+        } else {
             start.column -= 1;
         }
 
@@ -150,8 +144,7 @@ impl TreeParser {
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
-            (_, "function_declarator")
-            | (_, "preproc_function_def") => {
+            (_, "function_declarator") | (_, "preproc_function_def") => {
                 let query_str = format!(find_function_refs_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
                 Self::simple_global_search(file_path, tree, content, &query_str)
             }
@@ -212,7 +205,9 @@ impl TreeParser {
                     let start = capture.node.start_position();
                     let end = capture.node.end_position();
 
-                    if start.row > node_pos.row || (start.row == node_pos.row && start.column > node_pos.column) {continue;}
+                    if start.row > node_pos.row || (start.row == node_pos.row && start.column > node_pos.column) {
+                        continue;
+                    }
 
                     locations.push(Location {
                         uri: Url::from_file_path(path).unwrap(),

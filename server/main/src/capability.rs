@@ -1,5 +1,5 @@
-use tower_lsp::lsp_types::*;
 use tower_lsp::jsonrpc::Result;
+use tower_lsp::lsp_types::*;
 
 pub struct ServerCapabilitiesFactroy {}
 
@@ -8,9 +8,7 @@ impl ServerCapabilitiesFactroy {
         Ok(InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::INCREMENTAL,
-                )),
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
@@ -36,11 +34,9 @@ impl ServerCapabilitiesFactroy {
                         ..Default::default()
                     }),
                 }),
-                document_link_provider: Some(DocumentLinkOptions{
+                document_link_provider: Some(DocumentLinkOptions {
                     resolve_provider: Some(true),
-                    work_done_progress_options: WorkDoneProgressOptions{
-                        work_done_progress: None
-                    }
+                    work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
                 }),
                 ..Default::default()
             },

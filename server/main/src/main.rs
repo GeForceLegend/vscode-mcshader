@@ -25,15 +25,7 @@ async fn main() {
     let mut tree_sitter_parser = Parser::new();
     tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
 
-    let (service, socket) = LspService::new(|client|
-        server::MinecraftLanguageServer::new(
-            client,
-            diagnostics_parser,
-            opengl_content,
-            tree_sitter_parser,
-        )
-    );
-    Server::new(stdin, stdout, socket)
-        .serve(service)
-        .await;
+    let (service, socket) =
+        LspService::new(|client| server::MinecraftLanguageServer::new(client, diagnostics_parser, opengl_content, tree_sitter_parser));
+    Server::new(stdin, stdout, socket).serve(service).await;
 }

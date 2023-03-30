@@ -62,4 +62,4 @@ impl OpenGlContext {
 
 unsafe impl Sync for OpenGlContext {}
 
-unsafe impl Send for OpenGlContext{}
+unsafe impl Send for OpenGlContext {}

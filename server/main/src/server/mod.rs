@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -21,7 +21,7 @@ use crate::commands::CommandList;
 use crate::configuration::Configuration;
 use crate::constant;
 use crate::diagnostics_parser::DiagnosticsParser;
-use crate::file::{ShaderFile, IncludeFile, TempFile};
+use crate::file::{IncludeFile, ShaderFile, TempFile};
 use crate::notification;
 use crate::opengl::OpenGlContext;
 
@@ -47,7 +47,9 @@ pub struct MinecraftLanguageServer {
 pub struct LanguageServerError;
 
 impl MinecraftLanguageServer {
-    pub fn new(client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser) -> MinecraftLanguageServer {
+    pub fn new(
+        client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser,
+    ) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             command_list: CommandList::new(),
@@ -66,25 +68,21 @@ impl MinecraftLanguageServer {
 
     async fn set_status_loading(&self, message: String) {
         self.client
-            .send_notification::<notification::StatusNotification>(
-                notification::StatusNotificationParams{
-                    status: String::from("loading"),
-                    message,
-                    icon: String::from("$(loading~spin)"),
-                }
-            )
+            .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
+                status: String::from("loading"),
+                message,
+                icon: String::from("$(loading~spin)"),
+            })
             .await;
     }
 
     async fn set_status_ready(&self) {
         self.client
-            .send_notification::<notification::StatusNotification>(
-                notification::StatusNotificationParams{
-                    status: String::from("ready"),
-                    message: String::from("ready"),
-                    icon: String::from("$(check)"),
-                }
-            )
+            .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
+                status: String::from("ready"),
+                message: String::from("ready"),
+                icon: String::from("$(check)"),
+            })
             .await;
     }
 }
@@ -99,12 +97,13 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let roots: HashSet<PathBuf>;
         if let Some(work_spaces) = params.workspace_folders {
-            roots = work_spaces.iter().map(|work_space| work_space.uri.to_file_path().unwrap()).collect();
-        }
-        else if let Some(uri) = params.root_uri {
+            roots = work_spaces
+                .iter()
+                .map(|work_space| work_space.uri.to_file_path().unwrap())
+                .collect();
+        } else if let Some(uri) = params.root_uri {
             roots = HashSet::from([uri.to_file_path().unwrap()]);
-        }
-        else {
+        } else {
             roots = HashSet::new();
         }
 
@@ -205,7 +204,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
         match self.find_definitions(params).unwrap() {
             Some(locatons) => Ok(Some(GotoDefinitionResponse::Array(locatons))),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 
@@ -213,7 +212,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
         match self.find_references(params).unwrap() {
             Some(locatons) => Ok(Some(locatons)),
-            None => Ok(None)
+            None => Ok(None),
         }
     }
 

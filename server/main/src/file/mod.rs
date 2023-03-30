@@ -1,12 +1,13 @@
 use std::{
+    cell::RefCell,
     collections::HashSet,
-    path::{Component, MAIN_SEPARATOR_STR, PathBuf},
-    cell::RefCell, ffi::OsString,
+    ffi::OsString,
+    path::{Component, PathBuf, MAIN_SEPARATOR_STR},
 };
 
 use logging::error;
 use tower_lsp::lsp_types::*;
-use tree_sitter::{Tree, InputEdit, Point, Parser};
+use tree_sitter::{InputEdit, Parser, Point, Tree};
 
 use crate::constant::RE_MACRO_INCLUDE;
 
@@ -20,12 +21,12 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
         Some(path) => {
             buffer = root_path.components().collect();
             PathBuf::from(path)
-        },
+        }
         None => {
             buffer = curr_path.components().collect();
             buffer.pop();
             PathBuf::from(additional)
-        },
+        }
     };
 
     for component in additional.components() {
@@ -33,13 +34,12 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
             Component::ParentDir => {
                 if let Some(Component::Normal(_)) = buffer.last() {
                     buffer.pop();
-                }
-                else {
+                } else {
                     return Err("Unable to find parent while creating include path".into());
                 }
-            },
+            }
             Component::Normal(_) => buffer.push(component),
-            Component::CurDir => {},
+            Component::CurDir => {}
             _ => return Err("Invalid component in include path".into()),
         }
     }
@@ -64,37 +64,35 @@ pub trait File {
         let mut include_links = Vec::new();
 
         let pack_path = self.pack_path();
-        self.content().borrow().lines()
-            .enumerate()
-            .for_each(|line| {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let cap = capture.get(1).unwrap();
-                    let path = cap.as_str();
+        self.content().borrow().lines().enumerate().for_each(|line| {
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                let cap = capture.get(1).unwrap();
+                let path = cap.as_str();
 
-                    let start = cap.start();
-                    let end = cap.end();
+                let start = cap.start();
+                let end = cap.end();
 
-                    match include_path_join(pack_path, file_path, path) {
-                        Ok(include_path) => {
-                            let url = Url::from_file_path(include_path).unwrap();
+                match include_path_join(pack_path, file_path, path) {
+                    Ok(include_path) => {
+                        let url = Url::from_file_path(include_path).unwrap();
 
-                            include_links.push(DocumentLink {
-                                range: Range::new(
-                                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
-                                    Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
-                                ),
-                                tooltip: Some(String::from(url.path())),
-                                target: Some(url),
-                                data: None,
-                            });
-                        },
-                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                        include_links.push(DocumentLink {
+                            range: Range::new(
+                                Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
+                                Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
+                            ),
+                            tooltip: Some(String::from(url.path())),
+                            target: Some(url),
+                            data: None,
+                        });
                     }
+                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                 }
-            });
+            }
+        });
         include_links
     }
-    
+
     fn generate_line_mapping(&self) -> Vec<usize> {
         let mut line_mapping: Vec<usize> = vec![0];
         for (i, char) in self.content().borrow().char_indices() {
@@ -111,33 +109,38 @@ pub trait File {
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
 
-        changes.iter()
-            .for_each(|change| {
-                let range = change.range.unwrap();
-                let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
-                let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
+        changes.iter().for_each(|change| {
+            let range = change.range.unwrap();
+            let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
+            let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
 
-                let new_end_position = match change.text.matches("\n").count() {
-                    0 => Point {
-                        row: range.start.line as usize,
-                        column: range.start.character as usize + change.text.len(),
-                    },
-                    lines => Point {
-                        row: range.start.line as usize + lines - content.get(start .. end).unwrap().matches("\n").count(),
-                        column: change.text.split("\n").last().unwrap().len(),
-                    },
-                };
-                tree.edit(&InputEdit{
-                    start_byte: start,
-                    old_end_byte: end,
-                    new_end_byte: start + change.text.len(),
-                    start_position: Point { row: range.start.line as usize, column: range.start.character as usize },
-                    old_end_position: Point { row: range.end.line as usize, column: range.end.character as usize },
-                    new_end_position,
-                });
-
-                content.replace_range(start..end, &change.text);
+            let new_end_position = match change.text.matches("\n").count() {
+                0 => Point {
+                    row: range.start.line as usize,
+                    column: range.start.character as usize + change.text.len(),
+                },
+                lines => Point {
+                    row: range.start.line as usize + lines - content.get(start..end).unwrap().matches("\n").count(),
+                    column: change.text.split("\n").last().unwrap().len(),
+                },
+            };
+            tree.edit(&InputEdit {
+                start_byte: start,
+                old_end_byte: end,
+                new_end_byte: start + change.text.len(),
+                start_position: Point {
+                    row: range.start.line as usize,
+                    column: range.start.character as usize,
+                },
+                old_end_position: Point {
+                    row: range.end.line as usize,
+                    column: range.end.character as usize,
+                },
+                new_end_position,
             });
+
+            content.replace_range(start..end, &change.text);
+        });
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
     }
 }

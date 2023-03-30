@@ -1,19 +1,9 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    fs::read_to_string,
-    cell::RefCell,
-};
+use std::{cell::RefCell, collections::HashMap, fs::read_to_string, path::PathBuf};
 
 use logging::warn;
 use tree_sitter::{Parser, Tree};
 
-use crate::constant::{
-    RE_MACRO_INCLUDE,
-    RE_MACRO_LINE,
-    RE_MACRO_VERSION,
-    OPTIFINE_MACROS,
-};
+use crate::constant::{OPTIFINE_MACROS, RE_MACRO_INCLUDE, RE_MACRO_LINE, RE_MACRO_VERSION};
 
 use super::*;
 
@@ -37,8 +27,8 @@ impl TempFile {
                 } else {
                     gl::NONE
                 }
-            },
-            None => gl::NONE
+            }
+            None => gl::NONE,
         };
         let mut pack_path = file_path.clone();
         loop {
@@ -79,42 +69,42 @@ impl TempFile {
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";
 
-        self.content.borrow().lines()
-            .enumerate()
-            .for_each(|line| {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let path = capture.get(1).unwrap().as_str();
+        self.content.borrow().lines().enumerate().for_each(|line| {
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                let path = capture.get(1).unwrap().as_str();
 
-                    let include_path = match path.strip_prefix('/') {
-                        Some(path) => self.pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
-                        None => file_path.parent().unwrap().join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR)))
-                    };
+                let include_path = match path.strip_prefix('/') {
+                    Some(path) => self.pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                    None => file_path
+                        .parent()
+                        .unwrap()
+                        .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                };
 
-                    let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, String::from(line.1), &mut file_id, 1);
-                    temp_content += &include_content;
+                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, String::from(line.1), &mut file_id, 1);
+                temp_content += &include_content;
+                temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+            } else if RE_MACRO_LINE.is_match(line.1) {
+                // Delete existing #line for correct linting
+                temp_content += "\n";
+            } else {
+                temp_content += line.1;
+                temp_content += "\n";
+                // If we are not in the debug folder, add Optifine's macros for correct linting
+                if !macro_inserted && RE_MACRO_VERSION.is_match(line.1) {
+                    temp_content += OPTIFINE_MACROS;
                     temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                    macro_inserted = true;
                 }
-                else if RE_MACRO_LINE.is_match(line.1) {
-                    // Delete existing #line for correct linting
-                    temp_content += "\n";
-                }
-                else {
-                    temp_content += line.1;
-                    temp_content += "\n";
-                    // If we are not in the debug folder, add Optifine's macros for correct linting
-                    if !macro_inserted &&RE_MACRO_VERSION.is_match(line.1) {
-                        temp_content += OPTIFINE_MACROS;
-                        temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
-                        macro_inserted = true;
-                    }
-                }
-            });
+            }
+        });
 
         Some((self.file_type, temp_content))
     }
 
-    fn merge_temp(pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>,
-        original_content: String, file_id: &mut i32, depth: i32
+    fn merge_temp(
+        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: String, file_id: &mut i32,
+        depth: i32,
     ) -> String {
         if depth > 10 || !file_path.exists() {
             // If include depth reaches 10 or file does not exist
@@ -127,35 +117,34 @@ impl TempFile {
         let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
 
         if let Ok(content) = read_to_string(&file_path) {
-            content.lines()
-                .enumerate()
-                .for_each(|line| {
-                    if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                        let path = capture.get(1).unwrap().as_str();
+            content.lines().enumerate().for_each(|line| {
+                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                    let path = capture.get(1).unwrap().as_str();
 
-                        let include_path = match path.strip_prefix('/') {
-                            Some(path) => pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
-                            None => file_path.parent().unwrap().join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR)))
-                        };
+                    let include_path = match path.strip_prefix('/') {
+                        Some(path) => pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                        None => file_path
+                            .parent()
+                            .unwrap()
+                            .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                    };
 
-                        let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, String::from(line.1), file_id, depth + 1);
-                        include_content += &sub_include_content;
+                    let sub_include_content =
+                        Self::merge_temp(pack_path, include_path, file_list, String::from(line.1), file_id, depth + 1);
+                    include_content += &sub_include_content;
 
-                        include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);
-                    }
-                    else if RE_MACRO_LINE.is_match(&line.1) {
-                        // Delete existing #line for correct linting
-                        include_content += "\n";
-                    }
-                    else {
-                        include_content += &line.1;
-                        include_content += "\n";
-                    }
-                });
+                    include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);
+                } else if RE_MACRO_LINE.is_match(&line.1) {
+                    // Delete existing #line for correct linting
+                    include_content += "\n";
+                } else {
+                    include_content += &line.1;
+                    include_content += "\n";
+                }
+            });
             file_list.insert(curr_file_id, file_path);
             include_content
-        }
-        else {
+        } else {
             warn!("Unable to read file"; "path" => file_path.display());
             original_content + "\n"
         }

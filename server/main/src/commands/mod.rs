@@ -1,22 +1,25 @@
-use std::{collections::HashMap, sync::{Mutex, MutexGuard}};
+use std::{
+    collections::HashMap,
+    sync::{Mutex, MutexGuard},
+};
 
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 
-use crate::server::{ServerData, LanguageServerError};
+use crate::server::{LanguageServerError, ServerData};
 
 mod virtual_merge;
 
 pub struct CommandList {
-    commands: HashMap<String, Box<dyn Command + Sync + Send>>
+    commands: HashMap<String, Box<dyn Command + Sync + Send>>,
 }
 
 impl CommandList {
     pub fn new() -> CommandList {
-        let mut command_list = CommandList {
-            commands: HashMap::new(),
-        };
-        command_list.commands.insert("virtualMerge".into(), Box::new(virtual_merge::VirtualMerge{}));
+        let mut command_list = CommandList { commands: HashMap::new() };
+        command_list
+            .commands
+            .insert("virtualMerge".into(), Box::new(virtual_merge::VirtualMerge {}));
         command_list
     }
 

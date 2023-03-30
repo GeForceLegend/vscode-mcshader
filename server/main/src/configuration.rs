@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use serde::Deserialize;
-use serde_json::{Value, from_value};
+use serde_json::{from_value, Value};
 use tower_lsp::lsp_types::*;
 
 #[derive(Deserialize)]
@@ -20,25 +20,22 @@ impl Configuration {
     pub fn generate_file_watch_registration(&self) -> Vec<Registration> {
         let mut glsl_file_pattern = String::from("**/*.{vsh,gsh,fsh,csh,glsl");
         let mut folder_pattern = String::from("**/shaders/**/*[!{.vsh,.gsh,.fsh,.csh,.glsl");
-        self.extra_extension
-            .iter()
-            .for_each(|extension| {
-                glsl_file_pattern += &format!(",{extension}");
-                folder_pattern += &format!(",.{extension}");
-            });
+        self.extra_extension.iter().for_each(|extension| {
+            glsl_file_pattern += &format!(",{extension}");
+            folder_pattern += &format!(",.{extension}");
+        });
         glsl_file_pattern += "}";
         folder_pattern += "}]";
-
 
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
             watchers: Vec::from([
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String(glsl_file_pattern.clone()),
-                    kind: Some(WatchKind::all())
+                    kind: Some(WatchKind::all()),
                 },
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String(folder_pattern),
-                    kind: Some(WatchKind::Delete)
+                    kind: Some(WatchKind::Delete),
                 },
             ]),
         };

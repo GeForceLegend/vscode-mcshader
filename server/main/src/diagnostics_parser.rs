@@ -1,16 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf
-};
+use std::{collections::HashMap, path::PathBuf};
 
-use regex::Regex;
-use tower_lsp::lsp_types::{
-    Diagnostic,
-    DiagnosticSeverity,
-    Range,
-    Position
-};
 use logging::debug;
+use regex::Regex;
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 use url::Url;
 
 use crate::opengl;
@@ -26,8 +18,10 @@ impl DiagnosticsParser {
             "NVIDIA Corporation" => {
                 Regex::new(r#"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)"#).unwrap()
             }
-            _ => Regex::new(r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#)
-                .unwrap(),
+            _ => Regex::new(
+                r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,
+            )
+            .unwrap(),
         };
         let line_offset = match vendor_querier.vendor().as_str() {
             "AMD" | "ATI Technologies" | "ATI Technologies Inc." => 0,
@@ -71,12 +65,10 @@ impl DiagnosticsParser {
             };
 
             let file_path = match diagnostic_capture.name("filepath") {
-                Some(index) => {
-                    match file_list.get(index.as_str()) {
-                        Some(file) => file,
-                        None => default_path,
-                    }
-                }
+                Some(index) => match file_list.get(index.as_str()) {
+                    Some(file) => file,
+                    None => default_path,
+                },
                 None => default_path,
             };
             let file_url = Url::from_file_path(file_path).unwrap();

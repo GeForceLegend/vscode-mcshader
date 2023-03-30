@@ -1,12 +1,12 @@
 use std::{
     cell::RefCell,
-    collections::{HashSet, HashMap},
+    collections::{HashMap, HashSet},
     path::PathBuf,
 };
 
 use tree_sitter::Parser;
 
-use crate::file::{ShaderFile, IncludeFile, TempFile};
+use crate::file::{IncludeFile, ShaderFile, TempFile};
 
 use super::ServerData;
 
@@ -23,15 +23,15 @@ impl ServerData {
         }
     }
 
-    pub fn shader_files(&self) -> &RefCell<HashMap<PathBuf, ShaderFile>>{
+    pub fn shader_files(&self) -> &RefCell<HashMap<PathBuf, ShaderFile>> {
         &self.shader_files
     }
 
-    pub fn include_files(&self) -> &RefCell<HashMap<PathBuf, IncludeFile>>{
+    pub fn include_files(&self) -> &RefCell<HashMap<PathBuf, IncludeFile>> {
         &self.include_files
     }
 
-    pub fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>>{
+    pub fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
         &self.temp_files
     }
 }
