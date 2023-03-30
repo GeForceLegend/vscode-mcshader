@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    path::{Component, MAIN_SEPARATOR_STR, PathBuf, Path},
+    path::{Component, MAIN_SEPARATOR_STR, PathBuf},
     cell::RefCell, ffi::OsString,
 };
 
@@ -14,7 +14,7 @@ mod include_file;
 mod shader_file;
 mod temp_file;
 
-fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, String> {
+fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str) -> Result<PathBuf, String> {
     let mut buffer: Vec<Component>;
     let additional = match additional.strip_prefix("/") {
         Some(path) => {
@@ -115,10 +115,7 @@ pub trait File {
             .for_each(|change| {
                 let range = change.range.unwrap();
                 let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
-                let end = start + change.range_length.unwrap() as usize;
-
-                let original_content = content.get(start .. end).unwrap().to_owned();
-                content.replace_range(start..end, &change.text);
+                let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
 
                 let new_end_position = match change.text.matches("\n").count() {
                     0 => Point {
@@ -126,8 +123,8 @@ pub trait File {
                         column: range.start.character as usize + change.text.len(),
                     },
                     lines => Point {
-                        row: range.start.line as usize + lines - original_content.matches("\n").count(),
-                        column: change.text.split("\n").collect::<Vec<_>>().last().unwrap().len(),
+                        row: range.start.line as usize + lines - content.get(start .. end).unwrap().matches("\n").count(),
+                        column: change.text.split("\n").last().unwrap().len(),
                     },
                 };
                 tree.edit(&InputEdit{
@@ -137,7 +134,9 @@ pub trait File {
                     start_position: Point { row: range.start.line as usize, column: range.start.character as usize },
                     old_end_position: Point { row: range.end.line as usize, column: range.end.character as usize },
                     new_end_position,
-                })
+                });
+
+                content.replace_range(start..end, &change.text);
             });
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
     }

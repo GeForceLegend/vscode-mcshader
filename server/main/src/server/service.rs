@@ -383,23 +383,37 @@ impl MinecraftLanguageServer {
         let mut shader_packs = server_data.shader_packs.borrow();
         let mut shader_files = server_data.shader_files.borrow_mut();
         let mut include_files = server_data.include_files.borrow_mut();
+        let extensions = server_data.extensions.borrow();
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let mut updated_shaders: HashSet<PathBuf> = HashSet::new();
+        let mut updated_includes: HashSet<PathBuf> = HashSet::new();
+        let mut updated_related_shaders: HashSet<PathBuf> = HashSet::new();
 
         changes.iter()
             .for_each(|change| {
                 let file_path = change.uri.to_file_path().unwrap();
                 match change.typ {
                     FileChangeType::CREATED => {
-                        if self.scan_new_file(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, file_path.clone()) {
-                            updated_shaders.insert(file_path);
+                        let include_exists = include_files.contains_key(&file_path);
+                        let shader_exists = shader_files.contains_key(&file_path);
+
+                        if include_exists {
+                            updated_includes.insert(file_path.clone());
+                        }
+                        if shader_exists {
+                            updated_shaders.insert(file_path.clone());
+                        }
+                        else if !include_exists {
+                            if self.scan_new_file(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, file_path.clone()) {
+                                updated_shaders.insert(file_path);
+                            }
                         }
                     },
                     FileChangeType::CHANGED => {
                         if let Some(mut include_file) = include_files.remove(&file_path) {
                             include_file.update_include(&mut include_files, &mut parser, &file_path);
-                            updated_shaders.extend(include_file.included_shaders().borrow().clone());
+                            updated_includes.insert(file_path.clone());
                             include_files.insert(file_path.clone(), include_file);
                         }
                         if let Some(shader_file) = shader_files.get_mut(&file_path) {
@@ -408,25 +422,54 @@ impl MinecraftLanguageServer {
                         }
                     },
                     FileChangeType::DELETED => {
-                        diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
-                        shader_files.remove(&file_path);
-                        if let Some(include_file) = include_files.remove(&file_path) {
-                            updated_shaders.extend(include_file.included_shaders().borrow().clone());
+                        let is_watched_file = match file_path.extension() {
+                            Some(ext) => extensions.contains(ext.to_str().unwrap()),
+                            None => false,
                         };
+                        if is_watched_file {
+                            if !updated_shaders.contains(&file_path) && !updated_includes.contains(&file_path) {
+                                diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
 
-                        include_files.values()
-                            .for_each(|include_file|{
-                                include_file.included_shaders().borrow_mut().remove(&file_path);
-                                include_file.including_files().borrow_mut().remove(&file_path);
-                            });
+                                shader_files.remove(&file_path);
+                                updated_related_shaders.remove(&file_path);
+                                if let Some(include_file) = include_files.remove(&file_path) {
+                                    updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
+                                }
+
+                                include_files.values()
+                                    .for_each(|include_file|{
+                                        include_file.included_shaders().borrow_mut().remove(&file_path);
+                                        include_file.including_files().borrow_mut().remove(&file_path);
+                                    });
+                            }
+                        }
+                        else {
+                            shader_files.retain(|shader_path, _shader_file| !shader_path.starts_with(&file_path));
+                            include_files.retain(|include_path, _include_file| !include_path.starts_with(&file_path));
+                            updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
+
+                            include_files.values()
+                                .for_each(|include_file|{
+                                    include_file.included_shaders().borrow_mut().retain(|shader_path| !shader_path.starts_with(&file_path));
+                                    include_file.including_files().borrow_mut().retain(|include_path| !include_path.starts_with(&file_path));
+                                });
+                        }
                     },
                     _ => warn!("Invalid change type")
                 }
             });
+        updated_shaders.extend(updated_related_shaders);
+        for file_path in updated_includes {
+            updated_shaders.extend(include_files.get(&file_path).unwrap().included_shaders().borrow().clone());
+        }
 
         for file_path in updated_shaders {
-            let shader_file = shader_files.get(&file_path).unwrap();
-            extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, &file_path, opengl_context, diagnostics_parser));
+            if let Some(shader_file) = shader_files.get(&file_path) {
+                extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, &file_path, opengl_context, diagnostics_parser));
+            }
+            else {
+                warn!("missing shader: {}", file_path.display());
+            }
         }
 
         diagnostics

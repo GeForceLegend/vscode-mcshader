@@ -17,24 +17,30 @@ impl Configuration {
         from_value(value.as_object().unwrap().get("mcshader").unwrap().to_owned()).unwrap()
     }
 
-    pub fn generate_glsl_pattern(&self) -> String {
-        let mut glsl_file_watcher_pattern = String::from("**/*.{vsh,gsh,fsh,csh,glsl");
+    pub fn generate_file_watch_registration(&self) -> Vec<Registration> {
+        let mut glsl_file_pattern = String::from("**/*.{vsh,gsh,fsh,csh,glsl");
+        let mut folder_pattern = String::from("**/shaders/**/*[!{.vsh,.gsh,.fsh,.csh,.glsl");
         self.extra_extension
             .iter()
             .for_each(|extension| {
-                glsl_file_watcher_pattern += &format!(",{}", extension);
+                glsl_file_pattern += &format!(",{extension}");
+                folder_pattern += &format!(",.{extension}");
             });
-        glsl_file_watcher_pattern += "}";
-        glsl_file_watcher_pattern
-    }
+        glsl_file_pattern += "}";
+        folder_pattern += "}]";
 
-    pub fn generate_file_watch_registration(&self) -> Vec<Registration> {
-        let glsl_pattern = self.generate_glsl_pattern();
+
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
-            watchers: Vec::from([FileSystemWatcher {
-                glob_pattern: GlobPattern::String(glsl_pattern.clone()),
-                kind: Some(WatchKind::all())
-            }]),
+            watchers: Vec::from([
+                FileSystemWatcher {
+                    glob_pattern: GlobPattern::String(glsl_file_pattern.clone()),
+                    kind: Some(WatchKind::all())
+                },
+                FileSystemWatcher {
+                    glob_pattern: GlobPattern::String(folder_pattern),
+                    kind: Some(WatchKind::Delete)
+                },
+            ]),
         };
         // let glsl_file_filter = FileOperationRegistrationOptions {
         //     filters: vec![FileOperationFilter {

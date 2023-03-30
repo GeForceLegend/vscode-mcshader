@@ -1901,7 +1901,6 @@ dependencies = [
  "lazy_static",
  "logging",
  "logging_macro",
- "percent-encoding",
  "regex",
  "serde",
  "serde_json",
