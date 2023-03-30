@@ -31,16 +31,16 @@ impl MinecraftLanguageServer {
     /*================================================ Tool functions for service ================================================*/
 
     fn add_shader_file(
-        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>,
-        parser: &mut Parser, pack_path: &PathBuf, file_path: PathBuf,
+        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
+        pack_path: &PathBuf, file_path: PathBuf,
     ) {
         let shader_file = ShaderFile::new(include_files, parser, pack_path, &file_path);
         shader_files.insert(file_path, shader_file);
     }
 
     pub fn scan_new_file(
-        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>,
-        parser: &mut Parser, shader_packs: &HashSet<PathBuf>, file_path: PathBuf,
+        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
+        shader_packs: &HashSet<PathBuf>, file_path: PathBuf,
     ) -> bool {
         for shader_pack in shader_packs.iter() {
             if file_path.starts_with(&shader_pack) {
@@ -79,8 +79,8 @@ impl MinecraftLanguageServer {
     }
 
     pub fn scan_files_in_root(
-        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>,
-        parser: &mut Parser, shader_packs: &mut HashSet<PathBuf>, root: &PathBuf,
+        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
+        shader_packs: &mut HashSet<PathBuf>, root: &PathBuf,
     ) {
         info!("Generating file framework on current root"; "root" => root.display());
 
@@ -230,7 +230,7 @@ impl MinecraftLanguageServer {
             && (include_files.contains_key(&file_path) || shader_files.contains_key(&file_path))
         {
             return Some(HashMap::new());
-        } else if let Some(include_file) = include_files.remove(&file_path) {
+        } else if let Some(mut include_file) = include_files.remove(&file_path) {
             include_file.update_include(&mut include_files, &mut parser, &file_path);
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
             for shader_path in include_file.included_shaders().borrow().iter() {
@@ -386,13 +386,18 @@ impl MinecraftLanguageServer {
             let file_path = change.uri.to_file_path().unwrap();
             match change.typ {
                 FileChangeType::CREATED => {
-                    let include_exists = include_files.contains_key(&file_path);
-                    let shader_exists = shader_files.contains_key(&file_path);
+                    let include_exists;
 
-                    if include_exists {
+                    if let Some(include_file) = include_files.remove(&file_path) {
+                        include_file.update_include(&mut include_files, &mut parser, &file_path);
                         updated_includes.insert(file_path.clone());
+                        include_files.insert(file_path.clone(), include_file);
+                        include_exists = true;
+                    } else {
+                        include_exists = false;
                     }
-                    if shader_exists {
+                    if let Some(shader_file) = shader_files.get(&file_path) {
+                        shader_file.update_shader(&mut include_files, &mut parser, &file_path);
                         updated_shaders.insert(file_path.clone());
                     } else if !include_exists {
                         if self.scan_new_file(
@@ -407,10 +412,13 @@ impl MinecraftLanguageServer {
                     }
                 }
                 FileChangeType::CHANGED => {
-                    if include_files.contains_key(&file_path) {
+                    if let Some(include_file) = include_files.remove(&file_path) {
+                        include_file.update_include(&mut include_files, &mut parser, &file_path);
                         updated_includes.insert(file_path.clone());
+                        include_files.insert(file_path.clone(), include_file);
                     }
-                    if shader_files.contains_key(&file_path) {
+                    if let Some(shader_file) = shader_files.get(&file_path) {
+                        shader_file.update_shader(&mut include_files, &mut parser, &file_path);
                         updated_shaders.insert(file_path);
                     }
                 }
@@ -456,24 +464,19 @@ impl MinecraftLanguageServer {
         });
         updated_shaders.extend(updated_related_shaders);
         for file_path in updated_includes {
-            if let Some(include_file) = include_files.remove(&file_path) {
-                include_file.update_include(&mut include_files, &mut parser, &file_path);
-                updated_shaders.extend(include_file.included_shaders().borrow().clone());
-                include_files.insert(file_path.clone(), include_file);
-            } else {
-                warn!("Missing include: {}", file_path.display());
+            match include_files.get(&file_path) {
+                Some(include_file) => updated_shaders.extend(include_file.included_shaders().borrow().clone()),
+                None => warn!("Missing include: {}", file_path.display()),
             }
         }
 
         for file_path in updated_shaders {
-            if let Some(shader_file) = shader_files.get(&file_path) {
-                shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                extend_diagnostics(
+            match shader_files.get(&file_path) {
+                Some(shader_file) => extend_diagnostics(
                     &mut diagnostics,
                     self.lint_shader(&include_files, shader_file, &file_path, opengl_context, diagnostics_parser),
-                );
-            } else {
-                warn!("Missing shader: {}", file_path.display());
+                ),
+                None => warn!("Missing shader: {}", file_path.display()),
             }
         }
 
