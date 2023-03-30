@@ -89,7 +89,7 @@ impl IncludeFile {
         }
     }
 
-    pub fn update_include(&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
+    pub fn update_include(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
 

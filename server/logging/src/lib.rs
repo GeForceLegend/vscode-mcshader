@@ -49,7 +49,7 @@ thread_local! {
 }
 
 lazy_static! {
-    static ref DRAIN_SWITCH: AtomicSwitch<()> = { AtomicSwitch::new(&*DEBUG_DRAIN) };
+    static ref DRAIN_SWITCH: AtomicSwitch<()> = AtomicSwitch::new(&*DEBUG_DRAIN);
     static ref TRACE_DRAIN: LoggerBase = logger_base(Level::Trace);
     static ref DEBUG_DRAIN: LoggerBase = logger_base(Level::Debug);
     static ref INFO_DRAIN: LoggerBase = logger_base(Level::Info);

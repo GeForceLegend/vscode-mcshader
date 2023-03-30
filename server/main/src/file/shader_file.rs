@@ -18,7 +18,7 @@ impl ShaderFile {
         include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf,
     ) -> ShaderFile {
         let extension = file_path.extension().unwrap();
-        let mut shader_file = ShaderFile {
+        let shader_file = ShaderFile {
             file_type: {
                 if extension == "fsh" {
                     gl::FRAGMENT_SHADER
@@ -41,7 +41,7 @@ impl ShaderFile {
     }
 
     /// Update shader content and includes from file
-    pub fn update_shader(&mut self, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
+    pub fn update_shader(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
         if let Ok(content) = read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
@@ -71,8 +71,8 @@ impl ShaderFile {
                     .borrow_mut()
                     .insert(file_path.clone());
             }
-            self.tree = RefCell::from(parser.parse(&content, None).unwrap());
-            self.content = RefCell::from(content);
+            *self.tree.borrow_mut() = parser.parse(&content, None).unwrap();
+            *self.content.borrow_mut() = content;
         } else {
             error!("Unable to read file {}", file_path.display());
         }
