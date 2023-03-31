@@ -230,7 +230,7 @@ impl MinecraftLanguageServer {
             && (include_files.contains_key(&file_path) || shader_files.contains_key(&file_path))
         {
             return Some(HashMap::new());
-        } else if let Some(mut include_file) = include_files.remove(&file_path) {
+        } else if let Some(include_file) = include_files.remove(&file_path) {
             include_file.update_include(&mut include_files, &mut parser, &file_path);
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
             for shader_path in include_file.included_shaders().borrow().iter() {

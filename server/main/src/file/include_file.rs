@@ -100,11 +100,6 @@ impl IncludeFile {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
                     let path = capture.get(1).unwrap().as_str();
 
-                    // let sub_include_path = match path.strip_prefix('/') {
-                    //     Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                    //     None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                    // };
-
                     match include_path_join(&self.pack_path, file_path, path) {
                         Ok(sub_include_path) => {
                             including_files.insert(sub_include_path.clone());
