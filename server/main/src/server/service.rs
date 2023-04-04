@@ -221,8 +221,7 @@ impl MinecraftLanguageServer {
         let mut include_files = server_data.include_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
-        // Leave the files with watched extension to get linted by did_change_watched_files event
-        // If this file does not exist in file system, enable temp lint.
+        // Leave the files with watched extension getting linted by did_change_watched_files event
         if server_data
             .extensions
             .borrow()
@@ -242,6 +241,7 @@ impl MinecraftLanguageServer {
             }
             include_files.insert(file_path, include_file);
             return Some(diagnostics);
+        // If this file does not exist in file system, enable temp lint.
         } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
             temp_file.update_self(&file_path);
             return Some(self.temp_lint(&temp_file, &file_path, opengl_context, diagnostics_parser));
@@ -317,7 +317,7 @@ impl MinecraftLanguageServer {
         let content = file.content().borrow();
         let tree = file.tree().borrow();
 
-        TreeParser::find_definitions(&file_path, &position, &tree, &content)
+        TreeParser::find_definitions(&params.text_document_position_params.text_document.uri, &position, &tree, &content)
     }
 
     pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
@@ -342,7 +342,7 @@ impl MinecraftLanguageServer {
         let content = file.content().borrow();
         let tree = file.tree().borrow();
 
-        TreeParser::find_references(&file_path, &position, &tree, &content)
+        TreeParser::find_references(&params.text_document_position.text_document.uri, &position, &tree, &content)
     }
 
     pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {

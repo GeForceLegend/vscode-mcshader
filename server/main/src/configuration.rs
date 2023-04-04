@@ -28,7 +28,7 @@ impl Configuration {
         folder_pattern += "}]";
 
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
-            watchers: Vec::from([
+            watchers: vec![
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String(glsl_file_pattern.clone()),
                     kind: Some(WatchKind::all()),
@@ -37,7 +37,7 @@ impl Configuration {
                     glob_pattern: GlobPattern::String(folder_pattern),
                     kind: Some(WatchKind::Delete),
                 },
-            ]),
+            ],
         };
         // let glsl_file_filter = FileOperationRegistrationOptions {
         //     filters: vec![FileOperationFilter {

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{Location, Position, Range};
 use tree_sitter::{Node, Point, Query, QueryCursor, Tree};
@@ -68,7 +66,7 @@ impl TreeParser {
         line_mapping
     }
 
-    pub fn find_definitions(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
+    pub fn find_definitions(url: &Url, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
         let line_mapping = Self::generate_line_mapping(&content);
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
@@ -97,17 +95,35 @@ impl TreeParser {
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
-            (_, "call_expression") | (_, "function_declarator") | (_, "preproc_function_def") => {
+            (_, "call_expression") => {
                 let query_str = format!(find_function_def_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
-                Self::simple_global_search(file_path, tree, content, &query_str)
-            }
+                Self::simple_global_search(url, tree, content, &query_str)
+            },
+            (_, "function_declarator") | (_, "preproc_function_def") => {
+                let start = current_node.start_position();
+                let end = current_node.end_position();
+
+                vec![Location {
+                    uri: url.to_owned(),
+                    range: Range {
+                        start: Position {
+                            line: start.row as u32,
+                            character: start.column as u32,
+                        },
+                        end: Position {
+                            line: end.row as u32,
+                            character: end.column as u32,
+                        },
+                    },
+                }]
+            },
             ("identifier", "argument_list")
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")
             | ("identifier", "return_statement")
-            | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, &file_path, current_node),
+            | ("identifier", "assignment_expression") => Self::tree_climbing_search(&content, url, current_node),
             ("identifier", "init_declarator") => match current_node.prev_sibling() {
-                Some(_) => Self::tree_climbing_search(&content, &file_path, current_node),
+                Some(_) => Self::tree_climbing_search(&content, url, current_node),
                 None => Vec::new(),
             },
             _ => return Ok(None),
@@ -115,7 +131,7 @@ impl TreeParser {
         Ok(Some(locations))
     }
 
-    pub fn find_references(file_path: &PathBuf, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
+    pub fn find_references(url: &Url, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
         let line_mapping = Self::generate_line_mapping(&content);
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
@@ -146,14 +162,14 @@ impl TreeParser {
         let locations = match (current_node.kind(), parent.kind()) {
             (_, "function_declarator") | (_, "preproc_function_def") => {
                 let query_str = format!(find_function_refs_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
-                Self::simple_global_search(file_path, tree, content, &query_str)
+                Self::simple_global_search(url, tree, content, &query_str)
             }
             _ => return Ok(None),
         };
         Ok(Some(locations))
     }
 
-    fn simple_global_search(path: &PathBuf, tree: &Tree, content: &String, query_str: &str) -> Vec<Location> {
+    fn simple_global_search(url: &Url, tree: &Tree, content: &String, query_str: &str) -> Vec<Location> {
         let query = Query::new(tree_sitter_glsl::language(), query_str).unwrap();
         let mut query_cursor = QueryCursor::new();
 
@@ -165,7 +181,7 @@ impl TreeParser {
                 let end = capture.node.end_position();
 
                 locations.push(Location {
-                    uri: Url::from_file_path(path).unwrap(),
+                    uri: url.to_owned(),
                     range: Range {
                         start: Position {
                             line: start.row as u32,
@@ -183,7 +199,7 @@ impl TreeParser {
         locations
     }
 
-    fn tree_climbing_search(source: &String, path: &PathBuf, start_node: Node) -> Vec<Location> {
+    fn tree_climbing_search(source: &String, url: &Url, start_node: Node) -> Vec<Location> {
         let mut locations = vec![];
 
         let node_text = start_node.utf8_text(source.as_bytes()).unwrap();
@@ -210,7 +226,7 @@ impl TreeParser {
                     }
 
                     locations.push(Location {
-                        uri: Url::from_file_path(path).unwrap(),
+                        uri: url.to_owned(),
                         range: Range {
                             start: Position {
                                 line: start.row as u32,
