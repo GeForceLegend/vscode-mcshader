@@ -184,12 +184,6 @@ impl LanguageServer for MinecraftLanguageServer {
     //     Err(Error::method_not_found())
     // }
 
-    // Doesn't implemented yet, here for not reporting method not found
-    #[logging::with_trace_id]
-    async fn completion(&self, _params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        Ok(None)
-    }
-
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();

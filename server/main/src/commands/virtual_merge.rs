@@ -16,27 +16,18 @@ pub struct VirtualMerge {}
 impl Command for VirtualMerge {
     fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>> {
         let value = arguments.get(0).unwrap();
-        if !value.is_string() {
-            return Err(LanguageServerError::invalid_argument_error());
-        }
-        let file_uri = value.to_string();
+        let file_uri = match value.as_str() {
+            Some(uri) => uri,
+            None => return Err(LanguageServerError::invalid_argument_error()), 
+        };
+
         #[cfg(target_os = "windows")]
         let file_path = PathBuf::from(
-            file_uri
-                .strip_prefix("\"/")
-                .unwrap()
-                .strip_suffix("\"")
-                .unwrap()
-                .replace("/", MAIN_SEPARATOR_STR),
+            file_uri.strip_prefix("/").unwrap().replace("/", MAIN_SEPARATOR_STR),
         );
         #[cfg(not(target_os = "windows"))]
         let file_path = PathBuf::from(
-            file_uri
-                .strip_prefix("\"")
-                .unwrap()
-                .strip_suffix("\"")
-                .unwrap()
-                .replace("/", MAIN_SEPARATOR_STR),
+            file_uri.replace("/", MAIN_SEPARATOR_STR),
         );
 
         let shader_files = server_data.shader_files().borrow();

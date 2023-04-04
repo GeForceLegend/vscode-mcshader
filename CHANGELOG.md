@@ -13,7 +13,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed crash while looking for shader pack path for temp files failed;
-- Fixed file path with `../` in #include.
+- Fixed file path with `../` in #include;
+- Fixed deleting a folder will not delete files in server data.
 
 ## [0.1.0] - 2023-02-20
 
