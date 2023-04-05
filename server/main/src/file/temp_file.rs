@@ -64,7 +64,7 @@ impl TempFile {
         let mut temp_content = String::new();
         file_list.insert(String::from("0"), file_path.clone());
         let mut file_id = 0;
-        let file_name = file_path.display();
+        let file_name = file_path.display().to_string();
 
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_inserted = self.pack_path.parent().unwrap().file_name().unwrap() == "debug";

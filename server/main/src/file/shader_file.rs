@@ -85,7 +85,7 @@ impl ShaderFile {
         let mut shader_content: String = String::new();
         file_list.insert(String::from("0"), file_path.clone());
         let mut file_id = 0;
-        let file_name = file_path.display();
+        let file_name = file_path.display().to_string();
 
         // If we are in the debug folder, do not add Optifine's macros
         let mut macro_insert = self.pack_path.parent().unwrap().file_name().unwrap() != "debug";
@@ -97,7 +97,7 @@ impl ShaderFile {
                 if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let include_content =
-                            include_file.merge_include(include_files, include_path, String::from(line.1), file_list, &mut file_id, 1);
+                            include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
                     } else {

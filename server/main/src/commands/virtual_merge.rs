@@ -18,17 +18,13 @@ impl Command for VirtualMerge {
         let value = arguments.get(0).unwrap();
         let file_uri = match value.as_str() {
             Some(uri) => uri,
-            None => return Err(LanguageServerError::invalid_argument_error()), 
+            None => return Err(LanguageServerError::invalid_argument_error()),
         };
 
         #[cfg(target_os = "windows")]
-        let file_path = PathBuf::from(
-            file_uri.strip_prefix("/").unwrap().replace("/", MAIN_SEPARATOR_STR),
-        );
+        let file_path = PathBuf::from(file_uri.strip_prefix("/").unwrap().replace("/", MAIN_SEPARATOR_STR));
         #[cfg(not(target_os = "windows"))]
-        let file_path = PathBuf::from(
-            file_uri.replace("/", MAIN_SEPARATOR_STR),
-        );
+        let file_path = PathBuf::from(file_uri.replace("/", MAIN_SEPARATOR_STR));
 
         let shader_files = server_data.shader_files().borrow();
         let include_files = server_data.include_files().borrow();

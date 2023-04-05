@@ -32,8 +32,7 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
     for component in additional.components() {
         match component {
             Component::ParentDir => {
-                if let Some(Component::Normal(_)) = buffer.last() {
-                    buffer.pop();
+                if let Some(Component::Normal(_)) = buffer.pop() {
                 } else {
                     return Err("Unable to find parent while creating include path".into());
                 }
@@ -47,7 +46,7 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
     let mut resource = OsString::new();
     let last = buffer.pop().unwrap();
     for component in buffer {
-        resource.push(component.as_os_str());
+        resource.push(component);
         resource.push(MAIN_SEPARATOR_STR);
     }
     resource.push(last);

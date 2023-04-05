@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ### Added
 
-- Single-file goto-definition and references based on TreeSitter. This means this extension cannot find definitions or references outside of current file right now.
+- Single-file goto-definition and references based on TreeSitter. This means this extension cannot find definitions or references outside of currently edited file right now.
 
 ### Fixed
 

@@ -5,8 +5,6 @@ use std::{
     path::PathBuf,
 };
 
-use logging::warn;
-
 use logging::error;
 use tree_sitter::{Parser, Tree};
 
@@ -127,37 +125,32 @@ impl IncludeFile {
             }
             *self.content.borrow_mut() = content;
         } else {
-            warn!("Unable to read file"; "path" => file_path.display());
+            error!("Unable to read file"; "path" => file_path.display());
         }
     }
 
     pub fn merge_include(
-        &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: String,
+        &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: &str,
         file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32,
     ) -> String {
         if !file_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            return original_content + "\n";
+            return original_content.to_owned() + "\n";
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
-        let file_name = file_path.display();
+        let file_name = file_path.display().to_string();
         let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
 
         self.content.borrow().lines().enumerate().for_each(|line| {
             if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                 let path = capture.get(1).unwrap().as_str();
 
-                // let include_path = match path.strip_prefix('/') {
-                //     Some(path) => include_path_join(&self.pack_path, &PathBuf::from(path)),
-                //     None => include_path_join(file_path.parent().unwrap(), &PathBuf::from(path))
-                // };
-
                 if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let sub_include_content =
-                            include_file.merge_include(include_files, include_path, String::from(line.1), file_list, file_id, depth + 1);
+                            include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
                         include_content += &sub_include_content;
                         include_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
                     } else {

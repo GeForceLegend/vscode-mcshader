@@ -98,7 +98,7 @@ impl TreeParser {
             (_, "call_expression") => {
                 let query_str = format!(find_function_def_str!(), current_node.utf8_text(content.as_bytes()).unwrap());
                 Self::simple_global_search(url, tree, content, &query_str)
-            },
+            }
             (_, "function_declarator") | (_, "preproc_function_def") => {
                 let start = current_node.start_position();
                 let end = current_node.end_position();
@@ -116,7 +116,7 @@ impl TreeParser {
                         },
                     },
                 }]
-            },
+            }
             ("identifier", "argument_list")
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")
