@@ -203,27 +203,20 @@ impl TreeParser {
         let mut locations = vec![];
 
         let node_text = start_node.utf8_text(source.as_bytes()).unwrap();
-        let node_pos = start_node.start_position();
         let query_str = format!(find_variable_def_str!(), node_text);
 
         let mut parent = start_node.parent();
 
-        loop {
-            if parent.is_none() {
-                break;
-            }
+        let query = Query::new(tree_sitter_glsl::language(), &query_str).unwrap();
+        let mut query_cursor = QueryCursor::new();
+        query_cursor.set_byte_range(0..start_node.byte_range().end);
+        let text_provider = source.as_bytes();
 
-            let query = Query::new(tree_sitter_glsl::language(), &query_str).unwrap();
-            let mut query_cursor = QueryCursor::new();
-
-            for m in query_cursor.matches(&query, parent.unwrap(), source.as_bytes()) {
+        while let Some(parent_node) = parent {
+            for m in query_cursor.matches(&query, parent_node, text_provider) {
                 for capture in m.captures {
                     let start = capture.node.start_position();
                     let end = capture.node.end_position();
-
-                    if start.row > node_pos.row || (start.row == node_pos.row && start.column > node_pos.column) {
-                        continue;
-                    }
 
                     locations.push(Location {
                         uri: url.to_owned(),
@@ -245,7 +238,7 @@ impl TreeParser {
                 break;
             }
 
-            parent = parent.unwrap().parent();
+            parent = parent_node.parent();
         }
 
         locations
