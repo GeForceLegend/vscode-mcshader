@@ -82,7 +82,7 @@ impl ShaderFile {
     pub fn merge_shader_file(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
     ) -> String {
-        let mut shader_content: String = String::new();
+        let mut shader_content: Vec<u8> = Vec::new();
         file_list.insert(String::from("0"), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
@@ -96,34 +96,33 @@ impl ShaderFile {
 
                 if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
                     if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content =
-                            include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
-                        shader_content += &include_content;
-                        shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                        let include_content = include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
+                        shader_content.extend(include_content);
+                        shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
                     } else {
-                        shader_content += line.1;
-                        shader_content += "\n";
+                        shader_content.extend(line.1.as_bytes());
+                        shader_content.push(b'\n');
                     }
                 } else {
-                    shader_content += line.1;
-                    shader_content += "\n";
+                    shader_content.extend(line.1.as_bytes());
+                    shader_content.push(b'\n');
                 }
             } else if RE_MACRO_LINE.is_match(line.1) {
                 // Delete existing #line for correct linting
-                shader_content += "\n";
+                shader_content.push(b'\n');
             } else {
-                shader_content += line.1;
-                shader_content += "\n";
+                shader_content.extend(line.1.as_bytes());
+                shader_content.push(b'\n');
                 // If we are not in the debug folder, add Optifine's macros for correct linting
                 if macro_insert && RE_MACRO_VERSION.is_match(line.1) {
-                    shader_content += OPTIFINE_MACROS;
-                    shader_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                    shader_content.extend(OPTIFINE_MACROS.as_bytes());
+                    shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
                     macro_insert = false;
                 }
             }
         });
 
-        shader_content
+        unsafe { String::from_utf8_unchecked(shader_content) }
     }
 }
 

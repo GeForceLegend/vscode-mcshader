@@ -132,16 +132,19 @@ impl IncludeFile {
     pub fn merge_include(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: &str,
         file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32,
-    ) -> String {
+    ) -> Vec<u8> {
         if !file_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            return original_content.to_owned() + "\n";
+            let mut original_content_vec: Vec<u8> = Vec::with_capacity(original_content.len() + 1);
+            original_content_vec.extend(original_content.as_bytes());
+            original_content_vec.push(b'\n');
+            return original_content_vec;
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
         let file_name = file_path.display().to_string();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
+        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
 
         self.content.borrow().lines().enumerate().for_each(|line| {
             if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
@@ -151,22 +154,22 @@ impl IncludeFile {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let sub_include_content =
                             include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
-                        include_content += &sub_include_content;
-                        include_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
+                        include_content.extend(sub_include_content);
+                        include_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
                     } else {
-                        include_content += line.1;
-                        include_content += "\n";
+                        include_content.extend(line.1.as_bytes());
+                        include_content.push(b'\n');
                     }
                 } else {
-                    include_content += line.1;
-                    include_content += "\n";
+                    include_content.extend(line.1.as_bytes());
+                    include_content.push(b'\n');
                 }
             } else if RE_MACRO_LINE.is_match(line.1) {
                 // Delete existing #line for correct linting
-                include_content += "\n";
+                include_content.push(b'\n');
             } else {
-                include_content += line.1;
-                include_content += "\n";
+                include_content.extend(line.1.as_bytes());
+                include_content.push(b'\n');
             }
         });
         file_list.insert(curr_file_id, file_path);
