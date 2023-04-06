@@ -9,7 +9,7 @@ use logging::error;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
 
-use crate::constant::RE_MACRO_INCLUDE;
+use crate::constant::*;
 
 mod include_file;
 mod shader_file;
@@ -47,7 +47,10 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
     let last = buffer.pop().unwrap();
     for component in buffer {
         resource.push(component);
-        resource.push(MAIN_SEPARATOR_STR);
+        match component {
+            Component::Prefix(_) | Component::RootDir => {}
+            _ => resource.push(MAIN_SEPARATOR_STR),
+        }
     }
     resource.push(last);
 

@@ -8,8 +8,6 @@ use std::{
 use logging::error;
 use tree_sitter::{Parser, Tree};
 
-use crate::constant::{OPTIFINE_MACROS, RE_MACRO_INCLUDE, RE_MACRO_LINE, RE_MACRO_VERSION};
-
 use super::*;
 
 impl ShaderFile {
@@ -87,9 +85,6 @@ impl ShaderFile {
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
 
-        // If we are in the debug folder, do not add Optifine's macros
-        let mut macro_insert = self.pack_path.parent().unwrap().file_name().unwrap() != "debug";
-
         self.content.borrow().lines().enumerate().for_each(|line| {
             if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                 let path = capture.get(1).unwrap().as_str();
@@ -113,16 +108,26 @@ impl ShaderFile {
             } else {
                 shader_content.extend(line.1.as_bytes());
                 shader_content.push(b'\n');
-                // If we are not in the debug folder, add Optifine's macros for correct linting
-                if macro_insert && RE_MACRO_VERSION.is_match(line.1) {
-                    shader_content.extend(OPTIFINE_MACROS.as_bytes());
-                    shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
-                    macro_insert = false;
-                }
             }
         });
 
-        unsafe { String::from_utf8_unchecked(shader_content) }
+        let mut shader_content = unsafe { String::from_utf8_unchecked(shader_content) };
+
+        // Move #version to the top line
+        if let Some(capture) = RE_MACRO_VERSION.captures(&shader_content) {
+            let version = capture.get(0).unwrap();
+            let mut version_content = version.as_str().to_owned() + "\n";
+
+            shader_content.replace_range(version.start()..version.end(), "");
+            // If we are not in the debug folder, add Optifine's macros
+            if self.pack_path.parent().unwrap().file_name().unwrap() != "debug" {
+                version_content += OPTIFINE_MACROS;
+            }
+            version_content += &format!("#line 1 0\t//{}\n", file_name);
+            shader_content.insert_str(0, &version_content);
+        }
+
+        shader_content
     }
 }
 

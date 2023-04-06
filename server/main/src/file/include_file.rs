@@ -8,8 +8,6 @@ use std::{
 use logging::error;
 use tree_sitter::{Parser, Tree};
 
-use crate::constant::{RE_MACRO_INCLUDE, RE_MACRO_LINE};
-
 use super::*;
 
 impl IncludeFile {
