@@ -382,86 +382,96 @@ impl MinecraftLanguageServer {
         let mut updated_includes: HashSet<PathBuf> = HashSet::new();
         let mut updated_related_shaders: HashSet<PathBuf> = HashSet::new();
 
-        changes.iter().for_each(|change| {
+        let mut file_created: Vec<PathBuf> = Vec::new();
+        let mut file_changed: Vec<PathBuf> = Vec::new();
+        let mut file_deleted: Vec<PathBuf> = Vec::new();
+
+        for change in changes {
             let file_path = change.uri.to_file_path().unwrap();
             match change.typ {
-                FileChangeType::CREATED => {
-                    let include_exists;
-
-                    if let Some(include_file) = include_files.remove(&file_path) {
-                        include_file.update_include(&mut include_files, &mut parser, &file_path);
-                        updated_includes.insert(file_path.clone());
-                        include_files.insert(file_path.clone(), include_file);
-                        include_exists = true;
-                    } else {
-                        include_exists = false;
-                    }
-                    if let Some(shader_file) = shader_files.get(&file_path) {
-                        shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                        updated_shaders.insert(file_path.clone());
-                    } else if !include_exists {
-                        if self.scan_new_file(
-                            &mut shader_files,
-                            &mut include_files,
-                            &mut parser,
-                            &mut shader_packs,
-                            file_path.clone(),
-                        ) {
-                            updated_shaders.insert(file_path);
-                        }
-                    }
-                }
-                FileChangeType::CHANGED => {
-                    if let Some(include_file) = include_files.remove(&file_path) {
-                        include_file.update_include(&mut include_files, &mut parser, &file_path);
-                        updated_includes.insert(file_path.clone());
-                        include_files.insert(file_path.clone(), include_file);
-                    }
-                    if let Some(shader_file) = shader_files.get(&file_path) {
-                        shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                        updated_shaders.insert(file_path);
-                    }
-                }
-                FileChangeType::DELETED => {
-                    let is_watched_file = match file_path.extension() {
-                        Some(ext) => extensions.contains(ext.to_str().unwrap()),
-                        None => false,
-                    };
-                    if is_watched_file {
-                        if !updated_shaders.contains(&file_path) && !updated_includes.contains(&file_path) {
-                            diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
-
-                            shader_files.remove(&file_path);
-                            updated_related_shaders.remove(&file_path);
-                            if let Some(include_file) = include_files.remove(&file_path) {
-                                updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
-                            }
-
-                            include_files.values().for_each(|include_file| {
-                                include_file.included_shaders().borrow_mut().remove(&file_path);
-                                include_file.including_files().borrow_mut().remove(&file_path);
-                            });
-                        }
-                    } else {
-                        shader_files.retain(|shader_path, _shader_file| !shader_path.starts_with(&file_path));
-                        include_files.retain(|include_path, _include_file| !include_path.starts_with(&file_path));
-                        updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
-
-                        include_files.values().for_each(|include_file| {
-                            include_file
-                                .included_shaders()
-                                .borrow_mut()
-                                .retain(|shader_path| !shader_path.starts_with(&file_path));
-                            include_file
-                                .including_files()
-                                .borrow_mut()
-                                .retain(|include_path| !include_path.starts_with(&file_path));
-                        });
-                    }
-                }
+                FileChangeType::CREATED => file_created.push(file_path),
+                FileChangeType::CHANGED => file_changed.push(file_path),
+                FileChangeType::DELETED => file_deleted.push(file_path),
                 _ => warn!("Invalid change type"),
             }
-        });
+        }
+
+        for file_path in file_created {
+            let include_exists = match include_files.remove(&file_path) {
+                Some(include_file) => {
+                    include_file.update_include(&mut include_files, &mut parser, &file_path);
+                    updated_includes.insert(file_path.clone());
+                    include_files.insert(file_path.clone(), include_file);
+                    true
+                }
+                None => false,
+            };
+            if let Some(shader_file) = shader_files.get(&file_path) {
+                shader_file.update_shader(&mut include_files, &mut parser, &file_path);
+                updated_shaders.insert(file_path.clone());
+            } else if !include_exists {
+                if self.scan_new_file(
+                    &mut shader_files,
+                    &mut include_files,
+                    &mut parser,
+                    &mut shader_packs,
+                    file_path.clone(),
+                ) {
+                    updated_shaders.insert(file_path);
+                }
+            }
+        }
+
+        for file_path in file_changed {
+            if let Some(include_file) = include_files.remove(&file_path) {
+                include_file.update_include(&mut include_files, &mut parser, &file_path);
+                updated_includes.insert(file_path.clone());
+                include_files.insert(file_path.clone(), include_file);
+            }
+            if let Some(shader_file) = shader_files.get(&file_path) {
+                shader_file.update_shader(&mut include_files, &mut parser, &file_path);
+                updated_shaders.insert(file_path);
+            }
+        }
+
+        for file_path in file_deleted {
+            let is_watched_file = match file_path.extension() {
+                Some(ext) => extensions.contains(ext.to_str().unwrap()),
+                None => false,
+            };
+            if is_watched_file {
+                if !updated_shaders.contains(&file_path) && !updated_includes.contains(&file_path) {
+                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
+
+                    shader_files.remove(&file_path);
+                    updated_related_shaders.remove(&file_path);
+                    if let Some(include_file) = include_files.remove(&file_path) {
+                        updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
+                    }
+
+                    include_files.values().for_each(|include_file| {
+                        include_file.included_shaders().borrow_mut().remove(&file_path);
+                        include_file.including_files().borrow_mut().remove(&file_path);
+                    });
+                }
+            } else {
+                shader_files.retain(|shader_path, _shader_file| !shader_path.starts_with(&file_path));
+                include_files.retain(|include_path, _include_file| !include_path.starts_with(&file_path));
+                updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
+
+                include_files.values().for_each(|include_file| {
+                    include_file
+                        .included_shaders()
+                        .borrow_mut()
+                        .retain(|shader_path| !shader_path.starts_with(&file_path));
+                    include_file
+                        .including_files()
+                        .borrow_mut()
+                        .retain(|include_path| !include_path.starts_with(&file_path));
+                });
+            }
+        }
+
         updated_shaders.extend(updated_related_shaders);
         for file_path in updated_includes {
             match include_files.get(&file_path) {
