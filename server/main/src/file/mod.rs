@@ -122,7 +122,7 @@ pub trait File {
                     column: range.start.character as usize + change.text.len(),
                 },
                 lines => Point {
-                    row: range.start.line as usize + lines - content.get(start..end).unwrap().matches("\n").count(),
+                    row: range.start.line as usize + lines,
                     column: change.text.split("\n").last().unwrap().len(),
                 },
             };
