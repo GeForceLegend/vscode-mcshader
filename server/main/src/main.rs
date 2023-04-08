@@ -20,12 +20,9 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let opengl_content = opengl::OpenGlContext::new();
-    let diagnostics_parser = diagnostics_parser::DiagnosticsParser::new(&opengl_content);
     let mut tree_sitter_parser = Parser::new();
     tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
 
-    let (service, socket) =
-        LspService::new(|client| server::MinecraftLanguageServer::new(client, diagnostics_parser, opengl_content, tree_sitter_parser));
+    let (service, socket) = LspService::new(|client| server::MinecraftLanguageServer::new(client, tree_sitter_parser));
     Server::new(stdin, stdout, socket).serve(service).await;
 }

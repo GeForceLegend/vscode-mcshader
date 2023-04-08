@@ -81,7 +81,7 @@ impl ShaderFile {
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
     ) -> String {
         let mut shader_content: Vec<u8> = Vec::new();
-        file_list.insert(String::from("0"), file_path.clone());
+        file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
 

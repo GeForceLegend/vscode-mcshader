@@ -20,10 +20,8 @@ use crate::capability::ServerCapabilitiesFactroy;
 use crate::commands::CommandList;
 use crate::configuration::Configuration;
 use crate::constant;
-use crate::diagnostics_parser::DiagnosticsParser;
-use crate::file::{IncludeFile, ShaderFile, TempFile};
+use crate::file::*;
 use crate::notification;
-use crate::opengl::OpenGlContext;
 
 pub struct ServerData {
     extensions: RefCell<HashSet<String>>,
@@ -38,24 +36,18 @@ pub struct ServerData {
 pub struct MinecraftLanguageServer {
     client: Client,
     command_list: CommandList,
-    diagnostics_parser: DiagnosticsParser,
     server_data: Mutex<ServerData>,
-    opengl_context: OpenGlContext,
     _log_guard: logging::GlobalLoggerGuard,
 }
 
 pub struct LanguageServerError;
 
 impl MinecraftLanguageServer {
-    pub fn new(
-        client: Client, diagnostics_parser: DiagnosticsParser, opengl_context: OpenGlContext, parser: Parser,
-    ) -> MinecraftLanguageServer {
+    pub fn new(client: Client, parser: Parser) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             command_list: CommandList::new(),
-            diagnostics_parser,
             server_data: Mutex::from(ServerData::new(parser)),
-            opengl_context,
             _log_guard: logging::init_logger(),
         }
     }
@@ -164,7 +156,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        if let Some(diagnostics) = self.save_file(file_path, &self.diagnostics_parser, &self.opengl_context) {
+        if let Some(diagnostics) = self.save_file(file_path) {
             self.publish_diagnostic(diagnostics).await;
         }
     }
@@ -188,7 +180,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        let result = self.document_links(&file_path, &self.diagnostics_parser, &self.opengl_context);
+        let result = self.document_links(&file_path);
         self.publish_diagnostic(result.1).await;
 
         Ok(result.0)
@@ -223,7 +215,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading(String::from("Applying changes into file system...")).await;
 
-        let diagnostics = self.update_watched_files(params.changes, &self.diagnostics_parser, &self.opengl_context);
+        let diagnostics = self.update_watched_files(params.changes);
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;

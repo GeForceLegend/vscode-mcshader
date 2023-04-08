@@ -3,6 +3,9 @@ use std::collections::HashSet;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use crate::diagnostics_parser::DiagnosticsParser;
+use crate::opengl::OpenGlContext;
+
 lazy_static! {
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
@@ -76,6 +79,8 @@ lazy_static! {
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*(?:#include)\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^\s*(?:#version).*$"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*(?:#line)"#).unwrap();
+    pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
+    pub static ref DIAGNOSTICS_PARSER: DiagnosticsParser = DiagnosticsParser::new(&OPENGL_CONTEXT);
 }
 
 pub const OPTIFINE_MACROS: &str = "#define MC_VERSION 11900
