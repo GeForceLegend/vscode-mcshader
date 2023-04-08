@@ -1,4 +1,5 @@
-use std::ffi::{CStr, CString};
+use std::ffi::{c_int, CStr, CString};
+use std::os::raw::c_char;
 use std::ptr;
 
 pub struct OpenGlContext {
@@ -8,17 +9,14 @@ pub struct OpenGlContext {
 impl OpenGlContext {
     pub fn new() -> OpenGlContext {
         let events_loop = glutin::event_loop::EventLoop::new();
-        let gl_window = glutin::ContextBuilder::new()
+        let not_current_context = glutin::ContextBuilder::new()
             .build_headless(&*events_loop, glutin::dpi::PhysicalSize::new(1, 1))
             .unwrap();
 
-        let gl_window = unsafe {
-            let gl_window = gl_window.make_current().unwrap();
-            gl::load_with(|symbol| gl_window.get_proc_address(symbol) as *const _);
-            gl_window
-        };
+        let context = unsafe { not_current_context.make_current().unwrap() };
+        gl::load_with(|symbol| context.get_proc_address(symbol).cast());
 
-        OpenGlContext { _ctx: gl_window }
+        OpenGlContext { _ctx: context }
     }
 
     pub fn validate_shader(&self, file_type: gl::types::GLenum, source: &str) -> Option<String> {
@@ -35,13 +33,10 @@ impl OpenGlContext {
                 let mut info_len: gl::types::GLint = 0;
                 gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut info_len);
                 let mut info = Vec::with_capacity(info_len as usize);
-                gl::GetShaderInfoLog(
-                    shader,
-                    info_len as gl::types::GLsizei,
-                    ptr::null_mut(),
-                    info.as_mut_ptr() as *mut gl::types::GLchar,
-                );
-                info.set_len((info_len - 1) as usize); // ignore null for str::from_utf8
+                gl::GetShaderInfoLog(shader, info_len as c_int, ptr::null_mut(), info.as_mut_ptr() as *mut c_char);
+
+                // ignore null for str::from_utf8
+                info.set_len((info_len - 1) as usize);
                 Some(String::from_utf8_unchecked(info))
             } else {
                 None

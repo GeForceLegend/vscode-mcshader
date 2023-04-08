@@ -122,7 +122,7 @@ impl MinecraftLanguageServer {
 
         match validation_result {
             Some(compile_log) => {
-                info!("Compilation errors reported"; "errors" => &compile_log, "shader file" => file_path.display());
+                info!("Compilation errors reported; shader file: {},\nerrors: \"\n{}\"", file_path.display(), compile_log);
                 DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
             }
             None => {
@@ -145,7 +145,7 @@ impl MinecraftLanguageServer {
 
             match validation_result {
                 Some(compile_log) => {
-                    info!("Compilation errors reported"; "errors" => format!("`{}`", compile_log.replace('\n', "\\n")), "shader file" => file_path.display());
+                    info!("Compilation errors reported; shader file: {},\nerrors: \"\n{}\"", file_path.display(), compile_log);
                     DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
                 }
                 None => {
