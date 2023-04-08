@@ -94,26 +94,20 @@ impl ShaderFile {
                         if let Some(include_file) = include_files.get(&include_path) {
                             let include_content = include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
                             shader_content.extend(include_content);
-                            shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
+                            shader_content.extend(format!("#line {} 0\t//{}", line.0 + 2, file_name).into_bytes());
                         } else {
                             shader_content.extend(line.1.as_bytes());
-                            shader_content.push(b'\n');
                         }
                     } else {
                         shader_content.extend(line.1.as_bytes());
-                        shader_content.push(b'\n');
                     }
-                } else if RE_MACRO_LINE.is_match(line.1) {
-                    // Delete existing #line for correct linting
-                    shader_content.push(b'\n');
-                } else {
+                } else if !RE_MACRO_LINE.is_match(line.1) {
                     shader_content.extend(line.1.as_bytes());
-                    shader_content.push(b'\n');
                 }
             } else {
                 shader_content.extend(line.1.as_bytes());
-                shader_content.push(b'\n');
             }
+            shader_content.push(b'\n');
         });
 
         let mut shader_content = unsafe { String::from_utf8_unchecked(shader_content) };

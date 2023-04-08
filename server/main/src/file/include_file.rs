@@ -154,26 +154,20 @@ impl IncludeFile {
                             let sub_include_content =
                                 include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
                             include_content.extend(sub_include_content);
-                            include_content.extend(format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name).into_bytes());
+                            include_content.extend(format!("#line {} {}\t//{}", line.0 + 2, curr_file_id, file_name).into_bytes());
                         } else {
                             include_content.extend(line.1.as_bytes());
-                            include_content.push(b'\n');
                         }
                     } else {
                         include_content.extend(line.1.as_bytes());
-                        include_content.push(b'\n');
                     }
-                } else if RE_MACRO_LINE.is_match(line.1) {
-                    // Delete existing #line for correct linting
-                    include_content.push(b'\n');
-                } else {
+                } else if !RE_MACRO_LINE.is_match(line.1) {
                     include_content.extend(line.1.as_bytes());
-                    include_content.push(b'\n');
                 }
             } else {
                 include_content.extend(line.1.as_bytes());
-                include_content.push(b'\n');
             }
+            include_content.push(b'\n');
         });
         file_list.insert(curr_file_id, file_path);
         include_content
