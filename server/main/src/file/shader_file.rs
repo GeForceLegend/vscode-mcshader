@@ -86,25 +86,30 @@ impl ShaderFile {
         let file_name = file_path.display().to_string();
 
         self.content.borrow().lines().enumerate().for_each(|line| {
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                let path = capture.get(1).unwrap().as_str();
+            if RE_MACRO_CATCH.is_match(line.1) {
+                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                    let path = capture.get(1).unwrap().as_str();
 
-                if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
-                    if let Some(include_file) = include_files.get(&include_path) {
-                        let include_content = include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
-                        shader_content.extend(include_content);
-                        shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
+                    if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
+                        if let Some(include_file) = include_files.get(&include_path) {
+                            let include_content = include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
+                            shader_content.extend(include_content);
+                            shader_content.extend(format!("#line {} 0\t//{}\n", line.0 + 2, file_name).into_bytes());
+                        } else {
+                            shader_content.extend(line.1.as_bytes());
+                            shader_content.push(b'\n');
+                        }
                     } else {
                         shader_content.extend(line.1.as_bytes());
                         shader_content.push(b'\n');
                     }
+                } else if RE_MACRO_LINE.is_match(line.1) {
+                    // Delete existing #line for correct linting
+                    shader_content.push(b'\n');
                 } else {
                     shader_content.extend(line.1.as_bytes());
                     shader_content.push(b'\n');
                 }
-            } else if RE_MACRO_LINE.is_match(line.1) {
-                // Delete existing #line for correct linting
-                shader_content.push(b'\n');
             } else {
                 shader_content.extend(line.1.as_bytes());
                 shader_content.push(b'\n');

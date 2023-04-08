@@ -76,9 +76,10 @@ lazy_static! {
         String::from("csh"),
         String::from("glsl"),
     ]);
-    pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*(?:#include)\s+"(.+)""#).unwrap();
-    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^\s*(?:#version).*$"#).unwrap();
-    pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*(?:#line)"#).unwrap();
+    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"^\s*#(include|line)"#).unwrap();
+    pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
+    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^\s*#version.*$"#).unwrap();
+    pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
     pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
     pub static ref DIAGNOSTICS_PARSER: DiagnosticsParser = DiagnosticsParser::new(&OPENGL_CONTEXT);
 }

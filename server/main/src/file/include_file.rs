@@ -145,26 +145,31 @@ impl IncludeFile {
         let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
 
         self.content.borrow().lines().enumerate().for_each(|line| {
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                let path = capture.get(1).unwrap().as_str();
+            if RE_MACRO_CATCH.is_match(line.1) {
+                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+                    let path = capture.get(1).unwrap().as_str();
 
-                if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
-                    if let Some(include_file) = include_files.get(&include_path) {
-                        let sub_include_content =
-                            include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
-                        include_content.extend(sub_include_content);
-                        include_content.extend(format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name).into_bytes());
+                    if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
+                        if let Some(include_file) = include_files.get(&include_path) {
+                            let sub_include_content =
+                                include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
+                            include_content.extend(sub_include_content);
+                            include_content.extend(format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name).into_bytes());
+                        } else {
+                            include_content.extend(line.1.as_bytes());
+                            include_content.push(b'\n');
+                        }
                     } else {
                         include_content.extend(line.1.as_bytes());
                         include_content.push(b'\n');
                     }
+                } else if RE_MACRO_LINE.is_match(line.1) {
+                    // Delete existing #line for correct linting
+                    include_content.push(b'\n');
                 } else {
                     include_content.extend(line.1.as_bytes());
                     include_content.push(b'\n');
                 }
-            } else if RE_MACRO_LINE.is_match(line.1) {
-                // Delete existing #line for correct linting
-                include_content.push(b'\n');
             } else {
                 include_content.extend(line.1.as_bytes());
                 include_content.push(b'\n');
