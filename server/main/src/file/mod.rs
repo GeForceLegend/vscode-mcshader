@@ -116,14 +116,15 @@ pub trait File {
             let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
             let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
 
-            let new_end_position = match change.text.matches("\n").count() {
+            let last_line = change.text.split("\n").enumerate().last().unwrap();
+            let new_end_position = match last_line.0 {
                 0 => Point {
                     row: range.start.line as usize,
                     column: range.start.character as usize + change.text.len(),
                 },
                 lines => Point {
                     row: range.start.line as usize + lines,
-                    column: change.text.split("\n").last().unwrap().len(),
+                    column: last_line.1.len(),
                 },
             };
             tree.edit(&InputEdit {
