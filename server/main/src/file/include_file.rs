@@ -142,33 +142,44 @@ impl IncludeFile {
         *file_id += 1;
         let curr_file_id = file_id.to_string();
         let file_name = file_path.display().to_string();
+        // let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
         let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
 
-        self.content.borrow().split_terminator("\n").enumerate().for_each(|line| {
-            if RE_MACRO_CATCH.is_match(line.1) {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let path = capture.get(1).unwrap().as_str();
+        let content = self.content.borrow();
+        let mut start_index = 0;
+        let mut lines = 3;
+        RE_MACRO_CATCH2.captures_iter(content.as_ref()).for_each(|captures| {
+            let capture = captures.get(0).unwrap();
+            let start = capture.start();
+            let end = capture.end();
 
-                    if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
-                        if let Some(include_file) = include_files.get(&include_path) {
-                            let sub_include_content =
-                                include_file.merge_include(include_files, include_path, line.1, file_list, file_id, depth + 1);
-                            include_content.extend(sub_include_content);
-                            include_content.extend(format!("#line {} {}\t//{}", line.0 + 2, curr_file_id, file_name).into_bytes());
-                        } else {
-                            include_content.extend(line.1.as_bytes());
-                        }
+            let before_content = unsafe { content.get_unchecked(start_index..start).as_bytes() };
+            include_content.extend(before_content);
+            start_index = end;
+            lines += NEW_LINE_FINDER.find_iter(before_content).count();
+
+            let capture_content = capture.as_str();
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
+                let path = capture.get(1).unwrap().as_str();
+
+                if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
+                    if let Some(include_file) = include_files.get(&include_path) {
+                        let sub_include_content =
+                            include_file.merge_include(include_files, include_path, capture_content, file_list, file_id, depth + 1);
+                        include_content.extend(sub_include_content);
+                        include_content.extend(format!("\n#line {} {}\t//{}", lines, curr_file_id, file_name).into_bytes());
                     } else {
-                        include_content.extend(line.1.as_bytes());
+                        include_content.extend(capture_content.as_bytes());
                     }
-                } else if !RE_MACRO_LINE.is_match(line.1) {
-                    include_content.extend(line.1.as_bytes());
+                } else {
+                    include_content.extend(capture_content.as_bytes());
                 }
-            } else {
-                include_content.extend(line.1.as_bytes());
+            } else if !RE_MACRO_LINE.is_match(capture_content) {
+                include_content.extend(capture_content.as_bytes());
             }
-            include_content.push(b'\n');
         });
+        include_content.extend(unsafe { content.get_unchecked(start_index..).as_bytes() });
+
         file_list.insert(curr_file_id, file_path);
         include_content
     }

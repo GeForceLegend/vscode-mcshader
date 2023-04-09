@@ -1911,6 +1911,7 @@ dependencies = [
  "lazy_static",
  "logging",
  "logging_macro",
+ "memchr",
  "regex",
  "serde",
  "serde_json",

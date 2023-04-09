@@ -85,31 +85,41 @@ impl ShaderFile {
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
 
-        self.content.borrow().split_terminator("\n").enumerate().for_each(|line| {
-            if RE_MACRO_CATCH.is_match(line.1) {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                    let path = capture.get(1).unwrap().as_str();
+        let content = self.content.borrow();
+        let mut start_index = 0;
+        let mut lines = 3;
 
-                    if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
-                        if let Some(include_file) = include_files.get(&include_path) {
-                            let include_content =
-                                include_file.merge_include(include_files, include_path, line.1, file_list, &mut file_id, 1);
-                            shader_content.extend(include_content);
-                            shader_content.extend(format!("#line {} 0\t//{}", line.0 + 2, file_name).into_bytes());
-                        } else {
-                            shader_content.extend(line.1.as_bytes());
-                        }
+        RE_MACRO_CATCH2.captures_iter(content.as_ref()).for_each(|captures| {
+            let capture = captures.get(0).unwrap();
+            let start = capture.start();
+            let end = capture.end();
+
+            let before_content = unsafe { content.get_unchecked(start_index..start).as_bytes() };
+            shader_content.extend(before_content);
+            start_index = end;
+            lines += NEW_LINE_FINDER.find_iter(before_content).count();
+            
+            let capture_content = capture.as_str();
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
+                let path = capture.get(1).unwrap().as_str();
+
+                if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
+                    if let Some(include_file) = include_files.get(&include_path) {
+                        let include_content =
+                            include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
+                        shader_content.extend(include_content);
+                        shader_content.extend(format!("\n#line {} 0\t//{}", lines, file_name).into_bytes());
                     } else {
-                        shader_content.extend(line.1.as_bytes());
+                        shader_content.extend(capture_content.as_bytes());
                     }
-                } else if !RE_MACRO_LINE.is_match(line.1) {
-                    shader_content.extend(line.1.as_bytes());
+                } else {
+                    shader_content.extend(capture_content.as_bytes());
                 }
-            } else {
-                shader_content.extend(line.1.as_bytes());
+            } else if !RE_MACRO_LINE.is_match(capture_content) {
+                shader_content.extend(capture_content.as_bytes());
             }
-            shader_content.push(b'\n');
         });
+        shader_content.extend(unsafe { content.get_unchecked(start_index..).as_bytes() });
 
         let mut shader_content = unsafe { String::from_utf8_unchecked(shader_content) };
 
