@@ -18,8 +18,8 @@ impl Configuration {
     }
 
     pub fn generate_file_watch_registration(&self) -> Vec<Registration> {
-        let mut glsl_file_pattern = String::from("**/*.{vsh,gsh,fsh,csh,glsl");
-        let mut folder_pattern = String::from("**/shaders/**/*[!{.vsh,.gsh,.fsh,.csh,.glsl");
+        let mut glsl_file_pattern = "**/*.{vsh,gsh,fsh,csh,glsl".to_owned();
+        let mut folder_pattern = "**/shaders/**/*[!{.vsh,.gsh,.fsh,.csh,.glsl".to_owned();
         self.extra_extension.iter().for_each(|extension| {
             glsl_file_pattern += &format!(",{extension}");
             folder_pattern += &format!(",.{extension}");
@@ -30,7 +30,7 @@ impl Configuration {
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
             watchers: vec![
                 FileSystemWatcher {
-                    glob_pattern: GlobPattern::String(glsl_file_pattern.clone()),
+                    glob_pattern: GlobPattern::String(glsl_file_pattern),
                     kind: Some(WatchKind::all()),
                 },
                 FileSystemWatcher {
@@ -51,8 +51,8 @@ impl Configuration {
         // };
         Vec::from([
             Registration {
-                id: String::from("workspace/didChangeWatchedFiles"),
-                method: String::from("workspace/didChangeWatchedFiles"),
+                id: "workspace/didChangeWatchedFiles".to_owned(),
+                method: "workspace/didChangeWatchedFiles".to_owned(),
                 register_options: Some(serde_json::to_value(did_change_watched_files).unwrap()),
             },
             // Registration {

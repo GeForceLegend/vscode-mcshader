@@ -61,9 +61,9 @@ impl MinecraftLanguageServer {
     async fn set_status_loading(&self, message: String) {
         self.client
             .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
-                status: String::from("loading"),
+                status: "loading".to_owned(),
                 message,
-                icon: String::from("$(loading~spin)"),
+                icon: "$(loading~spin)".to_owned(),
             })
             .await;
     }
@@ -71,9 +71,9 @@ impl MinecraftLanguageServer {
     async fn set_status_ready(&self) {
         self.client
             .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
-                status: String::from("ready"),
-                message: String::from("ready"),
-                icon: String::from("$(check)"),
+                status: "ready".to_owned(),
+                message: "ready".to_owned(),
+                icon: "$(check)".to_owned(),
             })
             .await;
     }
@@ -204,7 +204,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-        self.set_status_loading(String::from("Applying work space changes...")).await;
+        self.set_status_loading("Applying work space changes...".to_owned()).await;
 
         self.update_work_spaces(params.event);
 
@@ -213,7 +213,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging_macro::with_trace_id]
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        self.set_status_loading(String::from("Applying changes into file system...")).await;
+        self.set_status_loading("Applying changes into file system...".to_owned()).await;
 
         let diagnostics = self.update_watched_files(params.changes);
 

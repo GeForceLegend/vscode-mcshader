@@ -32,7 +32,12 @@ impl OpenGlContext {
                 let mut info_len: c_int = 0;
                 gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut info_len);
                 let mut info = Vec::with_capacity(info_len as usize);
-                gl::GetShaderInfoLog(shader, info_len as c_int, ptr::null_mut(), info.as_mut_ptr() as *mut gl::types::GLchar);
+                gl::GetShaderInfoLog(
+                    shader,
+                    info_len as c_int,
+                    ptr::null_mut(),
+                    info.as_mut_ptr() as *mut gl::types::GLchar,
+                );
 
                 // ignore null for str::from_utf8
                 info.set_len((info_len - 1) as usize);

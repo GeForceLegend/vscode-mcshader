@@ -10,20 +10,11 @@ use tree_sitter::Parser;
 use url::Url;
 
 use crate::constant::*;
+use crate::diagnostics_parser::DiagnosticsCollection;
 use crate::file::*;
 use crate::tree_parser::TreeParser;
 
 use super::MinecraftLanguageServer;
-
-pub fn extend_diagnostics(target: &mut HashMap<Url, Vec<Diagnostic>>, source: HashMap<Url, Vec<Diagnostic>>) {
-    for file in source {
-        if let Some(diagnostics) = target.get_mut(&file.0) {
-            diagnostics.extend(file.1);
-        } else {
-            target.insert(file.0, file.1);
-        }
-    }
-}
 
 impl MinecraftLanguageServer {
     /*================================================ Tool functions for service ================================================*/
@@ -122,7 +113,11 @@ impl MinecraftLanguageServer {
 
         match validation_result {
             Some(compile_log) => {
-                info!("Compilation errors reported; shader file: {},\nerrors: \"\n{}\"", file_path.display(), compile_log);
+                info!(
+                    "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
+                    file_path.display(),
+                    compile_log
+                );
                 DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
             }
             None => {
@@ -145,7 +140,11 @@ impl MinecraftLanguageServer {
 
             match validation_result {
                 Some(compile_log) => {
-                    info!("Compilation errors reported; shader file: {},\nerrors: \"\n{}\"", file_path.display(), compile_log);
+                    info!(
+                        "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
+                        file_path.display(),
+                        compile_log
+                    );
                     DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
                 }
                 None => {
@@ -227,7 +226,7 @@ impl MinecraftLanguageServer {
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
             for shader_path in include_file.included_shaders().borrow().iter() {
                 let shader_file = shader_files.get(shader_path).unwrap();
-                extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, shader_path));
+                diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, shader_path));
             }
             include_files.insert(file_path, include_file);
             return Some(diagnostics);
@@ -254,17 +253,17 @@ impl MinecraftLanguageServer {
         let file: &dyn File;
         if let Some(shader_file) = shader_files.get(file_path) {
             file = shader_file;
-            extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, file_path));
+            diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, file_path));
         } else if let Some(include_file) = include_files.get(file_path) {
             file = include_file;
             let include_shader_list = include_file.included_shaders().borrow();
             for shader_path in include_shader_list.iter() {
                 let shader_file = shader_files.get(shader_path).unwrap();
-                extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, shader_path));
+                diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, shader_path));
             }
         } else if let Some(temp_file) = temp_files.get(file_path) {
             file = temp_file;
-            extend_diagnostics(&mut diagnostics, self.temp_lint(&temp_file, file_path));
+            diagnostics.extend_diagnostics(self.temp_lint(&temp_file, file_path));
         } else {
             warn!("This file cannot found in server data! File path: {}", file_path.display());
             return (None, diagnostics);
@@ -359,96 +358,109 @@ impl MinecraftLanguageServer {
         let mut updated_includes: HashSet<PathBuf> = HashSet::new();
         let mut updated_related_shaders: HashSet<PathBuf> = HashSet::new();
 
-        let mut file_created: Vec<PathBuf> = Vec::new();
-        let mut file_changed: Vec<PathBuf> = Vec::new();
-        let mut file_deleted: Vec<PathBuf> = Vec::new();
+        let mut change_list: HashSet<PathBuf> = HashSet::new();
 
         for change in changes {
             let file_path = change.uri.to_file_path().unwrap();
-            match change.typ {
-                FileChangeType::CREATED => file_created.push(file_path),
-                FileChangeType::CHANGED => file_changed.push(file_path),
-                FileChangeType::DELETED => file_deleted.push(file_path),
-                _ => warn!("Invalid change type"),
-            }
-        }
-
-        for file_path in file_created {
-            let include_exists = match include_files.remove(&file_path) {
-                Some(include_file) => {
+            if change.typ == FileChangeType::CHANGED {
+                if let Some(include_file) = include_files.remove(&file_path) {
                     include_file.update_include(&mut include_files, &mut parser, &file_path);
                     updated_includes.insert(file_path.clone());
                     include_files.insert(file_path.clone(), include_file);
-                    true
                 }
-                None => false,
-            };
-            if let Some(shader_file) = shader_files.get(&file_path) {
-                shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                updated_shaders.insert(file_path.clone());
-            } else if !include_exists {
-                if self.scan_new_file(
-                    &mut shader_files,
-                    &mut include_files,
-                    &mut parser,
-                    &mut shader_packs,
-                    file_path.clone(),
-                ) {
+                if let Some(shader_file) = shader_files.get(&file_path) {
+                    shader_file.update_shader(&mut include_files, &mut parser, &file_path);
                     updated_shaders.insert(file_path);
                 }
+            } else {
+                // Insert them to a hashset and handle later
+                // This will prevent from multiple handling
+                // when a file is deleted and created at the same time (eg.switch git branch)
+                change_list.insert(file_path);
             }
         }
 
-        for file_path in file_changed {
-            if let Some(include_file) = include_files.remove(&file_path) {
-                include_file.update_include(&mut include_files, &mut parser, &file_path);
-                updated_includes.insert(file_path.clone());
-                include_files.insert(file_path.clone(), include_file);
-            }
-            if let Some(shader_file) = shader_files.get(&file_path) {
-                shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                updated_shaders.insert(file_path);
-            }
-        }
-
-        for file_path in file_deleted {
-            let is_watched_file = match file_path.extension() {
-                Some(ext) => extensions.contains(ext.to_str().unwrap()),
-                None => false,
-            };
-            if is_watched_file {
-                if !updated_shaders.contains(&file_path) && !updated_includes.contains(&file_path) {
+        for file_path in change_list {
+            // Files that created or refreshed though delete and create again will exist
+            // Otherwise it is deleted
+            if file_path.exists() {
+                let include_exists = match include_files.remove(&file_path) {
+                    Some(include_file) => {
+                        include_file.update_include(&mut include_files, &mut parser, &file_path);
+                        updated_includes.insert(file_path.clone());
+                        include_files.insert(file_path.clone(), include_file);
+                        true
+                    }
+                    None => false,
+                };
+                if let Some(shader_file) = shader_files.get(&file_path) {
+                    shader_file.update_shader(&mut include_files, &mut parser, &file_path);
+                    updated_shaders.insert(file_path.clone());
+                } else if !include_exists {
+                    if self.scan_new_file(
+                        &mut shader_files,
+                        &mut include_files,
+                        &mut parser,
+                        &mut shader_packs,
+                        file_path.clone(),
+                    ) {
+                        updated_shaders.insert(file_path);
+                    }
+                }
+            } else {
+                // If a path is not watched, it should be a folder
+                let is_watched_file = match file_path.extension() {
+                    Some(ext) => extensions.contains(ext.to_str().unwrap()),
+                    None => false,
+                };
+                // Folder handling is much more expensive than file handling
+                // Almost nobody will name a folder with watched extension, right?
+                if is_watched_file {
                     diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
 
                     shader_files.remove(&file_path);
-                    updated_related_shaders.remove(&file_path);
                     if let Some(include_file) = include_files.remove(&file_path) {
                         updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
                     }
+                    updated_related_shaders.remove(&file_path);
 
                     include_files.values().for_each(|include_file| {
                         include_file.included_shaders().borrow_mut().remove(&file_path);
                         include_file.including_files().borrow_mut().remove(&file_path);
                     });
-                }
-            } else {
-                shader_files.retain(|shader_path, _shader_file| !shader_path.starts_with(&file_path));
-                include_files.retain(|include_path, _include_file| !include_path.starts_with(&file_path));
-                updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
+                } else {
+                    shader_files.retain(|shader_path, _shader_file| {
+                        if shader_path.starts_with(&file_path) {
+                            diagnostics.insert(Url::from_file_path(shader_path).unwrap(), Vec::new());
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                    include_files.retain(|include_path, include_file| {
+                        if include_path.starts_with(&file_path) {
+                            diagnostics.insert(Url::from_file_path(include_path).unwrap(), Vec::new());
+                            updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                    updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
 
-                include_files.values().for_each(|include_file| {
-                    include_file
-                        .included_shaders()
-                        .borrow_mut()
-                        .retain(|shader_path| !shader_path.starts_with(&file_path));
-                    include_file
-                        .including_files()
-                        .borrow_mut()
-                        .retain(|include_path| !include_path.starts_with(&file_path));
-                });
+                    include_files.values().for_each(|include_file| {
+                        include_file
+                            .included_shaders()
+                            .borrow_mut()
+                            .retain(|shader_path| !shader_path.starts_with(&file_path));
+                        include_file
+                            .including_files()
+                            .borrow_mut()
+                            .retain(|include_path| !include_path.starts_with(&file_path));
+                    });
+                }
             }
         }
-
         updated_shaders.extend(updated_related_shaders);
         for file_path in updated_includes {
             match include_files.get(&file_path) {
@@ -456,10 +468,9 @@ impl MinecraftLanguageServer {
                 None => warn!("Missing include: {}", file_path.display()),
             }
         }
-
         for file_path in updated_shaders {
             match shader_files.get(&file_path) {
-                Some(shader_file) => extend_diagnostics(&mut diagnostics, self.lint_shader(&include_files, shader_file, &file_path)),
+                Some(shader_file) => diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, &file_path)),
                 None => warn!("Missing shader: {}", file_path.display()),
             }
         }

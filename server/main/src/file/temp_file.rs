@@ -60,7 +60,7 @@ impl TempFile {
         }
 
         let mut temp_content = String::new();
-        file_list.insert(String::from("0"), file_path.clone());
+        file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
 
@@ -76,7 +76,7 @@ impl TempFile {
                         .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
                 };
 
-                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, String::from(line.1), &mut file_id, 1);
+                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, line.1, &mut file_id, 1);
                 temp_content += &include_content;
                 temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
             } else if RE_MACRO_LINE.is_match(line.1) {
@@ -106,13 +106,13 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: String, file_id: &mut i32,
+        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: &str, file_id: &mut i32,
         depth: i32,
     ) -> String {
         if depth > 10 || !file_path.exists() {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            return original_content + "\n";
+            return original_content.to_owned() + "\n";
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
@@ -132,8 +132,7 @@ impl TempFile {
                             .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
                     };
 
-                    let sub_include_content =
-                        Self::merge_temp(pack_path, include_path, file_list, String::from(line.1), file_id, depth + 1);
+                    let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, line.1, file_id, depth + 1);
                     include_content += &sub_include_content;
 
                     include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);
@@ -149,7 +148,7 @@ impl TempFile {
             include_content
         } else {
             warn!("Unable to read file"; "path" => file_path.display());
-            original_content + "\n"
+            original_content.to_owned() + "\n"
         }
     }
 }

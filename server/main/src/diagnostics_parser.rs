@@ -102,3 +102,19 @@ impl DiagnosticsParser {
         diagnostics
     }
 }
+
+pub trait DiagnosticsCollection {
+    fn extend_diagnostics<T: IntoIterator<Item = (Url, Vec<Diagnostic>)>>(&mut self, iter: T);
+}
+
+impl DiagnosticsCollection for HashMap<Url, Vec<Diagnostic>> {
+    fn extend_diagnostics<T: IntoIterator<Item = (Url, Vec<Diagnostic>)>>(&mut self, iter: T) {
+        for diagnostic in iter {
+            if let Some(diagnostics) = self.get_mut(&diagnostic.0) {
+                diagnostics.extend(diagnostic.1);
+            } else {
+                self.insert(diagnostic.0, diagnostic.1);
+            }
+        }
+    }
+}

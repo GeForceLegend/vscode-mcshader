@@ -70,11 +70,11 @@ lazy_static! {
         set
     };
     pub static ref BASIC_EXTENSIONS: HashSet<String> = HashSet::from([
-        String::from("vsh"),
-        String::from("gsh"),
-        String::from("fsh"),
-        String::from("csh"),
-        String::from("glsl"),
+        "vsh".to_owned(),
+        "gsh".to_owned(),
+        "fsh".to_owned(),
+        "csh".to_owned(),
+        "glsl".to_owned(),
     ]);
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"^\s*#(include|line)"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();

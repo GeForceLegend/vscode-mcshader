@@ -7,7 +7,7 @@ impl LanguageServerError {
     pub fn not_shader_error() -> Error {
         Error {
             code: ErrorCode::ServerError(-20002),
-            message: String::from("This is not a base shader file"),
+            message: "This is not a base shader file".to_owned(),
             data: None,
         }
     }
@@ -16,7 +16,7 @@ impl LanguageServerError {
     pub fn invalid_command_error() -> Error {
         Error {
             code: ErrorCode::ServerError(-20101),
-            message: String::from("Invalid command"),
+            message: "Invalid command".to_owned(),
             data: None,
         }
     }
@@ -25,7 +25,7 @@ impl LanguageServerError {
     pub fn invalid_argument_error() -> Error {
         Error {
             code: ErrorCode::ServerError(-20102),
-            message: String::from("Invalid command argument"),
+            message: "Invalid command argument".to_owned(),
             data: None,
         }
     }

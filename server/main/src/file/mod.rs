@@ -83,7 +83,7 @@ pub trait File {
                                 Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
                                 Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
                             ),
-                            tooltip: Some(String::from(url.path())),
+                            tooltip: Some(url.path().to_owned()),
                             target: Some(url),
                             data: None,
                         });
