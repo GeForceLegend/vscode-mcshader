@@ -130,7 +130,7 @@ impl MinecraftLanguageServer {
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
                 for include_file in file_list {
-                    diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
+                    diagnostics.entry(Url::from_file_path(include_file.1).unwrap()).or_default();
                 }
                 diagnostics
             }

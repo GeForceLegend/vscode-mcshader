@@ -79,6 +79,7 @@ export class Extension {
             }
         )
         log.info('running with binary at path:\n\t', serverPath)
+        this.updateStatus('$(loading~spin)', 'Starting...')
         await this.languageClient.start()
 
         this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.statusNotificationMethod, this.onStatusChange))

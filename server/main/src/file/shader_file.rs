@@ -61,9 +61,9 @@ impl ShaderFile {
                     }
                 }
             });
-            for include_file in parent_update_list {
+            for include_path in parent_update_list {
                 include_files
-                    .get_mut(&include_file)
+                    .get_mut(&include_path)
                     .unwrap()
                     .included_shaders
                     .borrow_mut()

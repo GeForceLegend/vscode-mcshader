@@ -1,5 +1,4 @@
 use std::ffi::{c_int, CStr, CString};
-use std::os::raw::c_char;
 use std::ptr;
 
 pub struct OpenGlContext {
@@ -14,7 +13,7 @@ impl OpenGlContext {
             .unwrap();
 
         let context = unsafe { not_current_context.make_current().unwrap() };
-        gl::load_with(|symbol| context.get_proc_address(symbol).cast());
+        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
         OpenGlContext { _ctx: context }
     }
@@ -30,10 +29,10 @@ impl OpenGlContext {
             // Check for shader compilation errors
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
             let result = if success != i32::from(gl::TRUE) {
-                let mut info_len: gl::types::GLint = 0;
+                let mut info_len: c_int = 0;
                 gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut info_len);
                 let mut info = Vec::with_capacity(info_len as usize);
-                gl::GetShaderInfoLog(shader, info_len as c_int, ptr::null_mut(), info.as_mut_ptr() as *mut c_char);
+                gl::GetShaderInfoLog(shader, info_len as c_int, ptr::null_mut(), info.as_mut_ptr() as *mut gl::types::GLchar);
 
                 // ignore null for str::from_utf8
                 info.set_len((info_len - 1) as usize);
