@@ -19,7 +19,7 @@ mod service;
 use crate::capability::ServerCapabilitiesFactroy;
 use crate::commands::CommandList;
 use crate::configuration::Configuration;
-use crate::constant;
+use crate::constant::*;
 use crate::file::*;
 use crate::notification;
 
@@ -99,7 +99,7 @@ impl LanguageServer for MinecraftLanguageServer {
             roots = HashSet::new();
         }
 
-        self.initial_scan(roots, constant::BASIC_EXTENSIONS.clone());
+        self.initial_scan(roots, BASIC_EXTENSIONS.clone());
 
         initialize_result
     }
@@ -134,7 +134,7 @@ impl LanguageServer for MinecraftLanguageServer {
             Err(_) => error!("Got unexpected log level from config"; "level" => &config.log_level),
         }
 
-        config.extra_extension.extend(constant::BASIC_EXTENSIONS.clone());
+        config.extra_extension.extend(BASIC_EXTENSIONS.clone());
         *self.server_data.lock().unwrap().extensions.borrow_mut() = config.extra_extension;
     }
 

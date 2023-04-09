@@ -137,10 +137,9 @@ impl IncludeFile {
             return original_content.to_owned() + "\n";
         }
         *file_id += 1;
-        let curr_file_id = file_id.to_string();
-        let file_name = file_path.display().to_string();
-        // let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
+        let curr_file_id = Buffer::new().format(*file_id).to_owned();
+        let file_name = file_path.to_str().unwrap();
+        let mut include_content = generate_line_macro(1, &curr_file_id, file_name) + "\n";
 
         let content = self.content.borrow();
         let mut start_index = 0;
@@ -165,14 +164,14 @@ impl IncludeFile {
                         let sub_include_content =
                             include_file.merge_include(include_files, include_path, capture_content, file_list, file_id, depth + 1);
                         include_content += &sub_include_content;
-                        include_content += &format!("\n#line {} {}\t//{}", lines, curr_file_id, file_name);
+                        include_content += "\n";
+                        include_content += &generate_line_macro(lines as i32, &curr_file_id, file_name);
                     }
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {
                 include_content += before_content;
                 start_index = end;
                 lines += before_content.matches("\n").count();
-
                 include_content += capture_content;
             }
         });

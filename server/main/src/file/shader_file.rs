@@ -83,7 +83,7 @@ impl ShaderFile {
         let mut shader_content = String::new();
         file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
-        let file_name = file_path.display().to_string();
+        let file_name = file_path.to_str().unwrap();
 
         let content = self.content.borrow();
         let mut start_index = 0;
@@ -108,7 +108,8 @@ impl ShaderFile {
                         let include_content =
                             include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
                         shader_content += &include_content;
-                        shader_content += &format!("\n#line {} 0\t//{}", lines, file_name);
+                        shader_content += "\n";
+                        shader_content += &generate_line_macro(lines as i32, "0", file_name);
                     }
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {

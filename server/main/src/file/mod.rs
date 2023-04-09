@@ -5,6 +5,7 @@ use std::{
     path::{Component, PathBuf, MAIN_SEPARATOR_STR},
 };
 
+use itoa::{Buffer, Integer};
 use logging::error;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
@@ -55,6 +56,16 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
     resource.push(last);
 
     Ok(PathBuf::from(resource))
+}
+
+fn generate_line_macro<I: Integer>(line: I, file_id: &str, file_name: &str) -> String {
+    let mut line_macro = "#line ".to_owned();
+    line_macro += Buffer::new().format(line);
+    line_macro += " ";
+    line_macro += file_id;
+    line_macro += "\t//";
+    line_macro += file_name;
+    line_macro
 }
 
 pub trait File {

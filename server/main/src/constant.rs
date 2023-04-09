@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use itoa::Buffer;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -9,62 +10,64 @@ use crate::opengl::OpenGlContext;
 lazy_static! {
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
-        let mut set = HashSet::with_capacity(4316);
+        let mut set = HashSet::with_capacity(12116);
         for ext in ["fsh", "vsh", "gsh", "csh"] {
-            set.insert(format!("composite.{}", ext));
-            set.insert(format!("deferred.{}", ext));
-            set.insert(format!("prepare.{}", ext));
-            set.insert(format!("shadowcomp.{}", ext));
+            set.insert("composite.".to_owned() + ext);
+            set.insert("deferred.".to_owned() + ext);
+            set.insert("prepare.".to_owned() + ext);
+            set.insert("shadowcomp.".to_owned() + ext);
             for i in 1..=99 {
-                let total_suffix = format!("{}.{}", i, ext);
-                set.insert(format!("composite{}", total_suffix));
-                set.insert(format!("deferred{}", total_suffix));
-                set.insert(format!("prepare{}", total_suffix));
-                set.insert(format!("shadowcomp{}", total_suffix));
+                let mut suffix = Buffer::new().format(i).to_owned() + ".";
+                suffix += ext;
+                set.insert("composite".to_owned() + &suffix);
+                set.insert("deferred".to_owned() + &suffix);
+                set.insert("prepare".to_owned() + &suffix);
+                set.insert("shadowcomp".to_owned() + &suffix);
             }
-            set.insert(format!("composite_pre.{}", ext));
-            set.insert(format!("deferred_pre.{}", ext));
-            set.insert(format!("final.{}", ext));
-            set.insert(format!("gbuffers_armor_glint.{}", ext));
-            set.insert(format!("gbuffers_basic.{}", ext));
-            set.insert(format!("gbuffers_beaconbeam.{}", ext));
-            set.insert(format!("gbuffers_block.{}", ext));
-            set.insert(format!("gbuffers_clouds.{}", ext));
-            set.insert(format!("gbuffers_damagedblock.{}", ext));
-            set.insert(format!("gbuffers_entities.{}", ext));
-            set.insert(format!("gbuffers_entities_glowing.{}", ext));
-            set.insert(format!("gbuffers_hand.{}", ext));
-            set.insert(format!("gbuffers_hand_water.{}", ext));
-            set.insert(format!("gbuffers_item.{}", ext));
-            set.insert(format!("gbuffers_line.{}", ext));
-            set.insert(format!("gbuffers_skybasic.{}", ext));
-            set.insert(format!("gbuffers_skytextured.{}", ext));
-            set.insert(format!("gbuffers_spidereyes.{}", ext));
-            set.insert(format!("gbuffers_terrain.{}", ext));
-            set.insert(format!("gbuffers_terrain_cutout.{}", ext));
-            set.insert(format!("gbuffers_terrain_cutout_mip.{}", ext));
-            set.insert(format!("gbuffers_terrain_solid.{}", ext));
-            set.insert(format!("gbuffers_textured.{}", ext));
-            set.insert(format!("gbuffers_textured_lit.{}", ext));
-            set.insert(format!("gbuffers_water.{}", ext));
-            set.insert(format!("gbuffers_weather.{}", ext));
-            set.insert(format!("shadow.{}", ext));
-            set.insert(format!("shadow_cutout.{}", ext));
-            set.insert(format!("shadow_solid.{}", ext));
+            set.insert("composite_pre.".to_owned() + ext);
+            set.insert("deferred_pre.".to_owned() + ext);
+            set.insert("final.".to_owned() + ext);
+            set.insert("gbuffers_armor_glint.".to_owned() + ext);
+            set.insert("gbuffers_basic.".to_owned() + ext);
+            set.insert("gbuffers_beaconbeam.".to_owned() + ext);
+            set.insert("gbuffers_block.".to_owned() + ext);
+            set.insert("gbuffers_clouds.".to_owned() + ext);
+            set.insert("gbuffers_damagedblock.".to_owned() + ext);
+            set.insert("gbuffers_entities.".to_owned() + ext);
+            set.insert("gbuffers_entities_glowing.".to_owned() + ext);
+            set.insert("gbuffers_hand.".to_owned() + ext);
+            set.insert("gbuffers_hand_water.".to_owned() + ext);
+            set.insert("gbuffers_item.".to_owned() + ext);
+            set.insert("gbuffers_line.".to_owned() + ext);
+            set.insert("gbuffers_skybasic.".to_owned() + ext);
+            set.insert("gbuffers_skytextured.".to_owned() + ext);
+            set.insert("gbuffers_spidereyes.".to_owned() + ext);
+            set.insert("gbuffers_terrain.".to_owned() + ext);
+            set.insert("gbuffers_terrain_cutout.".to_owned() + ext);
+            set.insert("gbuffers_terrain_cutout_mip.".to_owned() + ext);
+            set.insert("gbuffers_terrain_solid.".to_owned() + ext);
+            set.insert("gbuffers_textured.".to_owned() + ext);
+            set.insert("gbuffers_textured_lit.".to_owned() + ext);
+            set.insert("gbuffers_water.".to_owned() + ext);
+            set.insert("gbuffers_weather.".to_owned() + ext);
+            set.insert("shadow.".to_owned() + ext);
+            set.insert("shadow_cutout.".to_owned() + ext);
+            set.insert("shadow_solid.".to_owned() + ext);
         }
         let base_char_num = 'a' as u8;
         for suffix_num in 0u8..=25u8 {
-            let suffix_char = (base_char_num + suffix_num) as char;
-            set.insert(format!("composite_{}.csh", suffix_char));
-            set.insert(format!("deferred_{}.csh", suffix_char));
-            set.insert(format!("prepare_{}.csh", suffix_char));
-            set.insert(format!("shadowcomp_{}.csh", suffix_char));
+            let suffix_char = unsafe { String::from_utf8_unchecked(vec![base_char_num + suffix_num]) } + ".csh";
+            set.insert("composite_".to_owned() + &suffix_char);
+            set.insert("deferred_".to_owned() + &suffix_char);
+            set.insert("prepare_".to_owned() + &suffix_char);
+            set.insert("shadowcomp_".to_owned() + &suffix_char);
             for i in 1..=99 {
-                let total_suffix = format!("{}_{}", i, suffix_char);
-                set.insert(format!("composite{}.csh", total_suffix));
-                set.insert(format!("deferred{}.csh", total_suffix));
-                set.insert(format!("prepare{}.csh", total_suffix));
-                set.insert(format!("shadowcomp{}.csh", total_suffix));
+                let mut suffix = Buffer::new().format(i).to_owned() + "_";
+                suffix += &suffix_char;
+                set.insert("composite".to_owned() + &suffix);
+                set.insert("deferred".to_owned() + &suffix);
+                set.insert("prepare".to_owned() + &suffix);
+                set.insert("shadowcomp".to_owned() + &suffix);
             }
         }
         set

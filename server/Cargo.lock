@@ -1908,6 +1908,7 @@ version = "0.2.0"
 dependencies = [
  "gl",
  "glutin",
+ "itoa",
  "lazy_static",
  "logging",
  "logging_macro",
