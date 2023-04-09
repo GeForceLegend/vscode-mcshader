@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use lazy_static::lazy_static;
-use memchr::memmem::Finder;
 use regex::Regex;
 
 use crate::diagnostics_parser::DiagnosticsParser;
@@ -77,7 +76,6 @@ lazy_static! {
         "csh".to_owned(),
         "glsl".to_owned(),
     ]);
-    pub static ref NEW_LINE_FINDER: Finder<'static> = Finder::new(b"\n");
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"^\s*#(include|line)"#).unwrap();
     pub static ref RE_MACRO_CATCH2: Regex = Regex::new(r#"(?m)^\s*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();

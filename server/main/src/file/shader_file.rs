@@ -80,7 +80,7 @@ impl ShaderFile {
     pub fn merge_shader_file(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
     ) -> String {
-        let mut shader_content: Vec<u8> = Vec::new();
+        let mut shader_content = String::new();
         file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
@@ -94,10 +94,10 @@ impl ShaderFile {
             let start = capture.start();
             let end = capture.end();
 
-            let before_content = unsafe { content.get_unchecked(start_index..start).as_bytes() };
-            shader_content.extend(before_content);
+            let before_content = unsafe { content.get_unchecked(start_index..start) };
+            shader_content += before_content;
             start_index = end;
-            lines += NEW_LINE_FINDER.find_iter(before_content).count();
+            lines += before_content.matches("\n").count();
             
             let capture_content = capture.as_str();
             if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
@@ -107,21 +107,19 @@ impl ShaderFile {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let include_content =
                             include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
-                        shader_content.extend(include_content);
-                        shader_content.extend(format!("\n#line {} 0\t//{}", lines, file_name).into_bytes());
+                        shader_content += &include_content;
+                        shader_content += &format!("\n#line {} 0\t//{}", lines, file_name);
                     } else {
-                        shader_content.extend(capture_content.as_bytes());
+                        shader_content += capture_content;
                     }
                 } else {
-                    shader_content.extend(capture_content.as_bytes());
+                    shader_content += capture_content;
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {
-                shader_content.extend(capture_content.as_bytes());
+                shader_content += capture_content;
             }
         });
-        shader_content.extend(unsafe { content.get_unchecked(start_index..).as_bytes() });
-
-        let mut shader_content = unsafe { String::from_utf8_unchecked(shader_content) };
+        shader_content += unsafe { content.get_unchecked(start_index..) };
 
         // Move #version to the top line
         if let Some(capture) = RE_MACRO_VERSION.captures(&shader_content) {

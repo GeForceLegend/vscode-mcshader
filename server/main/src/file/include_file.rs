@@ -130,20 +130,17 @@ impl IncludeFile {
     pub fn merge_include(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: &str,
         file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32,
-    ) -> Vec<u8> {
+    ) -> String {
         if !file_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            let mut original_content_vec: Vec<u8> = Vec::with_capacity(original_content.len() + 1);
-            original_content_vec.extend(original_content.as_bytes());
-            original_content_vec.push(b'\n');
-            return original_content_vec;
+            return original_content.to_owned() + "\n";
         }
         *file_id += 1;
         let curr_file_id = file_id.to_string();
         let file_name = file_path.display().to_string();
         // let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name).into_bytes();
+        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
 
         let content = self.content.borrow();
         let mut start_index = 0;
@@ -153,10 +150,10 @@ impl IncludeFile {
             let start = capture.start();
             let end = capture.end();
 
-            let before_content = unsafe { content.get_unchecked(start_index..start).as_bytes() };
-            include_content.extend(before_content);
+            let before_content = unsafe { content.get_unchecked(start_index..start) };
+            include_content += before_content;
             start_index = end;
-            lines += NEW_LINE_FINDER.find_iter(before_content).count();
+            lines += before_content.matches("\n").count();
 
             let capture_content = capture.as_str();
             if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
@@ -166,19 +163,19 @@ impl IncludeFile {
                     if let Some(include_file) = include_files.get(&include_path) {
                         let sub_include_content =
                             include_file.merge_include(include_files, include_path, capture_content, file_list, file_id, depth + 1);
-                        include_content.extend(sub_include_content);
-                        include_content.extend(format!("\n#line {} {}\t//{}", lines, curr_file_id, file_name).into_bytes());
+                        include_content += &sub_include_content;
+                        include_content += &format!("\n#line {} {}\t//{}", lines, curr_file_id, file_name);
                     } else {
-                        include_content.extend(capture_content.as_bytes());
+                        include_content += capture_content;
                     }
                 } else {
-                    include_content.extend(capture_content.as_bytes());
+                    include_content += capture_content;
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {
-                include_content.extend(capture_content.as_bytes());
+                include_content += capture_content;
             }
         });
-        include_content.extend(unsafe { content.get_unchecked(start_index..).as_bytes() });
+        include_content += unsafe { content.get_unchecked(start_index..) };
 
         file_list.insert(curr_file_id, file_path);
         include_content
