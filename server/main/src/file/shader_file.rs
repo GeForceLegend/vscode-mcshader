@@ -43,7 +43,7 @@ impl ShaderFile {
         if let Ok(content) = read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
-            content.lines().for_each(|line| {
+            content.split_terminator("\n").for_each(|line| {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
                     let path = capture.get(1).unwrap().as_str();
 
@@ -85,7 +85,7 @@ impl ShaderFile {
         let mut file_id = 0;
         let file_name = file_path.display().to_string();
 
-        self.content.borrow().lines().enumerate().for_each(|line| {
+        self.content.borrow().split_terminator("\n").enumerate().for_each(|line| {
             if RE_MACRO_CATCH.is_match(line.1) {
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                     let path = capture.get(1).unwrap().as_str();

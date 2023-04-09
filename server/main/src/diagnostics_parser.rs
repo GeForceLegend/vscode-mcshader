@@ -40,7 +40,7 @@ impl DiagnosticsParser {
         let default_path = file_list.get("0").unwrap();
         let default_path_name = default_path.display().to_string();
 
-        for log_line in compile_log.split('\n').collect::<Vec<&str>>() {
+        for log_line in compile_log.split_terminator('\n').collect::<Vec<&str>>() {
             let diagnostic_capture = match self.line_regex.captures(log_line) {
                 Some(captures) => captures,
                 None => continue,
