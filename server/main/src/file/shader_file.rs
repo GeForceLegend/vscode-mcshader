@@ -89,33 +89,33 @@ impl ShaderFile {
         let mut start_index = 0;
         let mut lines = 3;
 
-        RE_MACRO_CATCH2.captures_iter(content.as_ref()).for_each(|captures| {
+        RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
             let capture = captures.get(0).unwrap();
             let start = capture.start();
             let end = capture.end();
 
             let before_content = unsafe { content.get_unchecked(start_index..start) };
-            shader_content += before_content;
-            start_index = end;
-            lines += before_content.matches("\n").count();
-            
             let capture_content = capture.as_str();
             if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                 let path = capture.get(1).unwrap().as_str();
 
                 if let Ok(include_path) = include_path_join(&self.pack_path, file_path, path) {
                     if let Some(include_file) = include_files.get(&include_path) {
+                        shader_content += before_content;
+                        start_index = end;
+                        lines += before_content.matches("\n").count();
+
                         let include_content =
                             include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += &format!("\n#line {} 0\t//{}", lines, file_name);
-                    } else {
-                        shader_content += capture_content;
                     }
-                } else {
-                    shader_content += capture_content;
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {
+                shader_content += before_content;
+                start_index = end;
+                lines += before_content.matches("\n").count();
+
                 shader_content += capture_content;
             }
         });

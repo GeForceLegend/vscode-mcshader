@@ -76,8 +76,7 @@ lazy_static! {
         "csh".to_owned(),
         "glsl".to_owned(),
     ]);
-    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"^\s*#(include|line)"#).unwrap();
-    pub static ref RE_MACRO_CATCH2: Regex = Regex::new(r#"(?m)^\s*#(include|line).*$"#).unwrap();
+    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^\s*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^\s*#version.*$"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
