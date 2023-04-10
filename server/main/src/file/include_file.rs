@@ -143,7 +143,7 @@ impl IncludeFile {
 
         let content = self.content.borrow();
         let mut start_index = 0;
-        let mut lines = 3;
+        let mut lines = 2;
 
         RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
             let capture = captures.get(0).unwrap();
@@ -165,7 +165,7 @@ impl IncludeFile {
                             include_file.merge_include(include_files, include_path, capture_content, file_list, file_id, depth + 1);
                         include_content += &sub_include_content;
                         include_content += "\n";
-                        include_content += &generate_line_macro(lines as i32, &curr_file_id, file_name);
+                        include_content += &generate_line_macro(lines, &curr_file_id, file_name);
                     }
                 }
             } else if !RE_MACRO_LINE.is_match(capture_content) {

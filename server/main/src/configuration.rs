@@ -21,8 +21,10 @@ impl Configuration {
         let mut glsl_file_pattern = "**/*.{vsh,gsh,fsh,csh,glsl".to_owned();
         let mut folder_pattern = "**/shaders/**/*[!{.vsh,.gsh,.fsh,.csh,.glsl".to_owned();
         self.extra_extension.iter().for_each(|extension| {
-            glsl_file_pattern += &format!(",{extension}");
-            folder_pattern += &format!(",.{extension}");
+            glsl_file_pattern += ",";
+            folder_pattern += ",.";
+            glsl_file_pattern += extension;
+            folder_pattern += extension;
         });
         glsl_file_pattern += "}";
         folder_pattern += "}]";

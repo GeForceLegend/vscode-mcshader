@@ -62,10 +62,20 @@ impl TempFile {
         let mut temp_content = String::new();
         file_list.insert("0".to_owned(), file_path.clone());
         let mut file_id = 0;
-        let file_name = file_path.display().to_string();
+        let file_name = file_path.to_str().unwrap();
 
-        self.content.borrow().lines().enumerate().for_each(|line| {
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+        let content = self.content.borrow();
+        let mut start_index = 0;
+        let mut lines = 2;
+
+        RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
+            let capture = captures.get(0).unwrap();
+            let start = capture.start();
+            let end = capture.end();
+
+            let before_content = unsafe { content.get_unchecked(start_index..start) };
+            let capture_content = capture.as_str();
+            if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                 let path = capture.get(1).unwrap().as_str();
 
                 let include_path = match path.strip_prefix('/') {
@@ -75,18 +85,23 @@ impl TempFile {
                         .unwrap()
                         .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
                 };
+                temp_content += before_content;
+                start_index = end;
+                lines += before_content.matches("\n").count();
 
-                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, line.1, &mut file_id, 1);
+                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, capture_content, &mut file_id, 1);
                 temp_content += &include_content;
-                temp_content += &format!("#line {} 0\t//{}\n", line.0 + 2, file_name);
-            } else if RE_MACRO_LINE.is_match(line.1) {
-                // Delete existing #line for correct linting
                 temp_content += "\n";
-            } else {
-                temp_content += line.1;
+                temp_content += &generate_line_macro(lines, "0", file_name);
+            } else if RE_MACRO_LINE.is_match(capture_content) {
+                temp_content += before_content;
+                start_index = end;
+                lines += before_content.matches("\n").count();
+
                 temp_content += "\n";
             }
         });
+        temp_content += unsafe { content.get_unchecked(start_index..) };
 
         // Move #version to the top line
         if let Some(capture) = RE_MACRO_VERSION.captures(&temp_content) {
@@ -98,7 +113,9 @@ impl TempFile {
             if self.pack_path.parent().unwrap().file_name().unwrap() != "debug" {
                 version_content += OPTIFINE_MACROS;
             }
-            version_content += &format!("#line 1 0\t//{}\n", file_name);
+            version_content += "#line 1 0\t//";
+            version_content += file_name;
+            version_content += "\n";
             temp_content.insert_str(0, &version_content);
         }
 
@@ -115,13 +132,22 @@ impl TempFile {
             return original_content.to_owned() + "\n";
         }
         *file_id += 1;
-        let curr_file_id = file_id.to_string();
-        let file_name = file_path.display();
-        let mut include_content = format!("#line 1 {}\t//{}\n", curr_file_id, file_name);
+        let curr_file_id = Buffer::new().format(*file_id).to_owned();
+        let file_name = file_path.to_str().unwrap();
+        let mut include_content = generate_line_macro(1, &curr_file_id, file_name) + "\n";
 
         if let Ok(content) = read_to_string(&file_path) {
-            content.lines().enumerate().for_each(|line| {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
+            let mut start_index = 0;
+            let mut lines = 2;
+
+            RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
+                let capture = captures.get(0).unwrap();
+                let start = capture.start();
+                let end = capture.end();
+
+                let before_content = unsafe { content.get_unchecked(start_index..start) };
+                let capture_content = capture.as_str();
+                if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
@@ -131,19 +157,22 @@ impl TempFile {
                             .unwrap()
                             .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
                     };
+                    include_content += before_content;
+                    start_index = end;
+                    lines += before_content.matches("\n").count();
 
-                    let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, line.1, file_id, depth + 1);
+                    let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, capture_content, file_id, depth + 1);
                     include_content += &sub_include_content;
-
-                    include_content += &format!("#line {} {}\t//{}\n", line.0 + 2, curr_file_id, file_name);
-                } else if RE_MACRO_LINE.is_match(&line.1) {
-                    // Delete existing #line for correct linting
                     include_content += "\n";
-                } else {
-                    include_content += &line.1;
-                    include_content += "\n";
+                    include_content += &generate_line_macro(lines, &curr_file_id, file_name);
+                } else if !RE_MACRO_LINE.is_match(capture_content) {
+                    include_content += before_content;
+                    start_index = end;
+                    lines += before_content.matches("\n").count();
+                    include_content += capture_content;
                 }
             });
+            include_content += unsafe { content.get_unchecked(start_index..) };
             file_list.insert(curr_file_id, file_path);
             include_content
         } else {

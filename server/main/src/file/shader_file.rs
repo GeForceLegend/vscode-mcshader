@@ -87,7 +87,7 @@ impl ShaderFile {
 
         let content = self.content.borrow();
         let mut start_index = 0;
-        let mut lines = 3;
+        let mut lines = 2;
 
         RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
             let capture = captures.get(0).unwrap();
@@ -109,10 +109,10 @@ impl ShaderFile {
                             include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
                         shader_content += &include_content;
                         shader_content += "\n";
-                        shader_content += &generate_line_macro(lines as i32, "0", file_name);
+                        shader_content += &generate_line_macro(lines, "0", file_name);
                     }
                 }
-            } else if !RE_MACRO_LINE.is_match(capture_content) {
+            } else if RE_MACRO_LINE.is_match(capture_content) {
                 shader_content += before_content;
                 start_index = end;
                 lines += before_content.matches("\n").count();
@@ -132,7 +132,9 @@ impl ShaderFile {
             if self.pack_path.parent().unwrap().file_name().unwrap() != "debug" {
                 version_content += OPTIFINE_MACROS;
             }
-            version_content += &format!("#line 1 0\t//{}\n", file_name);
+            version_content += "#line 1 0\t//";
+            version_content += file_name;
+            version_content += "\n";
             shader_content.insert_str(0, &version_content);
         }
 

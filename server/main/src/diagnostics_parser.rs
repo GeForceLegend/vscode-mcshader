@@ -38,7 +38,7 @@ impl DiagnosticsParser {
 
         debug!("Diagnostics regex selected"; "regex" => &self.line_regex.to_string());
         let default_path = file_list.get("0").unwrap();
-        let default_path_name = default_path.display().to_string();
+        let default_path_name = default_path.to_str().unwrap();
 
         for log_line in compile_log.split_terminator('\n').collect::<Vec<&str>>() {
             let diagnostic_capture = match self.line_regex.captures(log_line) {
@@ -46,10 +46,8 @@ impl DiagnosticsParser {
                 None => continue,
             };
 
-            debug!("Found match for output line"; "line" => log_line, "capture" => format!("{:?}", diagnostic_capture));
-
-            let msg = diagnostic_capture.name("output").unwrap().as_str();
-            let msg = &format!("{}, from file: {}", msg, default_path_name);
+            let mut msg = diagnostic_capture.name("output").unwrap().as_str().to_owned() + ", from file: ";
+            msg += default_path_name;
 
             let line = match diagnostic_capture.name("linenum") {
                 Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
@@ -84,7 +82,7 @@ impl DiagnosticsParser {
                 code: None,
                 severity: Some(severity),
                 source: Some("mcshader-glsl".into()),
-                message: msg.into(),
+                message: msg,
                 related_information: None,
                 tags: None,
                 code_description: Option::None,
