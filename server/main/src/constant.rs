@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use hashbrown::HashSet;
 use itoa::Buffer;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -8,7 +7,7 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 
 lazy_static! {
-    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+"#).unwrap();
+    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
         let mut set = HashSet::with_capacity(12116);
         for ext in ["fsh", "vsh", "gsh", "csh"] {
@@ -54,9 +53,9 @@ lazy_static! {
             set.insert("shadow_cutout.".to_owned() + ext);
             set.insert("shadow_solid.".to_owned() + ext);
         }
-        let base_char_num = 'a' as u8;
+        let base_char_num = b'a';
         for suffix_num in 0u8..=25u8 {
-            let suffix_char = unsafe { String::from_utf8_unchecked(std::vec::from_elem(base_char_num + suffix_num, 5)) } + ".csh";
+            let suffix_char = unsafe { String::from_utf8_unchecked(vec![base_char_num + suffix_num, b'.', b'c', b's', b'h']) };
             set.insert("composite_".to_owned() + &suffix_char);
             set.insert("deferred_".to_owned() + &suffix_char);
             set.insert("prepare_".to_owned() + &suffix_char);

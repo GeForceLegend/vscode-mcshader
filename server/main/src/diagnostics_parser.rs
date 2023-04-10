@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 
+use hashbrown::HashMap;
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 use url::Url;
@@ -28,10 +28,7 @@ impl DiagnosticsParser {
             "AMD" | "ATI Technologies" | "ATI Technologies Inc." => 0,
             _ => 1,
         };
-        DiagnosticsParser {
-            line_offset,
-            line_regex,
-        }
+        DiagnosticsParser { line_offset, line_regex }
     }
 
     pub fn parse_diagnostics(&self, compile_log: String, file_list: HashMap<String, PathBuf>) -> HashMap<Url, Vec<Diagnostic>> {
@@ -40,7 +37,7 @@ impl DiagnosticsParser {
         let default_path = file_list.get("0").unwrap();
         let default_path_name = default_path.to_str().unwrap();
 
-        for log_line in compile_log.split_terminator('\n').collect::<Vec<&str>>() {
+        for log_line in compile_log.split_terminator('\n') {
             let diagnostic_capture = match self.line_regex.captures(log_line) {
                 Some(captures) => captures,
                 None => continue,
@@ -73,10 +70,7 @@ impl DiagnosticsParser {
             let file_url = Url::from_file_path(file_path).unwrap();
 
             let diagnostic = Diagnostic {
-                range: Range::new(
-                    Position::new(line, 0),
-                    Position::new(line, u32::MAX),
-                ),
+                range: Range::new(Position::new(line, 0), Position::new(line, u32::MAX)),
                 code: None,
                 severity: Some(severity),
                 source: Some("mcshader-glsl".into()),
@@ -90,7 +84,7 @@ impl DiagnosticsParser {
             match diagnostics.get_mut(&file_url) {
                 Some(d) => d.push(diagnostic),
                 None => {
-                    diagnostics.insert(file_url, vec![diagnostic]);
+                    diagnostics.insert(file_url, std::vec::from_elem(diagnostic, 1));
                 }
             };
         }

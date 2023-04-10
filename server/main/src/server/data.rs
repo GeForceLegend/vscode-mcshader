@@ -1,9 +1,6 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::{cell::RefCell, path::PathBuf};
 
+use hashbrown::{HashMap, HashSet};
 use tree_sitter::Parser;
 
 use crate::file::{IncludeFile, ShaderFile, TempFile};

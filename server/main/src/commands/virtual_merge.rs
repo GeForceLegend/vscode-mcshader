@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     path::{PathBuf, MAIN_SEPARATOR_STR},
     sync::MutexGuard,
 };
 
+use hashbrown::HashMap;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 

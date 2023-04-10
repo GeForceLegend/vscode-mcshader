@@ -1,10 +1,6 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    fs::read_to_string,
-    path::PathBuf,
-};
+use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
 
+use hashbrown::{HashMap, HashSet};
 use logging::error;
 use tree_sitter::{Parser, Tree};
 
@@ -117,6 +113,7 @@ impl IncludeFile {
                     .borrow_mut()
                     .extend(included_shaders.clone());
             }
+            *self.tree.borrow_mut() = parser.parse(&content, None).unwrap();
             *self.content.borrow_mut() = content;
         } else {
             error!("Unable to read file"; "path" => file_path.to_str().unwrap());

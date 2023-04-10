@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use hashbrown::HashSet;
 use serde::Deserialize;
 use serde_json::{from_value, Value};
 use tower_lsp::lsp_types::*;
@@ -30,7 +29,7 @@ impl Configuration {
         folder_pattern += "}]";
 
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
-            watchers: vec![
+            watchers: Vec::from([
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String(glsl_file_pattern),
                     kind: Some(WatchKind::all()),
@@ -39,7 +38,7 @@ impl Configuration {
                     glob_pattern: GlobPattern::String(folder_pattern),
                     kind: Some(WatchKind::Delete),
                 },
-            ],
+            ]),
         };
         // let glsl_file_filter = FileOperationRegistrationOptions {
         //     filters: vec![FileOperationFilter {

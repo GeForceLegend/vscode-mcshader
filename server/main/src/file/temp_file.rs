@@ -1,5 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
 
+use hashbrown::HashMap;
 use logging::warn;
 use tree_sitter::{Parser, Tree};
 
@@ -34,8 +35,7 @@ impl TempFile {
                 Some(Component::Normal(file_name)) => {
                     if file_name == "shaders" {
                         break;
-                    }
-                    else {
+                    } else {
                         continue;
                     }
                 }

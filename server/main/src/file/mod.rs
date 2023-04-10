@@ -1,10 +1,10 @@
 use std::{
     cell::RefCell,
-    collections::HashSet,
     ffi::OsString,
     path::{Component, PathBuf, MAIN_SEPARATOR_STR},
 };
 
+use hashbrown::HashSet;
 use itoa::{Buffer, Integer};
 use logging::error;
 use tower_lsp::lsp_types::*;
@@ -74,7 +74,7 @@ pub trait File {
     fn tree(&self) -> &RefCell<Tree>;
 
     fn parse_includes(&self, file_path: &PathBuf) -> Vec<DocumentLink> {
-        let mut include_links = Vec::new();
+        let mut include_links = vec![];
 
         let pack_path = self.pack_path();
         self.content().borrow().split_terminator("\n").enumerate().for_each(|line| {
@@ -120,7 +120,7 @@ pub trait File {
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
 
-        changes.iter().for_each(|change| {
+        for change in changes {
             let range = change.range.unwrap();
             let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
             let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
@@ -152,7 +152,7 @@ pub trait File {
             });
 
             content.replace_range(start..end, &change.text);
-        });
+        }
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
     }
 }

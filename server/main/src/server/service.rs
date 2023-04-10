@@ -1,8 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::{PathBuf, MAIN_SEPARATOR_STR},
-};
+use std::path::{PathBuf, MAIN_SEPARATOR_STR};
 
+use hashbrown::{HashMap, HashSet};
 use logging::{info, warn};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{request::*, *};
@@ -50,7 +48,7 @@ impl MinecraftLanguageServer {
     }
 
     fn find_shader_packs(&self, curr_path: &PathBuf) -> Vec<PathBuf> {
-        let mut shader_packs: Vec<PathBuf> = Vec::new();
+        let mut shader_packs: Vec<PathBuf> = vec![];
         for file in curr_path.read_dir().unwrap() {
             if let Ok(file) = file {
                 let file_path = file.path();
@@ -166,7 +164,7 @@ impl MinecraftLanguageServer {
 
     /*================================================ Main service functions ================================================*/
 
-    pub fn initial_scan(&self, roots: HashSet<PathBuf>, extensions: HashSet<String>) {
+    pub fn initial_scan(&self, roots: HashSet<PathBuf>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
@@ -177,7 +175,7 @@ impl MinecraftLanguageServer {
             self.scan_files_in_root(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, root);
         }
 
-        *server_data.extensions.borrow_mut() = extensions;
+        *server_data.extensions.borrow_mut() = BASIC_EXTENSIONS.clone();
     }
 
     pub fn open_file(&self, file_path: PathBuf) {
@@ -295,8 +293,15 @@ impl MinecraftLanguageServer {
         }
         let content = file.content().borrow();
         let tree = file.tree().borrow();
+        let line_mapping = file.generate_line_mapping();
 
-        TreeParser::find_definitions(&params.text_document_position_params.text_document.uri, &position, &tree, &content)
+        TreeParser::find_definitions(
+            &params.text_document_position_params.text_document.uri,
+            &position,
+            &tree,
+            &content,
+            &line_mapping,
+        )
     }
 
     pub fn find_references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
@@ -320,8 +325,15 @@ impl MinecraftLanguageServer {
         }
         let content = file.content().borrow();
         let tree = file.tree().borrow();
+        let line_mapping = file.generate_line_mapping();
 
-        TreeParser::find_references(&params.text_document_position.text_document.uri, &position, &tree, &content)
+        TreeParser::find_references(
+            &params.text_document_position.text_document.uri,
+            &position,
+            &tree,
+            &content,
+            &line_mapping,
+        )
     }
 
     pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
@@ -331,16 +343,16 @@ impl MinecraftLanguageServer {
         let mut shader_files = server_data.shader_files.borrow_mut();
         let mut include_files = server_data.include_files.borrow_mut();
 
-        events.removed.iter().for_each(|removed_file| {
-            let removed_path = removed_file.uri.to_file_path().unwrap();
+        for removed_workspace in events.removed {
+            let removed_path = removed_workspace.uri.to_file_path().unwrap();
             shader_files.retain(|file_path, _shader| !file_path.starts_with(&removed_path));
             include_files.retain(|file_path, _include| !file_path.starts_with(&removed_path));
-        });
+        }
 
-        events.added.iter().for_each(|added_file| {
-            let added_path = added_file.uri.to_file_path().unwrap();
+        for added_workspace in events.added {
+            let added_path = added_workspace.uri.to_file_path().unwrap();
             self.scan_files_in_root(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, added_path);
-        });
+        }
     }
 
     pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> HashMap<Url, Vec<Diagnostic>> {
@@ -393,7 +405,7 @@ impl MinecraftLanguageServer {
                 };
                 if let Some(shader_file) = shader_files.get(&file_path) {
                     shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                    updated_shaders.insert(file_path.clone());
+                    updated_shaders.insert(file_path);
                 } else if !include_exists {
                     if self.scan_new_file(
                         &mut shader_files,
@@ -414,7 +426,7 @@ impl MinecraftLanguageServer {
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {
-                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), Vec::new());
+                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), vec![]);
 
                     shader_files.remove(&file_path);
                     if let Some(include_file) = include_files.remove(&file_path) {
@@ -429,7 +441,7 @@ impl MinecraftLanguageServer {
                 } else {
                     shader_files.retain(|shader_path, _shader_file| {
                         if shader_path.starts_with(&file_path) {
-                            diagnostics.insert(Url::from_file_path(shader_path).unwrap(), Vec::new());
+                            diagnostics.insert(Url::from_file_path(shader_path).unwrap(), vec![]);
                             false
                         } else {
                             true
@@ -437,7 +449,7 @@ impl MinecraftLanguageServer {
                     });
                     include_files.retain(|include_path, include_file| {
                         if include_path.starts_with(&file_path) {
-                            diagnostics.insert(Url::from_file_path(include_path).unwrap(), Vec::new());
+                            diagnostics.insert(Url::from_file_path(include_path).unwrap(), vec![]);
                             updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
                             false
                         } else {

@@ -1,11 +1,11 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Mutex;
 
 use logging::{error, info, warn};
 
+use hashbrown::{HashMap, HashSet};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
@@ -86,19 +86,16 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
-        let roots: HashSet<PathBuf>;
+        let mut roots: HashSet<PathBuf> = HashSet::new();
         if let Some(work_spaces) = params.workspace_folders {
-            roots = work_spaces
-                .into_iter()
-                .map(|work_space| work_space.uri.to_file_path().unwrap())
-                .collect();
+            for work_space in work_spaces {
+                roots.insert(work_space.uri.to_file_path().unwrap());
+            }
         } else if let Some(uri) = params.root_uri {
-            roots = HashSet::from([uri.to_file_path().unwrap()]);
-        } else {
-            roots = HashSet::new();
+            roots.insert(uri.to_file_path().unwrap());
         }
 
-        self.initial_scan(roots, BASIC_EXTENSIONS.clone());
+        self.initial_scan(roots);
 
         Ok(initialize_result)
     }

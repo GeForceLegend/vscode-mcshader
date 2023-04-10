@@ -1,8 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{Mutex, MutexGuard},
-};
+use std::sync::{Mutex, MutexGuard};
 
+use hashbrown::HashMap;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 
@@ -23,7 +21,7 @@ impl CommandList {
         command_list
     }
 
-    pub fn execute(&self, command: &String, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Option<Value>> {
+    pub fn execute(&self, command: &str, arguments: &[Value], server_data: &Mutex<ServerData>) -> Result<Option<Value>> {
         let server_data = server_data.lock().unwrap();
         match self.commands.get(command) {
             Some(command) => command.run(arguments, &server_data),

@@ -1,10 +1,6 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    fs::read_to_string,
-    path::PathBuf,
-};
+use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
 
+use hashbrown::{HashMap, HashSet};
 use logging::error;
 use tree_sitter::{Parser, Tree};
 
