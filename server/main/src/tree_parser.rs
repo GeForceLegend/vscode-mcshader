@@ -53,6 +53,27 @@ macro_rules! find_variable_def_str {
     };
 }
 
+trait ToRange {
+    fn to_range(&self) -> Range;
+}
+
+impl ToRange for Node<'_> {
+    fn to_range(&self) -> Range {
+        let start = self.start_position();
+        let end = self.end_position();
+        Range {
+            start: Position {
+                line: start.row as u32,
+                character: start.column as u32,
+            },
+            end: Position {
+                line: end.row as u32,
+                character: end.column as u32,
+            },
+        }
+    }
+}
+
 pub struct TreeParser {}
 
 impl TreeParser {
@@ -100,21 +121,9 @@ impl TreeParser {
                 Self::simple_global_search(url, tree, content, &query_str)
             }
             (_, "function_declarator") | (_, "preproc_function_def") => {
-                let start = current_node.start_position();
-                let end = current_node.end_position();
-
                 vec![Location {
                     uri: url.to_owned(),
-                    range: Range {
-                        start: Position {
-                            line: start.row as u32,
-                            character: start.column as u32,
-                        },
-                        end: Position {
-                            line: end.row as u32,
-                            character: end.column as u32,
-                        },
-                    },
+                    range: current_node.to_range(),
                 }]
             }
             ("identifier", "argument_list")
@@ -177,21 +186,9 @@ impl TreeParser {
 
         for m in query_cursor.matches(&query, tree.root_node(), content.as_bytes()) {
             for capture in m.captures {
-                let start = capture.node.start_position();
-                let end = capture.node.end_position();
-
                 locations.push(Location {
                     uri: url.to_owned(),
-                    range: Range {
-                        start: Position {
-                            line: start.row as u32,
-                            character: start.column as u32,
-                        },
-                        end: Position {
-                            line: end.row as u32,
-                            character: end.column as u32,
-                        },
-                    },
+                    range: capture.node.to_range(),
                 });
             }
         }
@@ -215,21 +212,9 @@ impl TreeParser {
         while let Some(parent_node) = parent {
             for m in query_cursor.matches(&query, parent_node, text_provider) {
                 for capture in m.captures {
-                    let start = capture.node.start_position();
-                    let end = capture.node.end_position();
-
                     locations.push(Location {
                         uri: url.to_owned(),
-                        range: Range {
-                            start: Position {
-                                line: start.row as u32,
-                                character: start.column as u32,
-                            },
-                            end: Position {
-                                line: end.row as u32,
-                                character: end.column as u32,
-                            },
-                        },
+                        range: capture.node.to_range(),
                     });
                 }
             }
