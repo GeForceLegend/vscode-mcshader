@@ -2,16 +2,16 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::notification::Notification;
 
 #[derive(Deserialize, Serialize)]
-pub struct StatusNotificationParams {
+pub struct StatusUpdateParams {
     pub status: String,
     pub message: String,
     pub icon: String,
 }
 
-pub enum StatusNotification {}
+pub enum StatusUpdate {}
 
-impl Notification for StatusNotification {
-    type Params = StatusNotificationParams;
+impl Notification for StatusUpdate {
+    type Params = StatusUpdateParams;
 
     const METHOD: &'static str = "mcshader/status";
 }

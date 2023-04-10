@@ -14,7 +14,6 @@ impl ServerData {
     pub fn new(parser: Parser) -> Self {
         ServerData {
             extensions: RefCell::from(HashSet::new()),
-            roots: RefCell::from(HashSet::new()),
             shader_packs: RefCell::from(HashSet::new()),
             shader_files: RefCell::from(HashMap::new()),
             include_files: RefCell::from(HashMap::new()),

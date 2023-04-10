@@ -25,7 +25,6 @@ use crate::notification;
 
 pub struct ServerData {
     extensions: RefCell<HashSet<String>>,
-    roots: RefCell<HashSet<PathBuf>>,
     shader_packs: RefCell<HashSet<PathBuf>>,
     shader_files: RefCell<HashMap<PathBuf, ShaderFile>>,
     include_files: RefCell<HashMap<PathBuf, IncludeFile>>,
@@ -60,7 +59,7 @@ impl MinecraftLanguageServer {
 
     async fn set_status_loading(&self, message: String) {
         self.client
-            .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
+            .send_notification::<notification::StatusUpdate>(notification::StatusUpdateParams {
                 status: "loading".to_owned(),
                 message,
                 icon: "$(loading~spin)".to_owned(),
@@ -70,7 +69,7 @@ impl MinecraftLanguageServer {
 
     async fn set_status_ready(&self) {
         self.client
-            .send_notification::<notification::StatusNotification>(notification::StatusNotificationParams {
+            .send_notification::<notification::StatusUpdate>(notification::StatusUpdateParams {
                 status: "ready".to_owned(),
                 message: "ready".to_owned(),
                 icon: "$(check)".to_owned(),
@@ -90,7 +89,7 @@ impl LanguageServer for MinecraftLanguageServer {
         let roots: HashSet<PathBuf>;
         if let Some(work_spaces) = params.workspace_folders {
             roots = work_spaces
-                .iter()
+                .into_iter()
                 .map(|work_space| work_space.uri.to_file_path().unwrap())
                 .collect();
         } else if let Some(uri) = params.root_uri {
@@ -101,7 +100,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
         self.initial_scan(roots, BASIC_EXTENSIONS.clone());
 
-        initialize_result
+        Ok(initialize_result)
     }
 
     #[logging::with_trace_id]
@@ -129,7 +128,7 @@ impl LanguageServer for MinecraftLanguageServer {
             warn!("Unable to registe file watch capability, error:{}", err);
         }
 
-        match logging::Level::from_str(config.log_level.as_str()) {
+        match logging::Level::from_str(&config.log_level) {
             Ok(level) => logging::set_level(level),
             Err(_) => error!("Got unexpected log level from config"; "level" => &config.log_level),
         }

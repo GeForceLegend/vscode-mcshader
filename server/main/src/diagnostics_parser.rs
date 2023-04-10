@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
-use logging::debug;
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 use url::Url;
@@ -14,7 +14,8 @@ pub struct DiagnosticsParser {
 
 impl DiagnosticsParser {
     pub fn new(vendor_querier: &opengl::OpenGlContext) -> Self {
-        let line_regex = match vendor_querier.vendor().as_str() {
+        let vendor = vendor_querier.vendor();
+        let line_regex = match vendor.as_str() {
             "NVIDIA Corporation" => {
                 Regex::new(r#"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)"#).unwrap()
             }
@@ -23,20 +24,19 @@ impl DiagnosticsParser {
             )
             .unwrap(),
         };
-        let line_offset = match vendor_querier.vendor().as_str() {
+        let line_offset = match vendor.as_str() {
             "AMD" | "ATI Technologies" | "ATI Technologies Inc." => 0,
             _ => 1,
         };
         DiagnosticsParser {
-            line_offset: line_offset,
-            line_regex: line_regex,
+            line_offset,
+            line_regex,
         }
     }
 
     pub fn parse_diagnostics(&self, compile_log: String, file_list: HashMap<String, PathBuf>) -> HashMap<Url, Vec<Diagnostic>> {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
 
-        debug!("Diagnostics regex selected"; "regex" => &self.line_regex.to_string());
         let default_path = file_list.get("0").unwrap();
         let default_path_name = default_path.to_str().unwrap();
 
@@ -74,8 +74,6 @@ impl DiagnosticsParser {
 
             let diagnostic = Diagnostic {
                 range: Range::new(
-                    /* Position::new(line, leading_whitespace as u64),
-                    Position::new(line, line_text.len() as u64) */
                     Position::new(line, 0),
                     Position::new(line, u32::MAX),
                 ),

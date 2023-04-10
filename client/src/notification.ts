@@ -1,1 +1,1 @@
-export const statusNotificationMethod = 'mcshader/status'
+export const StatusUpdateNoticationMethod = 'mcshader/status'

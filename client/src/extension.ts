@@ -82,7 +82,7 @@ export class Extension {
         this.updateStatus('$(loading~spin)', 'Starting...')
         await this.languageClient.start()
 
-        this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.statusNotificationMethod, this.onStatusChange))
+        this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.StatusUpdateNoticationMethod, this.onStatusChange))
 
         log.info('language server started!')
     }

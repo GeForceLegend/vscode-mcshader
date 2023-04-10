@@ -1,6 +1,6 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{Location, Position, Range};
-use tree_sitter::{Node, Point, Query, QueryCursor, Tree};
+use tree_sitter::{Node, Query, QueryCursor, Tree};
 use url::Url;
 
 macro_rules! find_function_def_str {
@@ -78,34 +78,26 @@ pub struct TreeParser {}
 
 impl TreeParser {
     fn generate_line_mapping(content: &String) -> Vec<usize> {
-        let mut line_mapping: Vec<usize> = vec![0];
-        for (i, char) in content.char_indices() {
-            if char == '\n' {
-                line_mapping.push(i + 1);
-            }
-        }
+        let mut line_mapping: Vec<usize> = std::vec::from_elem(0, 1);
+        content.match_indices("\n").for_each(|new_line| {
+            line_mapping.push(new_line.0 + 1);
+        });
         line_mapping
     }
 
-    pub fn find_definitions(url: &Url, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
-        let line_mapping = Self::generate_line_mapping(&content);
+    fn current_node_fetch<'a>(position: &'a Position, tree: &'a Tree, content: &'a String) -> Option<Node<'a>> {
+        let line_mapping = Self::generate_line_mapping(content);
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
-        let mut start = Point {
-            row: position.line as usize,
-            column: position.character as usize,
-        };
-        let mut end = Point {
-            row: position.line as usize,
-            column: position.character as usize,
-        };
         if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
-            end.column += 1;
+            tree.root_node().named_descendant_for_byte_range(position_offset, position_offset + 1)
         } else {
-            start.column -= 1;
+            tree.root_node().named_descendant_for_byte_range(position_offset - 1, position_offset)
         }
+    }
 
-        let current_node = match tree.root_node().named_descendant_for_point_range(start, end) {
+    pub fn find_definitions(url: &Url, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
+        let current_node = match Self::current_node_fetch(position, tree, content) {
             Some(node) => node,
             None => return Ok(None),
         };
@@ -141,24 +133,7 @@ impl TreeParser {
     }
 
     pub fn find_references(url: &Url, position: &Position, tree: &Tree, content: &String) -> Result<Option<Vec<Location>>> {
-        let line_mapping = Self::generate_line_mapping(&content);
-        let position_offset = line_mapping[position.line as usize] + position.character as usize;
-
-        let mut start = Point {
-            row: position.line as usize,
-            column: position.character as usize,
-        };
-        let mut end = Point {
-            row: position.line as usize,
-            column: position.character as usize,
-        };
-        if content.as_bytes()[position_offset].is_ascii_alphanumeric() {
-            end.column += 1;
-        } else {
-            start.column -= 1;
-        }
-
-        let current_node = match tree.root_node().named_descendant_for_point_range(start, end) {
+        let current_node = match Self::current_node_fetch(position, tree, content) {
             Some(node) => node,
             None => return Ok(None),
         };
@@ -206,7 +181,7 @@ impl TreeParser {
 
         let query = Query::new(tree_sitter_glsl::language(), &query_str).unwrap();
         let mut query_cursor = QueryCursor::new();
-        query_cursor.set_byte_range(0..start_node.byte_range().end);
+        query_cursor.set_byte_range(0..start_node.end_byte());
         let text_provider = source.as_bytes();
 
         while let Some(parent_node) = parent {

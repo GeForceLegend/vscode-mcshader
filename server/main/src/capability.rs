@@ -1,18 +1,17 @@
-use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 
 pub struct ServerCapabilitiesFactroy {}
 
 impl ServerCapabilitiesFactroy {
-    pub fn initial_capabilities() -> Result<InitializeResult> {
-        Ok(InitializeResult {
+    pub fn initial_capabilities() -> InitializeResult {
+        InitializeResult {
             server_info: None,
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["virtualMerge".to_owned()],
+                    commands: std::vec::from_elem("virtualMerge".to_owned(), 1),
                     work_done_progress_options: Default::default(),
                 }),
                 workspace: Some(WorkspaceServerCapabilities {
@@ -41,6 +40,6 @@ impl ServerCapabilitiesFactroy {
                 ..Default::default()
             },
             ..Default::default()
-        })
+        }
     }
 }

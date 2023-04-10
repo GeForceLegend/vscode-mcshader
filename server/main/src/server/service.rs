@@ -31,15 +31,15 @@ impl MinecraftLanguageServer {
         &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
         shader_packs: &HashSet<PathBuf>, file_path: PathBuf,
     ) -> bool {
-        for shader_pack in shader_packs.iter() {
-            if file_path.starts_with(&shader_pack) {
-                let relative_path = file_path.strip_prefix(&shader_pack).unwrap();
+        for shader_pack in shader_packs {
+            if file_path.starts_with(shader_pack) {
+                let relative_path = file_path.strip_prefix(shader_pack).unwrap();
                 if DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
-                    self.add_shader_file(shader_files, include_files, parser, &shader_pack, file_path);
+                    self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
                     return true;
                 } else if let Some(result) = relative_path.to_str().unwrap().split_once(MAIN_SEPARATOR_STR) {
                     if RE_DIMENSION_FOLDER.is_match(result.0) && DEFAULT_SHADERS.contains(result.1) {
-                        self.add_shader_file(shader_files, include_files, parser, &shader_pack, file_path);
+                        self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
                         return true;
                     }
                 }
@@ -51,12 +51,12 @@ impl MinecraftLanguageServer {
 
     fn find_shader_packs(&self, curr_path: &PathBuf) -> Vec<PathBuf> {
         let mut shader_packs: Vec<PathBuf> = Vec::new();
-        for file in curr_path.read_dir().expect("read directory failed") {
+        for file in curr_path.read_dir().unwrap() {
             if let Ok(file) = file {
                 let file_path = file.path();
                 if file_path.is_dir() {
                     if file_path.file_name().unwrap() == "shaders" {
-                        info!("Find shader pack {}", file_path.display());
+                        info!("Find shader pack {}", file_path.to_str().unwrap());
                         shader_packs.push(file_path);
                     } else {
                         shader_packs.extend(self.find_shader_packs(&file_path));
@@ -69,23 +69,25 @@ impl MinecraftLanguageServer {
 
     pub fn scan_files_in_root(
         &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
-        shader_packs: &mut HashSet<PathBuf>, root: &PathBuf,
+        shader_packs: &mut HashSet<PathBuf>, root: PathBuf,
     ) {
-        info!("Generating file framework on current root"; "root" => root.display());
+        info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
 
         let sub_shader_packs: Vec<PathBuf>;
         if root.file_name().unwrap() == "shaders" {
-            sub_shader_packs = vec![root.clone()];
+            sub_shader_packs = std::vec::from_elem(root, 1);
         } else {
-            sub_shader_packs = self.find_shader_packs(root);
+            sub_shader_packs = self.find_shader_packs(&root);
         }
 
         for shader_pack in &sub_shader_packs {
-            for file in shader_pack.read_dir().expect("read work space failed") {
+            for file in shader_pack.read_dir().unwrap() {
                 if let Ok(file) = file {
                     let file_path = file.path();
-                    if file_path.is_file() && DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
-                        self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
+                    if file_path.is_file() {
+                        if DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
+                            self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
+                        }
                     } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                         for dim_file in file_path.read_dir().expect("read dimension folder failed") {
                             if let Ok(dim_file) = dim_file {
@@ -109,23 +111,23 @@ impl MinecraftLanguageServer {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let shader_content = shader_file.merge_shader_file(include_files, file_path, &mut file_list);
 
-        let validation_result = OPENGL_CONTEXT.validate_shader(shader_file.file_type(), &shader_content);
+        let validation_result = OPENGL_CONTEXT.validate_shader(shader_file.file_type(), shader_content);
 
         match validation_result {
             Some(compile_log) => {
                 info!(
                     "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
-                    file_path.display(),
+                    file_path.to_str().unwrap(),
                     compile_log
                 );
                 DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
             }
             None => {
-                info!("Compilation reported no errors"; "shader file" => file_path.display());
+                info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
+                diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                 for include_file in file_list {
-                    diagnostics.entry(Url::from_file_path(include_file.1).unwrap()).or_default();
+                    diagnostics.insert(Url::from_file_path(include_file.1).unwrap(), vec![]);
                 }
                 diagnostics
             }
@@ -136,23 +138,23 @@ impl MinecraftLanguageServer {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
 
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
-            let validation_result = OPENGL_CONTEXT.validate_shader(result.0, &result.1);
+            let validation_result = OPENGL_CONTEXT.validate_shader(result.0, result.1);
 
             match validation_result {
                 Some(compile_log) => {
                     info!(
                         "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
-                        file_path.display(),
+                        file_path.to_str().unwrap(),
                         compile_log
                     );
                     DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
                 }
                 None => {
-                    info!("Compilation reported no errors"; "shader file" => file_path.display());
+                    info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                    diagnostics.entry(Url::from_file_path(file_path).unwrap()).or_default();
+                    diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                     for include_file in file_list {
-                        diagnostics.entry(Url::from_file_path(&include_file.1).unwrap()).or_default();
+                        diagnostics.insert(Url::from_file_path(include_file.1).unwrap(), vec![]);
                     }
                     diagnostics
                 }
@@ -171,11 +173,10 @@ impl MinecraftLanguageServer {
         let mut shader_files = server_data.shader_files.borrow_mut();
         let mut include_files = server_data.include_files.borrow_mut();
 
-        for root in &roots {
+        for root in roots {
             self.scan_files_in_root(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, root);
         }
 
-        *server_data.roots.borrow_mut() = roots;
         *server_data.extensions.borrow_mut() = extensions;
     }
 
@@ -193,9 +194,9 @@ impl MinecraftLanguageServer {
     pub fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
-        let shader_files = server_data.shader_files.borrow_mut();
-        let include_files = server_data.include_files.borrow_mut();
-        let temp_files = server_data.temp_files.borrow_mut();
+        let shader_files = server_data.shader_files.borrow();
+        let include_files = server_data.include_files.borrow();
+        let temp_files = server_data.temp_files.borrow();
 
         if let Some(shader_file) = shader_files.get(file_path) {
             shader_file.apply_edit(changes, &mut parser);
@@ -265,7 +266,7 @@ impl MinecraftLanguageServer {
             file = temp_file;
             diagnostics.extend_diagnostics(self.temp_lint(&temp_file, file_path));
         } else {
-            warn!("This file cannot found in server data! File path: {}", file_path.display());
+            warn!("This file cannot found in server data! File path: {}", file_path.to_str().unwrap());
             return (None, diagnostics);
         }
         let include_links = file.parse_includes(file_path);
@@ -326,22 +327,19 @@ impl MinecraftLanguageServer {
     pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
-        let mut roots = server_data.roots.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
         let mut shader_files = server_data.shader_files.borrow_mut();
         let mut include_files = server_data.include_files.borrow_mut();
 
         events.removed.iter().for_each(|removed_file| {
             let removed_path = removed_file.uri.to_file_path().unwrap();
-            roots.remove(&removed_path);
             shader_files.retain(|file_path, _shader| !file_path.starts_with(&removed_path));
             include_files.retain(|file_path, _include| !file_path.starts_with(&removed_path));
         });
 
         events.added.iter().for_each(|added_file| {
             let added_path = added_file.uri.to_file_path().unwrap();
-            self.scan_files_in_root(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, &added_path);
-            roots.insert(added_path);
+            self.scan_files_in_root(&mut shader_files, &mut include_files, &mut parser, &mut shader_packs, added_path);
         });
     }
 
@@ -465,13 +463,13 @@ impl MinecraftLanguageServer {
         for file_path in updated_includes {
             match include_files.get(&file_path) {
                 Some(include_file) => updated_shaders.extend(include_file.included_shaders().borrow().clone()),
-                None => warn!("Missing include: {}", file_path.display()),
+                None => warn!("Missing include: {}", file_path.to_str().unwrap()),
             }
         }
         for file_path in updated_shaders {
             match shader_files.get(&file_path) {
                 Some(shader_file) => diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, &file_path)),
-                None => warn!("Missing shader: {}", file_path.display()),
+                None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
             }
         }
 

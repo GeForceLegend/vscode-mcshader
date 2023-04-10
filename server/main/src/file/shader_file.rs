@@ -43,22 +43,20 @@ impl ShaderFile {
         if let Ok(content) = read_to_string(file_path) {
             let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
-            content.split_terminator("\n").for_each(|line| {
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(line) {
-                    let path = capture.get(1).unwrap().as_str();
+            RE_MACRO_INCLUDE_MULTI_LINE.captures_iter(&content).for_each(|captures| {
+                let path = captures.get(1).unwrap().as_str();
 
-                    match include_path_join(&self.pack_path, file_path, path) {
-                        Ok(include_path) => IncludeFile::get_includes(
-                            include_files,
-                            &mut parent_update_list,
-                            parser,
-                            &self.pack_path,
-                            include_path,
-                            &parent_path,
-                            0,
-                        ),
-                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
-                    }
+                match include_path_join(&self.pack_path, file_path, path) {
+                    Ok(include_path) => IncludeFile::get_includes(
+                        include_files,
+                        &mut parent_update_list,
+                        parser,
+                        &self.pack_path,
+                        include_path,
+                        &parent_path,
+                        0,
+                    ),
+                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                 }
             });
             for include_path in parent_update_list {
@@ -72,7 +70,7 @@ impl ShaderFile {
             *self.tree.borrow_mut() = parser.parse(&content, None).unwrap();
             *self.content.borrow_mut() = content;
         } else {
-            error!("Unable to read file {}", file_path.display());
+            error!("Unable to read file {}", file_path.to_str().unwrap());
         }
     }
 
@@ -89,13 +87,12 @@ impl ShaderFile {
         let mut start_index = 0;
         let mut lines = 2;
 
-        RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
-            let capture = captures.get(0).unwrap();
-            let start = capture.start();
-            let end = capture.end();
+        RE_MACRO_CATCH.find_iter(content.as_ref()).for_each(|macro_line| {
+            let start = macro_line.start();
+            let end = macro_line.end();
 
             let before_content = unsafe { content.get_unchecked(start_index..start) };
-            let capture_content = capture.as_str();
+            let capture_content = macro_line.as_str();
             if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                 let path = capture.get(1).unwrap().as_str();
 
@@ -157,7 +154,7 @@ impl File for ShaderFile {
 }
 
 impl BaseShader for ShaderFile {
-    fn file_type(&self) -> gl::types::GLenum {
+    fn file_type(&self) -> u32 {
         self.file_type
     }
 }

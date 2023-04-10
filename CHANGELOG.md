@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 - Single-file goto-definition and references based on TreeSitter. This means this extension cannot find definitions or references outside of currently edited file right now.
 
+### Changed
+
+- Optimized server initializing;
+- Optimized file merging.
+
 ### Fixed
 
 - Fixed crash while looking for shader pack path for temp files failed;

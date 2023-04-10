@@ -18,7 +18,7 @@ impl OpenGlContext {
         OpenGlContext { _ctx: context }
     }
 
-    pub fn validate_shader(&self, file_type: gl::types::GLenum, source: &str) -> Option<String> {
+    pub fn validate_shader(&self, file_type: gl::types::GLenum, source: String) -> Option<String> {
         unsafe {
             let shader = gl::CreateShader(file_type);
             let mut success = i32::from(gl::FALSE);

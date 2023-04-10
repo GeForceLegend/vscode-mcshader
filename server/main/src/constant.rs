@@ -56,7 +56,7 @@ lazy_static! {
         }
         let base_char_num = 'a' as u8;
         for suffix_num in 0u8..=25u8 {
-            let suffix_char = unsafe { String::from_utf8_unchecked(vec![base_char_num + suffix_num]) } + ".csh";
+            let suffix_char = unsafe { String::from_utf8_unchecked(std::vec::from_elem(base_char_num + suffix_num, 5)) } + ".csh";
             set.insert("composite_".to_owned() + &suffix_char);
             set.insert("deferred_".to_owned() + &suffix_char);
             set.insert("prepare_".to_owned() + &suffix_char);
@@ -81,8 +81,9 @@ lazy_static! {
     ]);
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
-    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#version.*$"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
+    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#version.*$"#).unwrap();
+    pub static ref RE_MACRO_INCLUDE_MULTI_LINE: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#include\s+"(.+)".*$"#).unwrap();
     pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
     pub static ref DIAGNOSTICS_PARSER: DiagnosticsParser = DiagnosticsParser::new(&OPENGL_CONTEXT);
 }

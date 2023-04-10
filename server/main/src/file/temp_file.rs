@@ -7,10 +7,10 @@ use super::*;
 
 impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
-        warn!("Document not found in file system"; "path" => file_path.display());
+        warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let content = match read_to_string(file_path) {
             Ok(content) => RefCell::from(content),
-            Err(_err) => RefCell::from(String::new()),
+            Err(_err) => return None,
         };
         let file_type = match file_path.extension() {
             Some(extension) => {
@@ -28,21 +28,36 @@ impl TempFile {
             }
             None => gl::NONE,
         };
-        let mut pack_path = file_path.clone();
+        let mut buffer: Vec<Component> = file_path.components().collect();
         loop {
-            if !pack_path.pop() {
-                return None;
-            }
-            match pack_path.file_name() {
-                Some(file_name) if file_name == "shaders" => break,
-                Some(_) => continue,
-                None => return None,
+            match buffer.pop() {
+                Some(Component::Normal(file_name)) => {
+                    if file_name == "shaders" {
+                        break;
+                    }
+                    else {
+                        continue;
+                    }
+                }
+                _ => break,
             }
         }
+
+        let mut resource = OsString::new();
+        let last = buffer.pop().unwrap();
+        for component in buffer {
+            resource.push(component);
+            match component {
+                Component::Prefix(_) | Component::RootDir => {}
+                _ => resource.push(MAIN_SEPARATOR_STR),
+            }
+        }
+        resource.push(last);
+
         Some(TempFile {
             content,
             file_type,
-            pack_path,
+            pack_path: PathBuf::from(resource),
             tree: RefCell::from(parser.parse("", None).unwrap()),
         })
     }
@@ -54,7 +69,7 @@ impl TempFile {
         };
     }
 
-    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(gl::types::GLenum, String)> {
+    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(u32, String)> {
         if self.file_type == gl::NONE {
             return None;
         }
@@ -68,13 +83,12 @@ impl TempFile {
         let mut start_index = 0;
         let mut lines = 2;
 
-        RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
-            let capture = captures.get(0).unwrap();
-            let start = capture.start();
-            let end = capture.end();
+        RE_MACRO_CATCH.find_iter(content.as_ref()).for_each(|macro_line| {
+            let start = macro_line.start();
+            let end = macro_line.end();
 
             let before_content = unsafe { content.get_unchecked(start_index..start) };
-            let capture_content = capture.as_str();
+            let capture_content = macro_line.as_str();
             if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                 let path = capture.get(1).unwrap().as_str();
 
@@ -140,13 +154,12 @@ impl TempFile {
             let mut start_index = 0;
             let mut lines = 2;
 
-            RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
-                let capture = captures.get(0).unwrap();
-                let start = capture.start();
-                let end = capture.end();
+            RE_MACRO_CATCH.find_iter(content.as_ref()).for_each(|macro_line| {
+                let start = macro_line.start();
+                let end = macro_line.end();
 
                 let before_content = unsafe { content.get_unchecked(start_index..start) };
-                let capture_content = capture.as_str();
+                let capture_content = macro_line.as_str();
                 if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
                     let path = capture.get(1).unwrap().as_str();
 
@@ -165,7 +178,7 @@ impl TempFile {
                     include_content += &sub_include_content;
                     include_content += "\n";
                     include_content += &generate_line_macro(lines, &curr_file_id, file_name);
-                } else if !RE_MACRO_LINE.is_match(capture_content) {
+                } else if RE_MACRO_LINE.is_match(capture_content) {
                     include_content += before_content;
                     start_index = end;
                     lines += before_content.matches("\n").count();
@@ -176,7 +189,7 @@ impl TempFile {
             file_list.insert(curr_file_id, file_path);
             include_content
         } else {
-            warn!("Unable to read file"; "path" => file_path.display());
+            warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
             original_content.to_owned() + "\n"
         }
     }

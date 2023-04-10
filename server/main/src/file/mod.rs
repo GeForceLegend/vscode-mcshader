@@ -77,7 +77,7 @@ pub trait File {
         let mut include_links = Vec::new();
 
         let pack_path = self.pack_path();
-        self.content().borrow().lines().enumerate().for_each(|line| {
+        self.content().borrow().split_terminator("\n").enumerate().for_each(|line| {
             if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
                 let cap = capture.get(1).unwrap();
                 let path = cap.as_str();
@@ -107,12 +107,10 @@ pub trait File {
     }
 
     fn generate_line_mapping(&self) -> Vec<usize> {
-        let mut line_mapping: Vec<usize> = vec![0];
-        for (i, char) in self.content().borrow().char_indices() {
-            if char == '\n' {
-                line_mapping.push(i + 1);
-            }
-        }
+        let mut line_mapping: Vec<usize> = std::vec::from_elem(0, 1);
+        self.content().borrow().match_indices("\n").for_each(|new_line| {
+            line_mapping.push(new_line.0 + 1);
+        });
         line_mapping
     }
 
@@ -160,7 +158,7 @@ pub trait File {
 }
 
 pub trait BaseShader: File {
-    fn file_type(&self) -> gl::types::GLenum;
+    fn file_type(&self) -> u32;
     // fn full_content(&self) -> &RefCell<String>;
     // fn full_tree(&self) -> &RefCell<Tree>;
 }
@@ -168,7 +166,7 @@ pub trait BaseShader: File {
 #[derive(Clone)]
 pub struct ShaderFile {
     /// Type of the shader
-    file_type: gl::types::GLenum,
+    file_type: u32,
     /// The shader pack path that this file in
     pack_path: PathBuf,
     /// Live content for this file
@@ -196,7 +194,7 @@ pub struct IncludeFile {
 #[derive(Clone)]
 pub struct TempFile {
     /// Type of the shader
-    file_type: gl::types::GLenum,
+    file_type: u32,
     /// The shader pack path that this file in
     pack_path: PathBuf,
     /// Live content for this file

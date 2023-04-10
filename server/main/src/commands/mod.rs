@@ -19,7 +19,7 @@ impl CommandList {
         let mut command_list = CommandList { commands: HashMap::new() };
         command_list
             .commands
-            .insert("virtualMerge".into(), Box::new(virtual_merge::VirtualMerge {}));
+            .insert("virtualMerge".to_owned(), Box::new(virtual_merge::VirtualMerge {}));
         command_list
     }
 
