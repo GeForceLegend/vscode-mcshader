@@ -1,9 +1,3 @@
-use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
-
-use hashbrown::{HashMap, HashSet};
-use logging::error;
-use tree_sitter::{Parser, Tree};
-
 use super::*;
 
 impl IncludeFile {
@@ -158,7 +152,6 @@ impl IncludeFile {
                         lines += before_content.matches("\n").count();
 
                         include_file.merge_include(include_files, include_path, capture_content, file_list, shader_content, file_id, depth + 1);
-                        shader_content.push('\n');
                         shader_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
                     }
                 }
@@ -169,6 +162,7 @@ impl IncludeFile {
             }
         });
         shader_content.push_str(unsafe { content.get_unchecked(start_index..) });
+        shader_content.push('\n');
         file_list.insert(curr_file_id, file_path);
     }
 }

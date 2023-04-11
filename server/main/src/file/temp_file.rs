@@ -1,8 +1,4 @@
-use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
-
-use hashbrown::HashMap;
 use logging::warn;
-use tree_sitter::{Parser, Tree};
 
 use super::*;
 
@@ -29,9 +25,9 @@ impl TempFile {
             }
             None => gl::NONE,
         };
-        let mut buffer: Vec<Component> = file_path.components().collect();
+        let mut buffer = file_path.components();
         loop {
-            match buffer.pop() {
+            match buffer.next_back() {
                 Some(Component::Normal(file_name)) => {
                     if file_name == "shaders" {
                         break;
@@ -39,12 +35,11 @@ impl TempFile {
                         continue;
                     }
                 }
-                _ => break,
+                _ => return None,
             }
         }
 
         let mut resource = OsString::new();
-        let last = buffer.pop().unwrap();
         for component in buffer {
             resource.push(component);
             match component {
@@ -52,7 +47,7 @@ impl TempFile {
                 _ => resource.push(MAIN_SEPARATOR_STR),
             }
         }
-        resource.push(last);
+        resource.push("shaders");
 
         Some(TempFile {
             content,
@@ -103,16 +98,12 @@ impl TempFile {
                 start_index = end;
                 lines += before_content.matches("\n").count();
 
-                let include_content = Self::merge_temp(&self.pack_path, include_path, file_list, capture_content, &mut file_id, 1);
-                temp_content += &include_content;
-                temp_content += "\n";
+                Self::merge_temp(&self.pack_path, include_path, file_list, capture_content, &mut temp_content, &mut file_id, 1);
                 temp_content += &generate_line_macro(lines, "0", file_name);
             } else if RE_MACRO_LINE.is_match(capture_content) {
                 temp_content += before_content;
                 start_index = end;
                 lines += before_content.matches("\n").count();
-
-                temp_content += "\n";
             }
         });
         temp_content += unsafe { content.get_unchecked(start_index..) };
@@ -137,18 +128,21 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: &str, file_id: &mut i32,
-        depth: i32,
-    ) -> String {
+        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: &str,
+        temp_content: &mut String, file_id: &mut i32, depth: i32,
+    ) {
         if depth > 10 || !file_path.exists() {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            return original_content.to_owned() + "\n";
+            temp_content.push_str(original_content);
+            temp_content.push('\n');
+            return;
         }
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
-        let mut include_content = generate_line_macro(1, &curr_file_id, file_name) + "\n";
+        temp_content.push_str(&generate_line_macro(1, &curr_file_id, file_name));
+        temp_content.push('\n');
 
         if let Ok(content) = read_to_string(&file_path) {
             let mut start_index = 0;
@@ -170,27 +164,25 @@ impl TempFile {
                             .unwrap()
                             .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
                     };
-                    include_content += before_content;
+                    temp_content.push_str(before_content);
                     start_index = end;
                     lines += before_content.matches("\n").count();
 
-                    let sub_include_content = Self::merge_temp(pack_path, include_path, file_list, capture_content, file_id, depth + 1);
-                    include_content += &sub_include_content;
-                    include_content += "\n";
-                    include_content += &generate_line_macro(lines, &curr_file_id, file_name);
+                    Self::merge_temp(pack_path, include_path, file_list, capture_content, temp_content, file_id, depth + 1);
+                    temp_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
                 } else if RE_MACRO_LINE.is_match(capture_content) {
-                    include_content += before_content;
+                    temp_content.push_str(before_content);
                     start_index = end;
                     lines += before_content.matches("\n").count();
-                    include_content += capture_content;
                 }
             });
-            include_content += unsafe { content.get_unchecked(start_index..) };
+            temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
+            temp_content.push('\n');
             file_list.insert(curr_file_id, file_path);
-            include_content
         } else {
             warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
-            original_content.to_owned() + "\n"
+            temp_content.push_str(original_content);
+            temp_content.push('\n');
         }
     }
 }

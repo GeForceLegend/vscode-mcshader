@@ -1,10 +1,11 @@
 use std::{
     cell::RefCell,
     ffi::OsString,
+    fs::read_to_string,
     path::{Component, PathBuf, MAIN_SEPARATOR_STR},
 };
 
-use hashbrown::HashSet;
+use hashbrown::{HashMap, HashSet};
 use itoa::{Buffer, Integer};
 use logging::error;
 use tower_lsp::lsp_types::*;

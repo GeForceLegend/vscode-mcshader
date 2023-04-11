@@ -1,9 +1,3 @@
-use std::{cell::RefCell, fs::read_to_string, path::PathBuf};
-
-use hashbrown::{HashMap, HashSet};
-use logging::error;
-use tree_sitter::{Parser, Tree};
-
 use super::*;
 
 impl ShaderFile {
@@ -99,7 +93,6 @@ impl ShaderFile {
                         lines += before_content.matches("\n").count();
 
                         include_file.merge_include(include_files, include_path, capture_content, file_list, &mut shader_content, &mut file_id, 1);
-                        shader_content += "\n";
                         shader_content += &generate_line_macro(lines, "0", file_name);
                     }
                 }
