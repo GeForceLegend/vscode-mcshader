@@ -104,7 +104,7 @@ impl MinecraftLanguageServer {
     fn lint_shader(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, shader_file: &ShaderFile, file_path: &PathBuf,
     ) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
+        let mut file_list: HashMap<String, Url> = HashMap::new();
         let shader_content = shader_file.merge_shader_file(include_files, file_path, &mut file_list);
 
         let validation_result = OPENGL_CONTEXT.validate_shader(shader_file.file_type(), shader_content);
@@ -116,14 +116,14 @@ impl MinecraftLanguageServer {
                     file_path.to_str().unwrap(),
                     compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
+                DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path)
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                 diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                 for include_file in file_list {
-                    diagnostics.insert(Url::from_file_path(include_file.1).unwrap(), vec![]);
+                    diagnostics.insert(include_file.1, vec![]);
                 }
                 diagnostics
             }
@@ -131,7 +131,7 @@ impl MinecraftLanguageServer {
     }
 
     fn temp_lint(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
+        let mut file_list: HashMap<String, Url> = HashMap::new();
 
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
             let validation_result = OPENGL_CONTEXT.validate_shader(result.0, result.1);
@@ -143,14 +143,14 @@ impl MinecraftLanguageServer {
                         file_path.to_str().unwrap(),
                         compile_log
                     );
-                    DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list)
+                    DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path)
                 }
                 None => {
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
                     diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                     for include_file in file_list {
-                        diagnostics.insert(Url::from_file_path(include_file.1).unwrap(), vec![]);
+                        diagnostics.insert(include_file.1, vec![]);
                     }
                     diagnostics
                 }

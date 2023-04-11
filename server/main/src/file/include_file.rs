@@ -60,11 +60,11 @@ impl IncludeFile {
                     }
                 });
                 let include_file = IncludeFile {
-                    tree: RefCell::from(parser.parse(&content, None).unwrap()),
-                    content: RefCell::from(content),
+                    tree: RefCell::new(parser.parse(&content, None).unwrap()),
+                    content: RefCell::new(content),
                     pack_path: pack_path.clone(),
-                    included_shaders: RefCell::from(parent_file.clone()),
-                    including_files: RefCell::from(including_files),
+                    included_shaders: RefCell::new(parent_file.clone()),
+                    including_files: RefCell::new(including_files),
                 };
                 include_files.insert(include_path, include_file);
             } else {
@@ -116,7 +116,7 @@ impl IncludeFile {
 
     pub fn merge_include(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: &str,
-        file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String, file_id: &mut i32, depth: i32,
+        file_list: &mut HashMap<String, Url>, shader_content: &mut String, file_id: &mut i32, depth: i32,
     ) {
         if !file_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
@@ -171,7 +171,7 @@ impl IncludeFile {
         });
         shader_content.push_str(unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
-        file_list.insert(curr_file_id, file_path);
+        file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
     }
 }
 

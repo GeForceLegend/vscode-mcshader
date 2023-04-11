@@ -46,7 +46,7 @@ impl MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
             command_list: CommandList::new(),
-            server_data: Mutex::from(ServerData::new(parser)),
+            server_data: Mutex::new(ServerData::new(parser)),
             _log_guard: logging::init_logger(),
         }
     }

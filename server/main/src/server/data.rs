@@ -10,12 +10,12 @@ use super::ServerData;
 impl ServerData {
     pub fn new(parser: Parser) -> Self {
         ServerData {
-            extensions: RefCell::from(HashSet::new()),
-            shader_packs: RefCell::from(HashSet::new()),
-            shader_files: RefCell::from(HashMap::new()),
-            include_files: RefCell::from(HashMap::new()),
-            temp_files: RefCell::from(HashMap::new()),
-            tree_sitter_parser: RefCell::from(parser),
+            extensions: RefCell::new(HashSet::new()),
+            shader_packs: RefCell::new(HashSet::new()),
+            shader_files: RefCell::new(HashMap::new()),
+            include_files: RefCell::new(HashMap::new()),
+            temp_files: RefCell::new(HashMap::new()),
+            tree_sitter_parser: RefCell::new(parser),
         }
     }
 

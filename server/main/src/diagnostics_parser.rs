@@ -31,11 +31,12 @@ impl DiagnosticsParser {
         DiagnosticsParser { line_offset, line_regex }
     }
 
-    pub fn parse_diagnostics(&self, compile_log: String, file_list: HashMap<String, PathBuf>) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+    pub fn parse_diagnostics(
+        &self, compile_log: String, file_list: HashMap<String, Url>, shader_path: &PathBuf,
+    ) -> HashMap<Url, Vec<Diagnostic>> {
+        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = file_list.iter().map(|(_index, url)| (url.clone(), vec![])).collect();
 
-        let default_path = file_list.get("0").unwrap();
-        let default_path_name = default_path.to_str().unwrap();
+        let default_path = shader_path.to_str().unwrap();
 
         for log_line in compile_log.split_terminator('\n') {
             let diagnostic_capture = match self.line_regex.captures(log_line) {
@@ -44,7 +45,7 @@ impl DiagnosticsParser {
             };
 
             let mut msg = diagnostic_capture.name("output").unwrap().as_str().to_owned() + ", from file: ";
-            msg += default_path_name;
+            msg += default_path;
 
             let line = match diagnostic_capture.name("linenum") {
                 Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
@@ -60,14 +61,8 @@ impl DiagnosticsParser {
                 _ => DiagnosticSeverity::INFORMATION,
             };
 
-            let file_path = match diagnostic_capture.name("filepath") {
-                Some(index) => match file_list.get(index.as_str()) {
-                    Some(file) => file,
-                    None => default_path,
-                },
-                None => default_path,
-            };
-            let file_url = Url::from_file_path(file_path).unwrap();
+            let index = diagnostic_capture.name("filepath").unwrap();
+            let file_url = file_list.get(index.as_str()).unwrap();
 
             let diagnostic = Diagnostic {
                 range: Range::new(Position::new(line, 0), Position::new(line, u32::MAX)),
@@ -81,12 +76,7 @@ impl DiagnosticsParser {
                 data: None,
             };
 
-            match diagnostics.get_mut(&file_url) {
-                Some(d) => d.push(diagnostic),
-                None => {
-                    diagnostics.insert(file_url, std::vec::from_elem(diagnostic, 1));
-                }
-            };
+            diagnostics.get_mut(file_url).unwrap().push(diagnostic);
         }
 
         diagnostics

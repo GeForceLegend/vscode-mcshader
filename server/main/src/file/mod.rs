@@ -36,12 +36,12 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
             Component::ParentDir => {
                 if let Some(Component::Normal(_)) = buffer.pop() {
                 } else {
-                    return Err("Unable to find parent while creating include path".into());
+                    return Err("Unable to find parent while creating include path".to_owned());
                 }
             }
             Component::Normal(_) => buffer.push(component),
             Component::CurDir => {}
-            _ => return Err("Invalid component in include path".into()),
+            _ => return Err("Invalid component in include path".to_owned()),
         }
     }
 

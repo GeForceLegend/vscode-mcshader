@@ -6,7 +6,7 @@ impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let content = match read_to_string(file_path) {
-            Ok(content) => RefCell::from(content),
+            Ok(content) => RefCell::new(content),
             Err(_err) => return None,
         };
         let file_type = match file_path.extension() {
@@ -53,7 +53,7 @@ impl TempFile {
             content,
             file_type,
             pack_path: PathBuf::from(resource),
-            tree: RefCell::from(parser.parse("", None).unwrap()),
+            tree: RefCell::new(parser.parse("", None).unwrap()),
         })
     }
 
@@ -64,13 +64,13 @@ impl TempFile {
         };
     }
 
-    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>) -> Option<(u32, String)> {
+    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
         if self.file_type == gl::NONE {
             return None;
         }
 
         let mut temp_content = String::new();
-        file_list.insert("0".to_owned(), file_path.clone());
+        file_list.insert("0".to_owned(), Url::from_file_path(file_path).unwrap());
         let mut file_id = 0;
         let file_name = file_path.to_str().unwrap();
 
@@ -136,8 +136,8 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, PathBuf>, original_content: &str,
-        temp_content: &mut String, file_id: &mut i32, depth: i32,
+        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, Url>, original_content: &str, temp_content: &mut String,
+        file_id: &mut i32, depth: i32,
     ) {
         if depth > 10 || !file_path.exists() {
             // If include depth reaches 10 or file does not exist
@@ -194,7 +194,7 @@ impl TempFile {
             });
             temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
             temp_content.push('\n');
-            file_list.insert(curr_file_id, file_path);
+            file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
         } else {
             warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
             temp_content.push_str(original_content);

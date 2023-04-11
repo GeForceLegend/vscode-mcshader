@@ -21,8 +21,8 @@ impl ShaderFile {
                 }
             },
             pack_path: pack_path.clone(),
-            content: RefCell::from(String::new()),
-            tree: RefCell::from(parser.parse("", None).unwrap()),
+            content: RefCell::new(String::new()),
+            tree: RefCell::new(parser.parse("", None).unwrap()),
         };
         shader_file.update_shader(include_files, parser, file_path);
         shader_file
@@ -31,7 +31,8 @@ impl ShaderFile {
     /// Update shader content and includes from file
     pub fn update_shader(&self, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser, file_path: &PathBuf) {
         if let Ok(content) = read_to_string(file_path) {
-            let parent_path: HashSet<PathBuf> = HashSet::from([file_path.clone()]);
+            let mut parent_path: HashSet<PathBuf> = HashSet::with_capacity(1);
+            parent_path.insert(file_path.clone());
             let mut parent_update_list: HashSet<PathBuf> = HashSet::new();
             RE_MACRO_INCLUDE_MULTI_LINE.captures_iter(&content).for_each(|captures| {
                 let path = captures.get(1).unwrap().as_str();
@@ -66,10 +67,10 @@ impl ShaderFile {
 
     /// Merge all includes to one vitrual file for compiling etc
     pub fn merge_shader_file(
-        &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: &PathBuf, file_list: &mut HashMap<String, PathBuf>,
+        &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: &PathBuf, file_list: &mut HashMap<String, Url>,
     ) -> String {
         let mut shader_content = String::new();
-        file_list.insert("0".to_owned(), file_path.clone());
+        file_list.insert("0".to_owned(), Url::from_file_path(file_path).unwrap());
         let mut file_id = 0;
         let file_name = file_path.to_str().unwrap();
 

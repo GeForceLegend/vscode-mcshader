@@ -65,13 +65,15 @@ lazy_static! {
         }
         set
     };
-    pub static ref BASIC_EXTENSIONS: HashSet<String> = HashSet::from([
-        "vsh".to_owned(),
-        "gsh".to_owned(),
-        "fsh".to_owned(),
-        "csh".to_owned(),
-        "glsl".to_owned(),
-    ]);
+    pub static ref BASIC_EXTENSIONS: HashSet<String> = {
+        let mut set = HashSet::with_capacity(5);
+        set.insert("vsh".to_owned());
+        set.insert("gsh".to_owned());
+        set.insert("fsh".to_owned());
+        set.insert("csh".to_owned());
+        set.insert("glsl".to_owned());
+        set
+    };
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
