@@ -21,6 +21,7 @@ Work spaces support idea from Fayer3
  - Multiple work space or multiple shader folders in one work space;
  - Temporary linting and document link for files outside work space (temporary linting only supports base shader file);
  - Virtual merge for base shader file;
- - File watcher for file changes (creating, deleting, etc). Defaultly supports file with `[vsh, gsh, fsh, csh, glsl, inc]` extensions, you can add more by extension configuration.
+ - File watcher for file changes (creating, deleting, etc). Defaultly supports file with `[vsh, gsh, fsh, csh, glsl, inc]` extensions, you can add more by extension configuration;
+ - Single-file goto-definitions and references.
 
 This extension does not provide syntax highlight for GLSL yet. If you want GLSL syntax highlight, you can install this extension with [vscode-glsl](https://github.com/GeForceLegend/vscode-glsl) or [vscode-shader](https://github.com/stef-levesque/vscode-shader).

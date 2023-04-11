@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
 
-- Single-file goto-definition and references based on TreeSitter. This means this extension cannot find definitions or references outside of currently edited file right now.
+- Single-file goto-definitions and references based on TreeSitter. This means this extension cannot find definitions or references outside of currently edited file right now.
+- Notice: variables can only find definitions, but no references.
 
 ### Changed
 
@@ -18,7 +21,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed crash while looking for shader pack path for temp files failed;
-- Fixed file path with `../` in #include;
+- Fixed file path with `../` or `./` in #include;
 - Fixed issues of deleting a folder;
 - Fixed linting if `#version` is not in the top line;
 - Fixed a issue about linting errors across multiple files.
