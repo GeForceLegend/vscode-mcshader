@@ -51,23 +51,26 @@ fn variable_def_pattern(name: &str) -> String {
     pattern
 }
 
-trait ToRange {
-    fn to_range(&self) -> Range;
+trait ToLocation {
+    fn to_location(&self, url: &Url) -> Location;
 }
 
-impl ToRange for Node<'_> {
-    fn to_range(&self) -> Range {
+impl ToLocation for Node<'_> {
+    fn to_location(&self, url: &Url) -> Location {
         let start = self.start_position();
         let end = self.end_position();
-        Range {
-            start: Position {
-                line: start.row as u32,
-                character: start.column as u32,
-            },
-            end: Position {
-                line: end.row as u32,
-                character: end.column as u32,
-            },
+        Location {
+            uri: url.clone(),
+            range: Range {
+                start: Position {
+                    line: start.row as u32,
+                    character: start.column as u32,
+                },
+                end: Position {
+                    line: end.row as u32,
+                    character: end.column as u32,
+                },
+            }
         }
     }
 }
@@ -106,13 +109,7 @@ impl TreeParser {
                 let query_str = function_def_pattern(current_node.utf8_text(content_bytes).unwrap());
                 Self::simple_global_search(url, tree, content_bytes, &query_str)
             }
-            (_, "function_declarator") | (_, "preproc_function_def") => std::vec::from_elem(
-                Location {
-                    uri: url.to_owned(),
-                    range: current_node.to_range(),
-                },
-                1,
-            ),
+            (_, "function_declarator") | (_, "preproc_function_def") => std::vec::from_elem(current_node.to_location(url), 1),
             ("identifier", "argument_list")
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")
@@ -159,10 +156,7 @@ impl TreeParser {
 
         for m in query_cursor.matches(&query, tree.root_node(), content) {
             for capture in m.captures {
-                locations.push(Location {
-                    uri: url.to_owned(),
-                    range: capture.node.to_range(),
-                });
+                locations.push(capture.node.to_location(url));
             }
         }
 
@@ -184,10 +178,7 @@ impl TreeParser {
         while let Some(parent_node) = parent {
             for m in query_cursor.matches(&query, parent_node, source) {
                 for capture in m.captures {
-                    locations.push(Location {
-                        uri: url.to_owned(),
-                        range: capture.node.to_range(),
-                    });
+                    locations.push(capture.node.to_location(url));
                 }
             }
 

@@ -9,7 +9,7 @@ use crate::opengl::OpenGlContext;
 lazy_static! {
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
-        let mut set = HashSet::with_capacity(12116);
+        let mut set = HashSet::with_capacity(12064);
         for ext in ["fsh", "vsh", "gsh", "csh"] {
             set.insert("composite.".to_owned() + ext);
             set.insert("deferred.".to_owned() + ext);
@@ -23,9 +23,9 @@ lazy_static! {
                 set.insert("prepare".to_owned() + &suffix);
                 set.insert("shadowcomp".to_owned() + &suffix);
             }
-            set.insert("composite_pre.".to_owned() + ext);
-            set.insert("deferred_pre.".to_owned() + ext);
             set.insert("final.".to_owned() + ext);
+        }
+        for ext in ["fsh", "vsh", "gsh"] {
             set.insert("gbuffers_armor_glint.".to_owned() + ext);
             set.insert("gbuffers_basic.".to_owned() + ext);
             set.insert("gbuffers_beaconbeam.".to_owned() + ext);
@@ -36,22 +36,16 @@ lazy_static! {
             set.insert("gbuffers_entities_glowing.".to_owned() + ext);
             set.insert("gbuffers_hand.".to_owned() + ext);
             set.insert("gbuffers_hand_water.".to_owned() + ext);
-            set.insert("gbuffers_item.".to_owned() + ext);
             set.insert("gbuffers_line.".to_owned() + ext);
             set.insert("gbuffers_skybasic.".to_owned() + ext);
             set.insert("gbuffers_skytextured.".to_owned() + ext);
             set.insert("gbuffers_spidereyes.".to_owned() + ext);
             set.insert("gbuffers_terrain.".to_owned() + ext);
-            set.insert("gbuffers_terrain_cutout.".to_owned() + ext);
-            set.insert("gbuffers_terrain_cutout_mip.".to_owned() + ext);
-            set.insert("gbuffers_terrain_solid.".to_owned() + ext);
             set.insert("gbuffers_textured.".to_owned() + ext);
             set.insert("gbuffers_textured_lit.".to_owned() + ext);
             set.insert("gbuffers_water.".to_owned() + ext);
             set.insert("gbuffers_weather.".to_owned() + ext);
             set.insert("shadow.".to_owned() + ext);
-            set.insert("shadow_cutout.".to_owned() + ext);
-            set.insert("shadow_solid.".to_owned() + ext);
         }
         let base_char_num = b'a';
         for suffix_num in 0u8..=25u8 {

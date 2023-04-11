@@ -73,12 +73,12 @@ impl DiagnosticsParser {
                 range: Range::new(Position::new(line, 0), Position::new(line, u32::MAX)),
                 code: None,
                 severity: Some(severity),
-                source: Some("mcshader-glsl".into()),
+                source: Some("mcshader-glsl".to_owned()),
                 message: msg,
                 related_information: None,
                 tags: None,
-                code_description: Option::None,
-                data: Option::None,
+                code_description: None,
+                data: None,
             };
 
             match diagnostics.get_mut(&file_url) {
