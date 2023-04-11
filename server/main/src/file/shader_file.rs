@@ -98,9 +98,7 @@ impl ShaderFile {
                         start_index = end;
                         lines += before_content.matches("\n").count();
 
-                        let include_content =
-                            include_file.merge_include(include_files, include_path, capture_content, file_list, &mut file_id, 1);
-                        shader_content += &include_content;
+                        include_file.merge_include(include_files, include_path, capture_content, file_list, &mut shader_content, &mut file_id, 1);
                         shader_content += "\n";
                         shader_content += &generate_line_macro(lines, "0", file_name);
                     }
@@ -109,8 +107,6 @@ impl ShaderFile {
                 shader_content += before_content;
                 start_index = end;
                 lines += before_content.matches("\n").count();
-
-                shader_content += capture_content;
             }
         });
         shader_content += unsafe { content.get_unchecked(start_index..) };

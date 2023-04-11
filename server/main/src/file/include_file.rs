@@ -122,17 +122,21 @@ impl IncludeFile {
 
     pub fn merge_include(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, file_path: PathBuf, original_content: &str,
-        file_list: &mut HashMap<String, PathBuf>, file_id: &mut i32, depth: i32,
-    ) -> String {
+        file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String, file_id: &mut i32, depth: i32,
+    ) {
         if !file_path.exists() || depth > 10 {
             // If include depth reaches 10 or file does not exist
             // Leave the include alone for reporting a error
-            return original_content.to_owned() + "\n";
+            // return original_content.to_owned() + "\n";
+            shader_content.push_str(original_content);
+            shader_content.push('\n');
+            return;
         }
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
-        let mut include_content = generate_line_macro(1, &curr_file_id, file_name) + "\n";
+        shader_content.push_str(&generate_line_macro(1, &curr_file_id, file_name));
+        shader_content.push('\n');
 
         let content = self.content.borrow();
         let mut start_index = 0;
@@ -149,28 +153,23 @@ impl IncludeFile {
 
                 if let Ok(include_path) = include_path_join(&self.pack_path, &file_path, path) {
                     if let Some(include_file) = include_files.get(&include_path) {
-                        include_content += before_content;
+                        shader_content.push_str(before_content);
                         start_index = end;
                         lines += before_content.matches("\n").count();
 
-                        let sub_include_content =
-                            include_file.merge_include(include_files, include_path, capture_content, file_list, file_id, depth + 1);
-                        include_content += &sub_include_content;
-                        include_content += "\n";
-                        include_content += &generate_line_macro(lines, &curr_file_id, file_name);
+                        include_file.merge_include(include_files, include_path, capture_content, file_list, shader_content, file_id, depth + 1);
+                        shader_content.push('\n');
+                        shader_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
                     }
                 }
             } else if RE_MACRO_LINE.is_match(capture_content) {
-                include_content += before_content;
+                shader_content.push_str(before_content);
                 start_index = end;
                 lines += before_content.matches("\n").count();
-                include_content += capture_content;
             }
         });
-        include_content += unsafe { content.get_unchecked(start_index..) };
-
+        shader_content.push_str(unsafe { content.get_unchecked(start_index..) });
         file_list.insert(curr_file_id, file_path);
-        include_content
     }
 }
 
