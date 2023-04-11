@@ -58,9 +58,9 @@ impl TempFile {
     }
 
     pub fn update_self(&mut self, file_path: &PathBuf) {
-        *self.content.borrow_mut() = match read_to_string(file_path) {
-            Ok(content) => content,
-            Err(_err) => String::new(),
+        match read_to_string(file_path) {
+            Ok(content) => *self.content.borrow_mut() = content,
+            Err(_err) => self.content.borrow_mut().clear(),
         };
     }
 
@@ -98,7 +98,15 @@ impl TempFile {
                 start_index = end;
                 lines += before_content.matches("\n").count();
 
-                Self::merge_temp(&self.pack_path, include_path, file_list, capture_content, &mut temp_content, &mut file_id, 1);
+                Self::merge_temp(
+                    &self.pack_path,
+                    include_path,
+                    file_list,
+                    capture_content,
+                    &mut temp_content,
+                    &mut file_id,
+                    1,
+                );
                 temp_content += &generate_line_macro(lines, "0", file_name);
             } else if RE_MACRO_LINE.is_match(capture_content) {
                 temp_content += before_content;
@@ -168,7 +176,15 @@ impl TempFile {
                     start_index = end;
                     lines += before_content.matches("\n").count();
 
-                    Self::merge_temp(pack_path, include_path, file_list, capture_content, temp_content, file_id, depth + 1);
+                    Self::merge_temp(
+                        pack_path,
+                        include_path,
+                        file_list,
+                        capture_content,
+                        temp_content,
+                        file_id,
+                        depth + 1,
+                    );
                     temp_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
                 } else if RE_MACRO_LINE.is_match(capture_content) {
                     temp_content.push_str(before_content);

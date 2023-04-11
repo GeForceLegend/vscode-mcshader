@@ -70,7 +70,7 @@ impl ToLocation for Node<'_> {
                     line: end.row as u32,
                     character: end.column as u32,
                 },
-            }
+            },
         }
     }
 }

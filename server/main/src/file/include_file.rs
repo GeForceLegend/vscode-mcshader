@@ -151,7 +151,15 @@ impl IncludeFile {
                         start_index = end;
                         lines += before_content.matches("\n").count();
 
-                        include_file.merge_include(include_files, include_path, capture_content, file_list, shader_content, file_id, depth + 1);
+                        include_file.merge_include(
+                            include_files,
+                            include_path,
+                            capture_content,
+                            file_list,
+                            shader_content,
+                            file_id,
+                            depth + 1,
+                        );
                         shader_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
                     }
                 }

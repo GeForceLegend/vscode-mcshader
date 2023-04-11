@@ -91,10 +91,7 @@ pub trait File {
                         let url = Url::from_file_path(include_path).unwrap();
 
                         include_links.push(DocumentLink {
-                            range: Range::new(
-                                Position::new(u32::try_from(line.0).unwrap(), u32::try_from(start).unwrap()),
-                                Position::new(u32::try_from(line.0).unwrap(), u32::try_from(end).unwrap()),
-                            ),
+                            range: Range::new(Position::new(line.0 as u32, start as u32), Position::new(line.0 as u32, end as u32)),
                             tooltip: Some(url.path().to_owned()),
                             target: Some(url),
                             data: None,

@@ -25,7 +25,7 @@ impl MinecraftLanguageServer {
         shader_files.insert(file_path, shader_file);
     }
 
-    pub fn scan_new_file(
+    fn scan_new_file(
         &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
         shader_packs: &HashSet<PathBuf>, file_path: PathBuf,
     ) -> bool {
@@ -47,35 +47,33 @@ impl MinecraftLanguageServer {
         false
     }
 
-    fn find_shader_packs(&self, curr_path: &PathBuf) -> Vec<PathBuf> {
-        let mut shader_packs: Vec<PathBuf> = vec![];
+    fn find_shader_packs(&self, shader_packs: &mut Vec<PathBuf>, curr_path: &PathBuf) {
         for file in curr_path.read_dir().unwrap() {
             if let Ok(file) = file {
                 let file_path = file.path();
                 if file_path.is_dir() {
-                    if file_path.file_name().unwrap() == "shaders" {
+                    if file.file_name() == "shaders" {
                         info!("Find shader pack {}", file_path.to_str().unwrap());
                         shader_packs.push(file_path);
                     } else {
-                        shader_packs.extend(self.find_shader_packs(&file_path));
+                        self.find_shader_packs(shader_packs, &file_path);
                     }
                 }
             }
         }
-        shader_packs
     }
 
-    pub fn scan_files_in_root(
+    fn scan_files_in_root(
         &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
         shader_packs: &mut HashSet<PathBuf>, root: PathBuf,
     ) {
         info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
 
-        let sub_shader_packs: Vec<PathBuf>;
+        let mut sub_shader_packs: Vec<PathBuf> = vec![];
         if root.file_name().unwrap() == "shaders" {
-            sub_shader_packs = std::vec::from_elem(root, 1);
+            sub_shader_packs.push(root);
         } else {
-            sub_shader_packs = self.find_shader_packs(&root);
+            self.find_shader_packs(&mut sub_shader_packs, &root);
         }
 
         for shader_pack in &sub_shader_packs {
@@ -103,7 +101,7 @@ impl MinecraftLanguageServer {
         shader_packs.extend(sub_shader_packs);
     }
 
-    pub fn lint_shader(
+    fn lint_shader(
         &self, include_files: &HashMap<PathBuf, IncludeFile>, shader_file: &ShaderFile, file_path: &PathBuf,
     ) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
@@ -132,7 +130,7 @@ impl MinecraftLanguageServer {
         }
     }
 
-    pub fn temp_lint(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
+    fn temp_lint(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
 
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
@@ -219,7 +217,7 @@ impl MinecraftLanguageServer {
             .contains(file_path.extension().unwrap().to_str().unwrap())
             && (include_files.contains_key(&file_path) || shader_files.contains_key(&file_path))
         {
-            return Some(HashMap::new());
+            return None;
         } else if let Some(include_file) = include_files.remove(&file_path) {
             include_file.update_include(&mut include_files, &mut parser, &file_path);
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
