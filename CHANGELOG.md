@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed errors of temp files keep in workspace error list after they are closed
+
 ## [0.2.0]
 
 ### Added
