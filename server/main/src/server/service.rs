@@ -236,8 +236,12 @@ impl MinecraftLanguageServer {
         return None;
     }
 
-    pub fn close_file(&self, file_path: &PathBuf) {
-        self.server_data.lock().unwrap().temp_files.borrow_mut().remove(file_path);
+    pub fn close_file(&self, file_url: &Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+        let file_path = file_url.to_file_path().unwrap();
+        match self.server_data.lock().unwrap().temp_files.borrow_mut().remove(&file_path) {
+            Some(_) => Some(HashMap::from([(file_url.clone(), vec![])])),
+            None => None,
+        }
     }
 
     pub fn document_links(&self, file_path: &PathBuf) -> (Option<Vec<DocumentLink>>, HashMap<Url, Vec<Diagnostic>>) {

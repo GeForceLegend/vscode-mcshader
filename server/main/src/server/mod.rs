@@ -23,6 +23,9 @@ use crate::constant::*;
 use crate::file::*;
 use crate::notification;
 
+/// Everything mutable in this struct.
+///
+/// By sending the Mutex of server data to snyc functions, we can handle it like single thread
 pub struct ServerData {
     extensions: RefCell<HashSet<String>>,
     shader_packs: RefCell<HashSet<PathBuf>>,
@@ -32,6 +35,7 @@ pub struct ServerData {
     tree_sitter_parser: RefCell<Parser>,
 }
 
+/// Other things that do not need to be mutable
 pub struct MinecraftLanguageServer {
     client: Client,
     command_list: CommandList,
@@ -159,9 +163,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        let file_path = params.text_document.uri.to_file_path().unwrap();
-
-        self.close_file(&file_path);
+        if let Some(diagnostics) = self.close_file(&params.text_document.uri) {
+            self.publish_diagnostic(diagnostics).await;
+        }
     }
 
     // Doesn't implemented yet
