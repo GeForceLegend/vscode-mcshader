@@ -29,8 +29,8 @@ use crate::notification;
 pub struct ServerData {
     extensions: RefCell<HashSet<String>>,
     shader_packs: RefCell<HashSet<PathBuf>>,
-    shader_files: RefCell<HashMap<PathBuf, ShaderFile>>,
-    include_files: RefCell<HashMap<PathBuf, IncludeFile>>,
+    shader_pathes: RefCell<HashSet<PathBuf>>,
+    workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,
 }
@@ -41,6 +41,7 @@ pub struct MinecraftLanguageServer {
     command_list: CommandList,
     server_data: Mutex<ServerData>,
     _log_guard: logging::GlobalLoggerGuard,
+    roots: Mutex<HashSet<PathBuf>>,
 }
 
 pub struct LanguageServerError;
@@ -52,6 +53,7 @@ impl MinecraftLanguageServer {
             command_list: CommandList::new(),
             server_data: Mutex::new(ServerData::new(parser)),
             _log_guard: logging::init_logger(),
+            roots: Mutex::new(HashSet::new()),
         }
     }
 
@@ -99,13 +101,16 @@ impl LanguageServer for MinecraftLanguageServer {
             roots.insert(uri.to_file_path().unwrap());
         }
 
-        self.initial_scan(roots);
+        *self.roots.lock().unwrap() = roots;
+        // self.initial_scan(roots);
 
         Ok(initialize_result)
     }
 
     #[logging::with_trace_id]
     async fn initialized(&self, _params: InitializedParams) {
+        let roots = self.roots.lock().unwrap().clone();
+        self.initial_scan(roots);
         self.set_status_ready().await;
     }
 
@@ -142,7 +147,9 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        self.open_file(file_path);
+        if let Some(diagnostics) = self.open_file(file_path) {
+            self.publish_diagnostic(diagnostics).await;
+        }
     }
 
     #[logging::with_trace_id]
@@ -181,9 +188,8 @@ impl LanguageServer for MinecraftLanguageServer {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let result = self.document_links(&file_path);
-        self.publish_diagnostic(result.1).await;
 
-        Ok(result.0)
+        Ok(result)
     }
 
     #[logging::with_trace_id]

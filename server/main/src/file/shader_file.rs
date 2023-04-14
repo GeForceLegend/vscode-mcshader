@@ -23,6 +23,7 @@ impl ShaderFile {
             pack_path: pack_path.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
+            including_files: RefCell::new(vec![]),
         };
         shader_file.update_shader(include_files, parser, file_path);
         shader_file
@@ -134,6 +135,10 @@ impl ShaderFile {
 }
 
 impl File for ShaderFile {
+    fn file_type(&self) -> u32 {
+        self.file_type
+    }
+
     fn pack_path(&self) -> &PathBuf {
         &self.pack_path
     }
@@ -145,10 +150,16 @@ impl File for ShaderFile {
     fn tree(&self) -> &RefCell<Tree> {
         &self.tree
     }
-}
 
-impl BaseShader for ShaderFile {
-    fn file_type(&self) -> u32 {
-        self.file_type
+    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+        todo!()
+    }
+
+    fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
+        todo!()
+    }
+
+    fn line_mapping(&self) -> &RefCell<Vec<usize>> {
+        todo!()
     }
 }

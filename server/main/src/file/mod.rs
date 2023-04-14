@@ -16,6 +16,7 @@ use crate::constant::*;
 mod include_file;
 mod shader_file;
 mod temp_file;
+mod workspace_file;
 
 fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str) -> Result<PathBuf, String> {
     let mut buffer: Vec<Component>;
@@ -69,10 +70,37 @@ fn generate_line_macro<I: Integer>(line: I, file_id: &str, file_name: &str) -> S
     line_macro
 }
 
+fn generate_line_mapping(content: &str) -> Vec<usize> {
+    let mut line_mapping = vec![];
+    line_mapping.push(0);
+    content.match_indices("\n").for_each(|new_line| {
+        line_mapping.push(new_line.0 + 1);
+    });
+    line_mapping
+}
+
+pub fn preprocess_shader(shader_content: &mut String, pack_path: &PathBuf) {
+    if let Some(capture) = RE_MACRO_VERSION.captures(&shader_content) {
+        let version = capture.get(0).unwrap();
+        let mut version_content = version.as_str().to_owned() + "\n";
+
+        shader_content.replace_range(version.start()..version.end(), "");
+        // If we are not in the debug folder, add Optifine's macros
+        if pack_path.parent().unwrap().file_name().unwrap() != "debug" {
+            version_content += OPTIFINE_MACROS;
+        }
+        shader_content.insert_str(0, &version_content);
+    }
+}
+
 pub trait File {
+    fn file_type(&self) -> u32;
     fn pack_path(&self) -> &PathBuf;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
+    fn line_mapping(&self) -> &RefCell<Vec<usize>>;
+    fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
+    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>>;
 
     fn parse_includes(&self, file_path: &PathBuf) -> Vec<DocumentLink> {
         let mut include_links = vec![];
@@ -104,19 +132,20 @@ pub trait File {
         include_links
     }
 
-    fn generate_line_mapping(&self) -> Vec<usize> {
-        let mut line_mapping: Vec<usize> = std::vec::from_elem(0, 1);
-        self.content().borrow().match_indices("\n").for_each(|new_line| {
-            line_mapping.push(new_line.0 + 1);
-        });
-        line_mapping
+    fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
+        if let Ok(content) = read_to_string(file_path) {
+            *self.tree().borrow_mut() = parser.parse(&content, None).unwrap();
+            *self.line_mapping().borrow_mut() = generate_line_mapping(&content);
+            *self.content().borrow_mut() = content;
+        } else {
+            error!("Unable to read file {}", file_path.to_str().unwrap());
+        }
     }
 
     fn apply_edit(&self, changes: Vec<TextDocumentContentChangeEvent>, parser: &mut Parser) {
-        let line_mapping = self.generate_line_mapping();
-
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
+        let mut line_mapping = self.line_mapping().borrow_mut();
 
         for change in changes {
             let range = change.range.unwrap();
@@ -152,6 +181,7 @@ pub trait File {
             content.replace_range(start..end, &change.text);
         }
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
+        *line_mapping = generate_line_mapping(&content);
     }
 }
 
@@ -171,6 +201,8 @@ pub struct ShaderFile {
     content: RefCell<String>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
+    /// Lines and paths for include files
+    including_files: RefCell<Vec<(usize, PathBuf)>>,
 }
 
 #[derive(Clone)]
@@ -199,4 +231,24 @@ pub struct TempFile {
     content: RefCell<String>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
+    /// Lines and paths for include files
+    including_files: RefCell<Vec<(usize, PathBuf)>>,
+}
+
+#[derive(Clone)]
+pub struct WorkspaceFile {
+    /// Type of the shader
+    file_type: u32,
+    /// The shader pack path that this file in
+    pack_path: PathBuf,
+    /// Live content for this file
+    content: RefCell<String>,
+    /// Live syntax tree for this file
+    tree: RefCell<Tree>,
+    /// Line-content mapping
+    line_mapping: RefCell<Vec<usize>>,
+    /// Files that directly include this file
+    included_files: RefCell<HashSet<PathBuf>>,
+    /// Lines and paths for include files
+    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }

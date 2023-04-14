@@ -12,5 +12,6 @@
     "yaml.schemas": {
         "https://json.schemastore.org/github-workflow": [".github/*"]
     },
-    "json.schemas": []
+    "json.schemas": [],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }

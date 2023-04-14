@@ -54,6 +54,7 @@ impl TempFile {
             file_type,
             pack_path: PathBuf::from(resource),
             tree: RefCell::new(parser.parse("", None).unwrap()),
+            including_files: RefCell::new(vec![]),
         })
     }
 
@@ -204,6 +205,10 @@ impl TempFile {
 }
 
 impl File for TempFile {
+    fn file_type(&self) -> u32 {
+        todo!()
+    }
+
     fn pack_path(&self) -> &PathBuf {
         &self.pack_path
     }
@@ -214,5 +219,17 @@ impl File for TempFile {
 
     fn tree(&self) -> &RefCell<Tree> {
         &self.tree
+    }
+
+    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+        todo!()
+    }
+
+    fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
+        todo!()
+    }
+
+    fn line_mapping(&self) -> &RefCell<Vec<usize>> {
+        todo!()
     }
 }

@@ -187,4 +187,20 @@ impl File for IncludeFile {
     fn tree(&self) -> &RefCell<Tree> {
         &self.tree
     }
+
+    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+        todo!()
+    }
+
+    fn file_type(&self) -> u32 {
+        todo!()
+    }
+
+    fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
+        todo!()
+    }
+
+    fn line_mapping(&self) -> &RefCell<Vec<usize>> {
+        todo!()
+    }
 }

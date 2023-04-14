@@ -3,7 +3,7 @@ use std::{cell::RefCell, path::PathBuf};
 use hashbrown::{HashMap, HashSet};
 use tree_sitter::Parser;
 
-use crate::file::{IncludeFile, ShaderFile, TempFile};
+use crate::file::*;
 
 use super::ServerData;
 
@@ -12,19 +12,19 @@ impl ServerData {
         ServerData {
             extensions: RefCell::new(HashSet::new()),
             shader_packs: RefCell::new(HashSet::new()),
-            shader_files: RefCell::new(HashMap::new()),
-            include_files: RefCell::new(HashMap::new()),
+            shader_pathes: RefCell::new(HashSet::new()),
+            workspace_files: RefCell::new(HashMap::new()),
             temp_files: RefCell::new(HashMap::new()),
             tree_sitter_parser: RefCell::new(parser),
         }
     }
 
-    pub fn shader_files(&self) -> &RefCell<HashMap<PathBuf, ShaderFile>> {
-        &self.shader_files
+    pub fn shader_pathes(&self) -> &RefCell<HashSet<PathBuf>> {
+        &self.shader_pathes
     }
 
-    pub fn include_files(&self) -> &RefCell<HashMap<PathBuf, IncludeFile>> {
-        &self.include_files
+    pub fn workspace_files(&self) -> &RefCell<HashMap<PathBuf, WorkspaceFile>> {
+        &self.workspace_files
     }
 
     pub fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
