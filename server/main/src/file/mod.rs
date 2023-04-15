@@ -78,6 +78,17 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
     line_mapping
 }
 
+fn push_str_without_line(shader_content: &mut String, str: &str) {
+    let mut start_index = 0;
+    RE_MACRO_LINE_MULTILINE.find_iter(str).for_each(|capture| {
+        let start = capture.start();
+        let end = capture.end();
+        shader_content.push_str(unsafe { str.get_unchecked(start_index..start) });
+        start_index = end;
+    });
+    shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
+}
+
 pub fn preprocess_shader(shader_content: &mut String, pack_path: &PathBuf) {
     if let Some(capture) = RE_MACRO_VERSION.captures(&shader_content) {
         let version = capture.get(0).unwrap();

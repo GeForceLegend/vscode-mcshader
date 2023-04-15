@@ -180,7 +180,7 @@ impl WorkspaceFile {
                 let end = line_mapping.get(line + 1).unwrap();
 
                 let before_content = unsafe { content.get_unchecked(start_index..*start) };
-                shader_content.push_str(before_content);
+                push_str_without_line(shader_content, before_content);
                 start_index = *end - 1;
 
                 if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
@@ -190,7 +190,7 @@ impl WorkspaceFile {
                 }
             }
         }
-        shader_content.push_str(unsafe { content.get_unchecked(start_index..) });
+        push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
         file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
 

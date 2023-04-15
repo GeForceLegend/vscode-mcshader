@@ -112,7 +112,7 @@ impl TempFile {
             let end = line_mapping.get(line + 1).unwrap();
 
             let before_content = unsafe { content.get_unchecked(start_index..*start) };
-            temp_content.push_str(before_content);
+            push_str_without_line(&mut temp_content, before_content);
             start_index = *end - 1;
 
             if Self::merge_temp(&self.pack_path, include_path, file_list, &mut temp_content, &mut file_id, 1) {
@@ -121,7 +121,7 @@ impl TempFile {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
             }
         }
-        temp_content += unsafe { content.get_unchecked(start_index..) };
+        push_str_without_line(&mut temp_content, unsafe { content.get_unchecked(start_index..) });
 
         // Move #version to the top line
         if let Some(capture) = RE_MACRO_VERSION.captures(&temp_content) {
