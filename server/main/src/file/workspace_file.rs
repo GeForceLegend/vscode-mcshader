@@ -1,8 +1,8 @@
 use super::*;
 
 impl WorkspaceFile {
-    pub fn update_include<'a>(
-        workspace_files: &'a mut HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, mut old_including_files: HashSet<PathBuf>,
+    pub fn update_include(
+        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser, mut old_including_files: HashSet<PathBuf>,
         content: &str, pack_path: &PathBuf, file_path: &PathBuf, mut depth: i32
     ) -> *const WorkspaceFile {
         if depth <= 10 {
@@ -28,8 +28,10 @@ impl WorkspaceFile {
                             if !already_includes {
                                 workspace_file.included_files.borrow_mut().insert(file_path.clone());
                             }
+                        } else if let Some(temp_file) = temp_files.remove(&include_path) {
+                            temp_file.into_workspace_file(workspace_files, temp_files, parser, pack_path, file_path, file_path, depth);
                         } else {
-                            Self::new_include(workspace_files, parser, pack_path, &include_path, file_path, depth);
+                            Self::new_include(workspace_files, temp_files, parser, pack_path, &include_path, file_path, depth);
                         }
                         including_files.push((line, start, end, include_path));
                     },
@@ -48,7 +50,7 @@ impl WorkspaceFile {
         }
     }
 
-    pub fn new_shader(workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf) {
+    pub fn new_shader(workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf) {
         let extension = file_path.extension().unwrap();
         let file_type = {
             if extension == "fsh" {
@@ -94,11 +96,11 @@ impl WorkspaceFile {
             workspace_files.insert(file_path.clone(), shader_file);
         }
 
-        Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, 0);
+        Self::update_include(workspace_files, temp_files, parser, HashSet::new(), &content, pack_path, file_path, 0);
     }
 
     pub fn new_include(
-        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32
+        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser, pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32
     ) {
         let mut include_file = WorkspaceFile {
             file_type: RefCell::new(gl::INVALID_ENUM),
@@ -117,7 +119,7 @@ impl WorkspaceFile {
 
             workspace_files.insert(file_path.clone(), include_file);
 
-            Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
+            Self::update_include(workspace_files, temp_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
         } else {
             error!("File not found in system! File: {}", file_path.to_str().unwrap());
             workspace_files.insert(file_path.clone(), include_file);

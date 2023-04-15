@@ -195,6 +195,25 @@ impl TempFile {
             false
         }
     }
+
+    pub fn into_workspace_file(
+        self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
+        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32
+    ) {
+        let content = self.content.borrow().clone();
+        let workspace_file = WorkspaceFile {
+            file_type: RefCell::new(gl::NONE),
+            pack_path: pack_path.clone(),
+            content: self.content,
+            tree: self.tree,
+            line_mapping: self.line_mapping,
+            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
+            including_files: RefCell::new(vec![]),
+        };
+        workspace_files.insert(file_path.clone(), workspace_file);
+
+        WorkspaceFile::update_include(workspace_files, temp_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
+    }
 }
 
 impl File for TempFile {
