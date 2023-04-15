@@ -100,35 +100,14 @@ pub trait File {
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>>;
+    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>>;
 
-    fn parse_includes(&self, file_path: &PathBuf) -> Vec<DocumentLink> {
-        let mut include_links = vec![];
-
-        let pack_path = self.pack_path();
-        self.content().borrow().split_terminator("\n").enumerate().for_each(|line| {
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(line.1) {
-                let cap = capture.get(1).unwrap();
-                let path = cap.as_str();
-
-                let start = cap.start();
-                let end = cap.end();
-
-                match include_path_join(pack_path, file_path, path) {
-                    Ok(include_path) => {
-                        let url = Url::from_file_path(include_path).unwrap();
-
-                        include_links.push(DocumentLink {
-                            range: Range::new(Position::new(line.0 as u32, start as u32), Position::new(line.0 as u32, end as u32)),
-                            tooltip: Some(url.path().to_owned()),
-                            target: Some(url),
-                            data: None,
-                        });
-                    }
-                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
-                }
-            }
-        });
-        include_links
+    fn including_pathes(&self) -> HashSet<PathBuf> {
+        self.including_files()
+            .borrow()
+            .iter()
+            .map(|including_data| including_data.3.clone())
+            .collect::<HashSet<_>>()
     }
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
@@ -185,24 +164,6 @@ pub trait File {
 }
 
 #[derive(Clone)]
-pub struct TempFile {
-    /// Type of the shader
-    file_type: RefCell<u32>,
-    /// The shader pack path that this file in
-    pack_path: PathBuf,
-    /// Live content for this file
-    content: RefCell<String>,
-    /// Live syntax tree for this file
-    tree: RefCell<Tree>,
-    /// Line-content mapping
-    line_mapping: RefCell<Vec<usize>>,
-    /// Files that directly include this file
-    included_files: RefCell<HashSet<PathBuf>>,
-    /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
-}
-
-#[derive(Clone)]
 pub struct WorkspaceFile {
     /// Type of the shader
     file_type: RefCell<u32>,
@@ -218,4 +179,26 @@ pub struct WorkspaceFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    /// Diagnostics parsed by compiler but not tree-sitter
+    diagnostics: RefCell<Vec<Diagnostic>>
+}
+
+#[derive(Clone)]
+pub struct TempFile {
+    /// Type of the shader
+    file_type: RefCell<u32>,
+    /// The shader pack path that this file in
+    pack_path: PathBuf,
+    /// Live content for this file
+    content: RefCell<String>,
+    /// Live syntax tree for this file
+    tree: RefCell<Tree>,
+    /// Line-content mapping
+    line_mapping: RefCell<Vec<usize>>,
+    /// Files that directly include this file
+    included_files: RefCell<HashSet<PathBuf>>,
+    /// Lines and paths for include files
+    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    /// Diagnostics parsed by compiler but not tree-sitter
+    diagnostics: RefCell<Vec<Diagnostic>>
 }

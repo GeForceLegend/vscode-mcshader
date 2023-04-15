@@ -162,6 +162,20 @@ impl MinecraftLanguageServer {
         }
     }
 
+    fn update_diagnostics(
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
+        diagnostics: &HashMap<Url, Vec<Diagnostic>>
+    ) {
+        for (url, diagnostics) in diagnostics {
+            let file_path = url.to_file_path().unwrap();
+            if let Some(workspace_file) = workspace_files.get(&file_path) {
+                *workspace_file.diagnostics().borrow_mut() = diagnostics.clone();
+            } else if let Some(temp_file) = temp_files.get(&file_path) {
+                *temp_file.diagnostics().borrow_mut() = diagnostics.clone();
+            }
+        }
+    }
+
     /*================================================ Main service functions ================================================*/
 
     pub fn initial_scan(&self, roots: HashSet<PathBuf>) {
@@ -184,7 +198,7 @@ impl MinecraftLanguageServer {
         let workspace_files = server_data.workspace_files.borrow();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
             let mut shader_files = HashMap::new();
             workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
@@ -199,45 +213,68 @@ impl MinecraftLanguageServer {
                 temp_files.insert(file_path, temp_file);
                 Some(diagnostics)
             } else {
-                None
+                return None;
             }
-        }
+        };
+        self.update_diagnostics(&workspace_files, &temp_files, diagnostics.as_ref().unwrap());
+        diagnostics
     }
 
-    pub fn change_file(&self, file_path: &PathBuf, changes: Vec<TextDocumentContentChangeEvent>) {
+    pub fn change_file(&self, url: Url, changes: Vec<TextDocumentContentChangeEvent>) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+        let file_path = url.to_file_path().unwrap();
+
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
-        if let Some(workspace_file) = workspace_files.get(file_path) {
+        let compile_diagnostics;
+        let tree = if let Some(workspace_file) = workspace_files.get(&file_path) {
             workspace_file.apply_edit(changes, &mut parser);
+            compile_diagnostics = workspace_file.diagnostics().borrow().clone();
             // Clone the content so they can be used alone.
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();
-            let old_including_files = workspace_file
-                .including_files()
-                .borrow()
-                .iter()
-                .map(|including_data| including_data.3.clone())
-                .collect::<HashSet<_>>();
+            let old_including_files = workspace_file.including_pathes();
 
-            WorkspaceFile::update_include(
+            let workspace_file = WorkspaceFile::update_include(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,
                 old_including_files,
                 &content,
                 &pack_path,
-                file_path,
+                &file_path,
                 0,
             );
-        } else if let Some(temp_file) = temp_files.get(file_path) {
+            unsafe { workspace_file.as_ref().unwrap().tree().borrow() }
+        } else if let Some(temp_file) = temp_files.get(&file_path) {
             temp_file.apply_edit(changes, &mut parser);
-            temp_file.parse_includes(file_path);
-        }
+            compile_diagnostics = temp_file.diagnostics().borrow().clone();
+            temp_file.parse_includes(&file_path);
+            temp_file.tree().borrow()
+        } else {
+            return None;
+        };
+
+        let mut diagnostics = TreeParser::simple_lint(&tree).into_iter().map(|range| {
+            Diagnostic {
+                range,
+                severity: Some(DiagnosticSeverity::ERROR),
+                code: None,
+                code_description: None,
+                source: Some("mcshader-glsl".to_owned()),
+                message: "Syntax error by simple real-time search".to_owned(),
+                related_information: None,
+                tags: None,
+                data: None,
+            }
+        }).collect::<Vec<_>>();
+        diagnostics.extend(compile_diagnostics);
+        let diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::from([(url, diagnostics)]);
 
         self.collect_memory(&mut workspace_files);
+        Some(diagnostics)
     }
 
     pub fn save_file(&self, file_path: PathBuf) -> Option<HashMap<Url, Vec<Diagnostic>>> {
@@ -248,6 +285,7 @@ impl MinecraftLanguageServer {
 
         let result;
         if let Some(workspace_file) = workspace_files.get(&file_path) {
+            // If this file is ended with watched extension, it should get updated through update_watched_files
             if !server_data
                 .extensions
                 .borrow()
@@ -257,12 +295,7 @@ impl MinecraftLanguageServer {
                 // Clone the content so they can be used alone.
                 let pack_path = workspace_file.pack_path().clone();
                 let content = workspace_file.content().borrow().clone();
-                let old_including_files = workspace_file
-                    .including_files()
-                    .borrow()
-                    .iter()
-                    .map(|including_data| including_data.3.clone())
-                    .collect::<HashSet<_>>();
+                let old_including_files = workspace_file.including_pathes();
 
                 // Get the new pointer of this file (it might changed if workspace file list get reallocated).
                 // workspace_files will not get modded after this call so this should be safe
@@ -300,6 +333,9 @@ impl MinecraftLanguageServer {
         } else {
             result = None;
         }
+        if let Some(diagnostics) = result.as_ref() {
+            self.update_diagnostics(&workspace_files, &temp_files, diagnostics);
+        }
 
         self.collect_memory(&mut workspace_files);
         return result;
@@ -319,12 +355,7 @@ impl MinecraftLanguageServer {
             // Clone the content so they can be used alone.
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();
-            let old_including_files = workspace_file
-                .including_files()
-                .borrow()
-                .iter()
-                .map(|including_data| including_data.3.clone())
-                .collect::<HashSet<_>>();
+            let old_including_files = workspace_file.including_pathes();
 
             // Get the new pointer of this file (it might changed if workspace file list get reallocated).
             // workspace_files will not get modded after this call so this should be safe
@@ -352,6 +383,7 @@ impl MinecraftLanguageServer {
                 diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
             }
 
+            self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
             self.collect_memory(&mut workspace_files);
             return Some(diagnostics);
         }
@@ -489,12 +521,7 @@ impl MinecraftLanguageServer {
                     // Clone the content so they can be used alone.
                     let pack_path = workspace_file.pack_path().clone();
                     let content = workspace_file.content().borrow().clone();
-                    let old_including_files = workspace_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .map(|including_data| including_data.3.clone())
-                        .collect::<HashSet<_>>();
+                    let old_including_files = workspace_file.including_pathes();
 
                     // Get the new pointer of this file (it might changed if workspace file list get reallocated).
                     // workspace_files will not get modded after this call so this should be safe
@@ -533,12 +560,7 @@ impl MinecraftLanguageServer {
                     // Clone the content so they can be used alone.
                     let pack_path = workspace_file.pack_path().clone();
                     let content = workspace_file.content().borrow().clone();
-                    let old_including_files = workspace_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .map(|including_data| including_data.3.clone())
-                        .collect::<HashSet<_>>();
+                    let old_including_files = workspace_file.including_pathes();
 
                     // Get the new pointer of this file (it might changed if workspace file list get reallocated).
                     // workspace_files will not get modded after this call so this should be safe
@@ -608,6 +630,7 @@ impl MinecraftLanguageServer {
             }
         }
 
+        self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
         self.collect_memory(&mut workspace_files);
         diagnostics
     }

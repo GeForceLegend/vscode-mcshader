@@ -153,9 +153,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        let file_path = params.text_document.uri.to_file_path().unwrap();
-
-        self.change_file(&file_path, params.content_changes);
+        if let Some(diagnostics) = self.change_file(params.text_document.uri, params.content_changes) {
+            self.publish_diagnostic(diagnostics).await;
+        }
     }
 
     #[logging::with_trace_id]
