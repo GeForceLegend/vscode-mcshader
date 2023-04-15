@@ -68,24 +68,27 @@ impl TempFile {
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
 
-        self.content.borrow().split_terminator("\n").enumerate().filter_map(|(line, content)| {
-            match RE_MACRO_INCLUDE.captures(content) {
+        self.content
+            .borrow()
+            .split_terminator("\n")
+            .enumerate()
+            .filter_map(|(line, content)| match RE_MACRO_INCLUDE.captures(content) {
                 Some(captures) => Some((line, captures)),
                 None => None,
-            }
-        }).for_each(|(line, captures)| {
-            let include_content = captures.get(1).unwrap();
-            let path = include_content.as_str();
-            match include_path_join(pack_path, file_path, path) {
-                Ok(include_path) => {
-                    let start = include_content.start();
-                    let end = include_content.end();
+            })
+            .for_each(|(line, captures)| {
+                let include_content = captures.get(1).unwrap();
+                let path = include_content.as_str();
+                match include_path_join(pack_path, file_path, path) {
+                    Ok(include_path) => {
+                        let start = include_content.start();
+                        let end = include_content.end();
 
-                    including_files.push((line, start, end, include_path));
-                },
-                Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
-            }
-        });
+                        including_files.push((line, start, end, include_path));
+                    }
+                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                }
+            });
     }
 
     pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
@@ -139,8 +142,8 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, Url>, temp_content: &mut String,
-        file_id: &mut i32, depth: i32,
+        pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, Url>, temp_content: &mut String, file_id: &mut i32,
+        depth: i32,
     ) -> bool {
         if depth > 10 || !file_path.exists() {
             return false;
@@ -198,7 +201,7 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32
+        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32,
     ) {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
@@ -212,7 +215,16 @@ impl TempFile {
         };
         workspace_files.insert(file_path.clone(), workspace_file);
 
-        WorkspaceFile::update_include(workspace_files, temp_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
+        WorkspaceFile::update_include(
+            workspace_files,
+            temp_files,
+            parser,
+            HashSet::new(),
+            &content,
+            pack_path,
+            file_path,
+            depth,
+        );
     }
 }
 

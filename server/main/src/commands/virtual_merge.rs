@@ -7,8 +7,8 @@ use hashbrown::HashMap;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 
-use crate::server::{LanguageServerError, ServerData};
 use crate::file::*;
+use crate::server::{LanguageServerError, ServerData};
 
 use super::Command;
 
