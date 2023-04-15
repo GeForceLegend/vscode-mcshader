@@ -1,10 +1,10 @@
 use super::*;
 
 impl WorkspaceFile {
-    pub fn update_include(
-        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, mut old_including_files: HashSet<PathBuf>,
+    pub fn update_include<'a>(
+        workspace_files: &'a mut HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, mut old_including_files: HashSet<PathBuf>,
         content: &str, pack_path: &PathBuf, file_path: &PathBuf, mut depth: i32
-    ) -> Vec<(usize, usize, usize, PathBuf)> {
+    ) -> *const WorkspaceFile {
         if depth <= 10 {
             depth += 1;
             let mut including_files = vec![];
@@ -40,9 +40,11 @@ impl WorkspaceFile {
             old_including_files.iter().filter_map(|including_path| workspace_files.get(including_path)).for_each(|including_file| {
                 including_file.included_files.borrow_mut().remove(file_path);
             });
-            including_files
+            let workspace_file = workspace_files.get(file_path).unwrap();
+            *workspace_file.including_files.borrow_mut() = including_files;
+            workspace_file as *const Self
         } else {
-            vec![]
+            workspace_files.get(file_path).unwrap() as *const Self
         }
     }
 
@@ -92,11 +94,7 @@ impl WorkspaceFile {
             workspace_files.insert(file_path.clone(), shader_file);
         }
 
-        // Get the new pointer of this file (it might changed if workspace file list get reallocated) and change its including_files.
-        // Above call will only modify its included_files so there is no data race.
-        let including_files = Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, 0);
-        let shader_file = workspace_files.get(file_path).unwrap();
-        *shader_file.including_files.borrow_mut() = including_files;
+        Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, 0);
     }
 
     pub fn new_include(
@@ -119,11 +117,7 @@ impl WorkspaceFile {
 
             workspace_files.insert(file_path.clone(), include_file);
 
-            // Get the new pointer of this file (it might changed if workspace file list get reallocated) and change its including_files.
-            // Above call will only modify its included_files so there is no data race.
-            let including_files = Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
-            let include_file = workspace_files.get(file_path).unwrap();
-            *include_file.including_files.borrow_mut() = including_files;
+            Self::update_include(workspace_files, parser, HashSet::new(), &content, pack_path, file_path, depth);
         } else {
             error!("File not found in system! File: {}", file_path.to_str().unwrap());
             workspace_files.insert(file_path.clone(), include_file);
@@ -158,13 +152,11 @@ impl WorkspaceFile {
                 shader_content.push_str(before_content);
                 start_index = *end - 1;
 
-                let workspace_file_ptr = workspace_file as *const WorkspaceFile;
-                // workspace_file_ptr is existing in workspace_files, so recursion within this call will only modifies its included_files. This should be safe.
-                let workspace_file = unsafe { workspace_file_ptr.as_ref().unwrap() };
-                if !workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
+                if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
+                    shader_content.push_str(&generate_line_macro(line + 2, &curr_file_id, file_name));
+                } else {
                     shader_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
                 }
-                shader_content.push_str(&generate_line_macro(line + 2, &curr_file_id, file_name));
             }
         }
         shader_content.push_str(unsafe { content.get_unchecked(start_index..) });

@@ -194,8 +194,12 @@ pub struct TempFile {
     content: RefCell<String>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
+    /// Line-content mapping
+    line_mapping: RefCell<Vec<usize>>,
+    /// Files that directly include this file
+    included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, PathBuf)>>,
+    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }
 
 #[derive(Clone)]

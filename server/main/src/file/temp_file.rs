@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use logging::warn;
 
 use super::*;
@@ -5,10 +7,6 @@ use super::*;
 impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
-        let content = match read_to_string(file_path) {
-            Ok(content) => RefCell::new(content),
-            Err(_err) => return None,
-        };
         let file_type = match file_path.extension() {
             Some(extension) => {
                 if extension == "fsh" {
@@ -49,20 +47,45 @@ impl TempFile {
         }
         resource.push("shaders");
 
-        Some(TempFile {
-            content,
+        let temp_file = TempFile {
             file_type: RefCell::new(file_type),
             pack_path: PathBuf::from(resource),
+            content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
+            line_mapping: RefCell::new(vec![]),
+            included_files: RefCell::new(HashSet::new()),
             including_files: RefCell::new(vec![]),
-        })
+        };
+
+        temp_file.update_from_disc(parser, file_path);
+        temp_file.parse_includes(file_path);
+
+        Some(temp_file)
     }
 
-    pub fn update_self(&mut self, file_path: &PathBuf) {
-        match read_to_string(file_path) {
-            Ok(content) => *self.content.borrow_mut() = content,
-            Err(_err) => self.content.borrow_mut().clear(),
-        };
+    pub fn parse_includes(&self, file_path: &PathBuf) {
+        let pack_path = self.pack_path.borrow();
+        let mut including_files = self.including_files.borrow_mut();
+        including_files.clear();
+
+        self.content.borrow().split_terminator("\n").enumerate().filter_map(|(line, content)| {
+            match RE_MACRO_INCLUDE.captures(content) {
+                Some(captures) => Some((line, captures)),
+                None => None,
+            }
+        }).for_each(|(line, captures)| {
+            let include_content = captures.get(1).unwrap();
+            let path = include_content.as_str();
+            match include_path_join(pack_path, file_path, path) {
+                Ok(include_path) => {
+                    let start = include_content.start();
+                    let end = include_content.end();
+
+                    including_files.push((line, start, end, include_path));
+                },
+                Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+            }
+        });
     }
 
     pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
@@ -76,45 +99,24 @@ impl TempFile {
         let file_name = file_path.to_str().unwrap();
 
         let content = self.content.borrow();
+        let line_mapping = self.line_mapping.borrow();
+        let including_files = self.including_files.borrow();
         let mut start_index = 0;
-        let mut lines = 2;
 
-        RE_MACRO_CATCH.find_iter(content.as_ref()).for_each(|macro_line| {
-            let start = macro_line.start();
-            let end = macro_line.end();
+        for (line, _start, _end, include_path) in including_files.iter() {
+            let start = line_mapping.get(*line).unwrap();
+            let end = line_mapping.get(line + 1).unwrap();
 
-            let before_content = unsafe { content.get_unchecked(start_index..start) };
-            let capture_content = macro_line.as_str();
-            if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
-                let path = capture.get(1).unwrap().as_str();
+            let before_content = unsafe { content.get_unchecked(start_index..*start) };
+            temp_content.push_str(before_content);
+            start_index = *end - 1;
 
-                let include_path = match path.strip_prefix('/') {
-                    Some(path) => self.pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
-                    None => file_path
-                        .parent()
-                        .unwrap()
-                        .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
-                };
-                temp_content += before_content;
-                start_index = end;
-                lines += before_content.matches("\n").count();
-
-                Self::merge_temp(
-                    &self.pack_path,
-                    include_path,
-                    file_list,
-                    capture_content,
-                    &mut temp_content,
-                    &mut file_id,
-                    1,
-                );
-                temp_content += &generate_line_macro(lines, "0", file_name);
-            } else if RE_MACRO_LINE.is_match(capture_content) {
-                temp_content += before_content;
-                start_index = end;
-                lines += before_content.matches("\n").count();
+            if Self::merge_temp(&self.pack_path, include_path, file_list, &mut temp_content, &mut file_id, 1) {
+                temp_content.push_str(&generate_line_macro(line + 2, "0", file_name));
+            } else {
+                temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
             }
-        });
+        }
         temp_content += unsafe { content.get_unchecked(start_index..) };
 
         // Move #version to the top line
@@ -137,15 +139,11 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: PathBuf, file_list: &mut HashMap<String, Url>, original_content: &str, temp_content: &mut String,
+        pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, Url>, temp_content: &mut String,
         file_id: &mut i32, depth: i32,
-    ) {
+    ) -> bool {
         if depth > 10 || !file_path.exists() {
-            // If include depth reaches 10 or file does not exist
-            // Leave the include alone for reporting a error
-            temp_content.push_str(original_content);
-            temp_content.push('\n');
-            return;
+            return false;
         }
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
@@ -177,16 +175,11 @@ impl TempFile {
                     start_index = end;
                     lines += before_content.matches("\n").count();
 
-                    Self::merge_temp(
-                        pack_path,
-                        include_path,
-                        file_list,
-                        capture_content,
-                        temp_content,
-                        file_id,
-                        depth + 1,
-                    );
-                    temp_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
+                    if Self::merge_temp(pack_path, &include_path, file_list, temp_content, file_id, depth + 1) {
+                        temp_content.push_str(&generate_line_macro(lines, &curr_file_id, file_name));
+                    } else {
+                        temp_content.push_str(capture_content);
+                    }
                 } else if RE_MACRO_LINE.is_match(capture_content) {
                     temp_content.push_str(before_content);
                     start_index = end;
@@ -196,17 +189,17 @@ impl TempFile {
             temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
             temp_content.push('\n');
             file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
+            true
         } else {
             warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
-            temp_content.push_str(original_content);
-            temp_content.push('\n');
+            false
         }
     }
 }
 
 impl File for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
-        todo!()
+        &self.file_type
     }
 
     fn pack_path(&self) -> &PathBuf {
@@ -221,15 +214,15 @@ impl File for TempFile {
         &self.tree
     }
 
-    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
-        todo!()
+    fn line_mapping(&self) -> &RefCell<Vec<usize>> {
+        &self.line_mapping
     }
 
     fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
-        todo!()
+        &self.included_files
     }
 
-    fn line_mapping(&self) -> &RefCell<Vec<usize>> {
-        todo!()
+    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+        &self.including_files
     }
 }
