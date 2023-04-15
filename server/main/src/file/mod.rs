@@ -13,8 +13,6 @@ use tree_sitter::{InputEdit, Parser, Point, Tree};
 
 use crate::constant::*;
 
-mod include_file;
-mod shader_file;
 mod temp_file;
 mod workspace_file;
 
@@ -76,6 +74,7 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
     content.match_indices("\n").for_each(|new_line| {
         line_mapping.push(new_line.0 + 1);
     });
+    line_mapping.push(content.len());
     line_mapping
 }
 
@@ -94,7 +93,7 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &PathBuf) {
 }
 
 pub trait File {
-    fn file_type(&self) -> u32;
+    fn file_type(&self) -> &RefCell<u32>;
     fn pack_path(&self) -> &PathBuf;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
@@ -185,46 +184,10 @@ pub trait File {
     }
 }
 
-pub trait BaseShader: File {
-    fn file_type(&self) -> u32;
-    // fn full_content(&self) -> &RefCell<String>;
-    // fn full_tree(&self) -> &RefCell<Tree>;
-}
-
-#[derive(Clone)]
-pub struct ShaderFile {
-    /// Type of the shader
-    file_type: u32,
-    /// The shader pack path that this file in
-    pack_path: PathBuf,
-    /// Live content for this file
-    content: RefCell<String>,
-    /// Live syntax tree for this file
-    tree: RefCell<Tree>,
-    /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, PathBuf)>>,
-}
-
-#[derive(Clone)]
-pub struct IncludeFile {
-    /// The shader pack path that this file in
-    pack_path: PathBuf,
-    /// Live content for this file
-    content: RefCell<String>,
-    /// Live syntax tree for this file
-    tree: RefCell<Tree>,
-    /// Shader files that include this file
-    included_shaders: RefCell<HashSet<PathBuf>>,
-    /// Files included in this file
-    /// Though we can scan its content and get includes,
-    /// keep a collection helps update parents faster
-    including_files: RefCell<HashSet<PathBuf>>,
-}
-
 #[derive(Clone)]
 pub struct TempFile {
     /// Type of the shader
-    file_type: u32,
+    file_type: RefCell<u32>,
     /// The shader pack path that this file in
     pack_path: PathBuf,
     /// Live content for this file
@@ -238,7 +201,7 @@ pub struct TempFile {
 #[derive(Clone)]
 pub struct WorkspaceFile {
     /// Type of the shader
-    file_type: u32,
+    file_type: RefCell<u32>,
     /// The shader pack path that this file in
     pack_path: PathBuf,
     /// Live content for this file

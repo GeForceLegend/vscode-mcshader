@@ -12,15 +12,10 @@ impl ServerData {
         ServerData {
             extensions: RefCell::new(HashSet::new()),
             shader_packs: RefCell::new(HashSet::new()),
-            shader_pathes: RefCell::new(HashSet::new()),
             workspace_files: RefCell::new(HashMap::new()),
             temp_files: RefCell::new(HashMap::new()),
             tree_sitter_parser: RefCell::new(parser),
         }
-    }
-
-    pub fn shader_pathes(&self) -> &RefCell<HashSet<PathBuf>> {
-        &self.shader_pathes
     }
 
     pub fn workspace_files(&self) -> &RefCell<HashMap<PathBuf, WorkspaceFile>> {

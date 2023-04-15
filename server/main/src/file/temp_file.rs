@@ -51,7 +51,7 @@ impl TempFile {
 
         Some(TempFile {
             content,
-            file_type,
+            file_type: RefCell::new(file_type),
             pack_path: PathBuf::from(resource),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             including_files: RefCell::new(vec![]),
@@ -66,7 +66,7 @@ impl TempFile {
     }
 
     pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
-        if self.file_type == gl::NONE {
+        if *self.file_type.borrow() == gl::NONE {
             return None;
         }
 
@@ -133,7 +133,7 @@ impl TempFile {
             temp_content.insert_str(0, &version_content);
         }
 
-        Some((self.file_type, temp_content))
+        Some((*self.file_type.borrow(), temp_content))
     }
 
     fn merge_temp(
@@ -205,7 +205,7 @@ impl TempFile {
 }
 
 impl File for TempFile {
-    fn file_type(&self) -> u32 {
+    fn file_type(&self) -> &RefCell<u32> {
         todo!()
     }
 

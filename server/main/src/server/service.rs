@@ -19,24 +19,23 @@ impl MinecraftLanguageServer {
     /*================================================ Tool functions for service ================================================*/
 
     fn scan_new_file(
-        &self, shader_files: &mut HashMap<PathBuf, ShaderFile>, include_files: &mut HashMap<PathBuf, IncludeFile>, parser: &mut Parser,
-        shader_packs: &HashSet<PathBuf>, file_path: PathBuf,
+        &self, parser: &mut Parser, shader_packs: &HashSet<PathBuf>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, file_path: &PathBuf,
     ) -> bool {
-        // for shader_pack in shader_packs {
-        //     if file_path.starts_with(shader_pack) {
-        //         let relative_path = file_path.strip_prefix(shader_pack).unwrap();
-        //         if DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
-        //             self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
-        //             return true;
-        //         } else if let Some(result) = relative_path.to_str().unwrap().split_once(MAIN_SEPARATOR_STR) {
-        //             if RE_DIMENSION_FOLDER.is_match(result.0) && DEFAULT_SHADERS.contains(result.1) {
-        //                 self.add_shader_file(shader_files, include_files, parser, shader_pack, file_path);
-        //                 return true;
-        //             }
-        //         }
-        //         return false;
-        //     }
-        // }
+        for shader_pack in shader_packs {
+            if file_path.starts_with(shader_pack) {
+                let relative_path = file_path.strip_prefix(shader_pack).unwrap();
+                if DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
+                    WorkspaceFile::new_shader(workspace_files, parser, &shader_pack, &file_path);
+                    return true;
+                } else if let Some(result) = relative_path.to_str().unwrap().split_once(MAIN_SEPARATOR_STR) {
+                    if RE_DIMENSION_FOLDER.is_match(result.0) && DEFAULT_SHADERS.contains(result.1) {
+                        WorkspaceFile::new_shader(workspace_files, parser, &shader_pack, &file_path);
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
         false
     }
 
@@ -57,7 +56,7 @@ impl MinecraftLanguageServer {
     }
 
     fn scan_files_in_root(
-        &self, parser: &mut Parser, shader_packs: &mut HashSet<PathBuf>, shader_pathes: &mut HashSet<PathBuf>,
+        &self, parser: &mut Parser, shader_packs: &mut HashSet<PathBuf>,
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, root: PathBuf,
     ) {
         info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
@@ -95,15 +94,14 @@ impl MinecraftLanguageServer {
     }
 
     fn lint_shader(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, shader_file: &WorkspaceFile, file_path: &PathBuf,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf,
     ) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, Url> = HashMap::new();
         let mut shader_content = String::new();
-        let mut file_id = -1;
-        shader_file.merge_file(workspace_files, parser, &mut file_list, &mut shader_content, file_path, &mut file_id, 0);
+        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
         preprocess_shader(&mut shader_content, shader_file.pack_path().borrow());
 
-        let validation_result = OPENGL_CONTEXT.validate_shader(shader_file.file_type(), shader_content);
+        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
 
         match validation_result {
             Some(compile_log) => {
@@ -162,11 +160,10 @@ impl MinecraftLanguageServer {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
-        let mut shader_pathes = server_data.shader_pathes.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
 
         for root in roots {
-            self.scan_files_in_root(&mut parser, &mut shader_packs, &mut shader_pathes, &mut workspace_files, root);
+            self.scan_files_in_root(&mut parser, &mut shader_packs, &mut workspace_files, root);
         }
 
         *server_data.extensions.borrow_mut() = BASIC_EXTENSIONS.clone();
@@ -174,7 +171,6 @@ impl MinecraftLanguageServer {
 
     pub fn open_file(&self, file_path: PathBuf) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let server_data = self.server_data.lock().unwrap();
-        let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let workspace_files = server_data.workspace_files.borrow();
 
         if let Some(workspace_file) = workspace_files.get(&file_path) {
@@ -182,12 +178,8 @@ impl MinecraftLanguageServer {
             let mut shader_files = HashMap::new();
             workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
 
-            // get_base_shaders will not delete or add any workspace file, so these shoule be valid raw pointers.
-            unsafe {
-                for (shader_path, shader_file) in shader_files {
-                    let shader_file = shader_file.as_ref().unwrap();
-                    diagnostics.extend(self.lint_shader(&workspace_files, &mut parser, shader_file, &shader_path));
-                }
+            for (shader_path, shader_file) in shader_files {
+                diagnostics.extend(self.lint_shader(&workspace_files, shader_file, &shader_path));
             }
             Some(diagnostics)
         } else {
@@ -241,7 +233,7 @@ impl MinecraftLanguageServer {
         // let mut temp_files = server_data.temp_files.borrow_mut();
 
         if let Some(workspace_file) = workspace_files.get(&file_path) {
-            // if !server_data.extensions.borrow().contains(file_path.extension().unwrap().to_str().unwrap()) {
+            if !server_data.extensions.borrow().contains(file_path.extension().unwrap().to_str().unwrap()) {
                 workspace_file.update_from_disc(&mut parser, &file_path);
                 // Clone the content so they can be used alone.
                 let pack_path = workspace_file.pack_path().clone();
@@ -261,15 +253,11 @@ impl MinecraftLanguageServer {
                 let mut shader_files = HashMap::new();
                 workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
 
-                // get_base_shaders will not delete or add any workspace file, so these shoule be valid raw pointers.
-                unsafe {
-                    for (shader_path, shader_file) in shader_files {
-                        let shader_file = shader_file.as_ref().unwrap();
-                        diagnostics.extend(self.lint_shader(&mut workspace_files, &mut parser, shader_file, &shader_path));
-                    }
+                for (shader_path, shader_file) in shader_files {
+                    diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
                 }
                 return Some(diagnostics);
-            // }
+            }
         }
 
         // // Leave the files with watched extension getting linted by did_change_watched_files event
@@ -300,6 +288,37 @@ impl MinecraftLanguageServer {
 
     pub fn close_file(&self, file_url: &Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let file_path = file_url.to_file_path().unwrap();
+
+        let server_data = self.server_data.lock().unwrap();
+        let mut parser = server_data.tree_sitter_parser.borrow_mut();
+        let mut workspace_files = server_data.workspace_files.borrow_mut();
+
+        // Force closing may result in temp changes discarded, so the content should reset to the disc copy.
+        if let Some(workspace_file) = workspace_files.get(&file_path) {
+            workspace_file.update_from_disc(&mut parser, &file_path);
+            // Clone the content so they can be used alone.
+            let pack_path = workspace_file.pack_path().clone();
+            let content = workspace_file.content().borrow().clone();
+            let old_including_files = workspace_file.including_files().borrow().iter().map(|including_data| {
+                including_data.3.clone()
+            }).collect::<HashSet<_>>();
+
+            // Get the new pointer of this file (it might changed if workspace file list get ) and change its including_files.
+            // Above call will only modify its included_files so there is no data race.
+            let including_files = 
+                WorkspaceFile::update_include(&mut workspace_files, &mut parser, old_including_files, &content, &pack_path, &file_path, 0);
+            let workspace_file = workspace_files.get(&file_path).unwrap();
+            *workspace_file.including_files().borrow_mut() = including_files;
+
+            let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+            let mut shader_files = HashMap::new();
+            workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
+
+            for (shader_path, shader_file) in shader_files {
+                diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
+            }
+            return Some(diagnostics);
+        }
         // match self.server_data.lock().unwrap().temp_files.borrow_mut().remove(&file_path) {
         //     Some(_) => Some(HashMap::from([(file_url.clone(), vec![])])),
         //     None => None,
@@ -432,35 +451,30 @@ impl MinecraftLanguageServer {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
-        let mut shader_pathes = server_data.shader_pathes.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
 
         for removed_workspace in events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
-            shader_pathes.retain(|file_path| !file_path.starts_with(&removed_path));
             workspace_files.retain(|file_path, _include| !file_path.starts_with(&removed_path));
         }
 
         for added_workspace in events.added {
             let added_path = added_workspace.uri.to_file_path().unwrap();
-            self.scan_files_in_root(&mut parser, &mut shader_packs, &mut shader_pathes, &mut workspace_files, added_path);
+            self.scan_files_in_root(&mut parser, &mut shader_packs, &mut workspace_files, added_path);
         }
     }
 
     pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> HashMap<Url, Vec<Diagnostic>> {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
-        let mut shader_pathes = server_data.shader_pathes.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
-        // let mut shader_packs = server_data.shader_packs.borrow();
+        let shader_packs = server_data.shader_packs.borrow();
         // let mut shader_files = server_data.shader_files.borrow_mut();
         // let mut include_files = server_data.include_files.borrow_mut();
         let extensions = server_data.extensions.borrow();
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-        // let mut updated_shaders: HashSet<PathBuf> = HashSet::new();
-        // let mut updated_includes: HashSet<PathBuf> = HashSet::new();
-        // let mut updated_related_shaders: HashSet<PathBuf> = HashSet::new();
+        let mut updated_shaders = HashSet::new();
 
         let mut change_list: HashSet<PathBuf> = HashSet::new();
 
@@ -469,12 +483,21 @@ impl MinecraftLanguageServer {
             if change.typ == FileChangeType::CHANGED {
                 if let Some(workspace_file) = workspace_files.get(&file_path) {
                     workspace_file.update_from_disc(&mut parser, &file_path);
-                    let workspace_file_ptr = workspace_file as *const WorkspaceFile;
-                    // workspace_file_ptr is existing in workspace_files, so recursion within this call will only modifies its included_files. This should be safe.
-                    // unsafe { workspace_file_ptr.as_ref().unwrap().update_from_disc(&mut parser, &file_path) };
-                    // include_file.update_include(&mut include_files, &mut parser, &file_path);
-                    // updated_includes.insert(file_path.clone());
-                    // include_files.insert(file_path.clone(), include_file);
+                    // Clone the content so they can be used alone.
+                    let pack_path = workspace_file.pack_path().clone();
+                    let content = workspace_file.content().borrow().clone();
+                    let old_including_files = workspace_file.including_files().borrow().iter().map(|including_data| {
+                        including_data.3.clone()
+                    }).collect::<HashSet<_>>();
+
+                    // Get the new pointer of this file (it might changed if workspace file list get ) and change its including_files.
+                    // Above call will only modify its included_files so there is no data race.
+                    let including_files = 
+                        WorkspaceFile::update_include(&mut workspace_files, &mut parser, old_including_files, &content, &pack_path, &file_path, 0);
+                    let workspace_file = workspace_files.get(&file_path).unwrap();
+                    *workspace_file.including_files().borrow_mut() = including_files;
+
+                    workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
                 }
             } else {
                 // Insert them to a hashset and handle later
@@ -488,29 +511,27 @@ impl MinecraftLanguageServer {
             // Files that created or refreshed though delete and create again will exist
             // Otherwise it is deleted
             if file_path.exists() {
-                // let include_exists = match include_files.remove(&file_path) {
-                //     Some(include_file) => {
-                //         include_file.update_include(&mut include_files, &mut parser, &file_path);
-                //         updated_includes.insert(file_path.clone());
-                //         include_files.insert(file_path.clone(), include_file);
-                //         true
-                //     }
-                //     None => false,
-                // };
-                // if let Some(shader_file) = shader_files.get(&file_path) {
-                //     shader_file.update_shader(&mut include_files, &mut parser, &file_path);
-                //     updated_shaders.insert(file_path);
-                // } else if !include_exists {
-                //     if self.scan_new_file(
-                //         &mut shader_files,
-                //         &mut include_files,
-                //         &mut parser,
-                //         &mut shader_packs,
-                //         file_path.clone(),
-                //     ) {
-                //         updated_shaders.insert(file_path);
-                //     }
-                // }
+                if let Some(workspace_file) = workspace_files.get(&file_path) {
+                    workspace_file.update_from_disc(&mut parser, &file_path);
+                    // Clone the content so they can be used alone.
+                    let pack_path = workspace_file.pack_path().clone();
+                    let content = workspace_file.content().borrow().clone();
+                    let old_including_files = workspace_file.including_files().borrow().iter().map(|including_data| {
+                        including_data.3.clone()
+                    }).collect::<HashSet<_>>();
+
+                    // Get the new pointer of this file (it might changed if workspace file list get ) and change its including_files.
+                    // Above call will only modify its included_files so there is no data race.
+                    let including_files = 
+                        WorkspaceFile::update_include(&mut workspace_files, &mut parser, old_including_files, &content, &pack_path, &file_path, 0);
+                    let workspace_file = workspace_files.get(&file_path).unwrap();
+                    *workspace_file.including_files().borrow_mut() = including_files;
+
+                    workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
+                }
+                if self.scan_new_file(&mut parser, &shader_packs, &mut workspace_files, &file_path) {
+                    updated_shaders.insert(file_path);
+                }
             } else {
                 // If a path is not watched through extension, it might be a folder
                 let is_watched_file = match file_path.extension() {
@@ -520,64 +541,43 @@ impl MinecraftLanguageServer {
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {
-                    // diagnostics.insert(Url::from_file_path(&file_path).unwrap(), vec![]);
+                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), vec![]);
 
-                    // shader_files.remove(&file_path);
-                    // if let Some(include_file) = include_files.remove(&file_path) {
-                    //     updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
-                    // }
-                    // updated_related_shaders.remove(&file_path);
+                    if let Some(workspace_file) = workspace_files.get(&file_path) {
+                        workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
+                        workspace_file.clear(&mut parser);
+                    }
+                    workspace_files.values().for_each(|workspace_file| {
+                        workspace_file.included_files().borrow_mut().remove(&file_path);
+                    });
 
-                    // include_files.values().for_each(|include_file| {
-                    //     include_file.included_shaders().borrow_mut().remove(&file_path);
-                    //     include_file.including_files().borrow_mut().remove(&file_path);
-                    // });
+                    updated_shaders.remove(&file_path);
                 } else {
-                    // shader_files.retain(|shader_path, _shader_file| {
-                    //     if shader_path.starts_with(&file_path) {
-                    //         diagnostics.insert(Url::from_file_path(shader_path).unwrap(), vec![]);
-                    //         false
-                    //     } else {
-                    //         true
-                    //     }
-                    // });
-                    // include_files.retain(|include_path, include_file| {
-                    //     if include_path.starts_with(&file_path) {
-                    //         diagnostics.insert(Url::from_file_path(include_path).unwrap(), vec![]);
-                    //         updated_related_shaders.extend(include_file.included_shaders().borrow().clone());
-                    //         false
-                    //     } else {
-                    //         true
-                    //     }
-                    // });
-                    // updated_related_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
+                    workspace_files.iter().filter(|workspace_file| {
+                        workspace_file.0.starts_with(&file_path)
+                    })
+                    .for_each(|(file_path, workspace_file)| {
+                        diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
+                        workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
+                        workspace_file.clear(&mut parser);
 
-                    // include_files.values().for_each(|include_file| {
-                    //     include_file
-                    //         .included_shaders()
-                    //         .borrow_mut()
-                    //         .retain(|shader_path| !shader_path.starts_with(&file_path));
-                    //     include_file
-                    //         .including_files()
-                    //         .borrow_mut()
-                    //         .retain(|include_path| !include_path.starts_with(&file_path));
-                    // });
+                        workspace_files.values().for_each(|workspace_file| {
+                            workspace_file.included_files().borrow_mut().remove(file_path);
+                        });
+                    });
+                    // There might some include files inserted deleted shader into update list.
+                    updated_shaders.retain(|shader_path| {
+                        !shader_path.starts_with(&file_path)
+                    });
                 }
             }
         }
-        // updated_shaders.extend(updated_related_shaders);
-        // for file_path in updated_includes {
-        //     match include_files.get(&file_path) {
-        //         Some(include_file) => updated_shaders.extend(include_file.included_shaders().borrow().clone()),
-        //         None => warn!("Missing include: {}", file_path.to_str().unwrap()),
-        //     }
-        // }
-        // for file_path in updated_shaders {
-        //     match shader_files.get(&file_path) {
-        //         Some(shader_file) => diagnostics.extend_diagnostics(self.lint_shader(&include_files, shader_file, &file_path)),
-        //         None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
-        //     }
-        // }
+        for file_path in updated_shaders {
+            match workspace_files.get(&file_path) {
+                Some(shader_file) => diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &file_path)),
+                None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
+            }
+        }
 
         diagnostics
     }

@@ -29,7 +29,6 @@ use crate::notification;
 pub struct ServerData {
     extensions: RefCell<HashSet<String>>,
     shader_packs: RefCell<HashSet<PathBuf>>,
-    shader_pathes: RefCell<HashSet<PathBuf>>,
     workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,
