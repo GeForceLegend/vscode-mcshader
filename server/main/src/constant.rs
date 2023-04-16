@@ -48,9 +48,8 @@ lazy_static! {
             set.insert("gbuffers_weather.".to_owned() + ext);
             set.insert("shadow.".to_owned() + ext);
         }
-        let base_char_num = b'a';
-        for suffix_num in 0u8..=25u8 {
-            let suffix_char = unsafe { String::from_utf8_unchecked(vec![base_char_num + suffix_num, b'.', b'c', b's', b'h']) };
+        for suffix_index in b'a'..=b'z' {
+            let suffix_char = unsafe { String::from_utf8_unchecked(vec![suffix_index, b'.', b'c', b's', b'h']) };
             set.insert("composite_".to_owned() + &suffix_char);
             set.insert("deferred_".to_owned() + &suffix_char);
             set.insert("prepare_".to_owned() + &suffix_char);

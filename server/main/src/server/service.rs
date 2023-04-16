@@ -164,7 +164,7 @@ impl MinecraftLanguageServer {
 
     /*================================================ Main service functions ================================================*/
 
-    pub fn initial_scan(&self, roots: HashSet<PathBuf>) {
+    pub fn initial_scan(&self, roots: Vec<PathBuf>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
@@ -459,8 +459,8 @@ impl MinecraftLanguageServer {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         for removed_workspace in events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
-            workspace_files.retain(|file_path, _workspace_file| {
-                if file_path.starts_with(&removed_path) {
+            workspace_files.retain(|file_path, workspace_file| {
+                if workspace_file.pack_path().starts_with(&removed_path) {
                     diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                     false
                 } else {

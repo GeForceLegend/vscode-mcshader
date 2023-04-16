@@ -86,15 +86,15 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
-        let roots: HashSet<PathBuf> = if let Some(work_spaces) = params.workspace_folders {
+        let roots: Vec<PathBuf> = if let Some(work_spaces) = params.workspace_folders {
             work_spaces
                 .iter()
                 .map(|work_space| work_space.uri.to_file_path().unwrap())
-                .collect::<HashSet<_>>()
+                .collect::<Vec<_>>()
         } else if let Some(uri) = params.root_uri {
-            HashSet::from([uri.to_file_path().unwrap()])
+            vec![uri.to_file_path().unwrap(); 1]
         } else {
-            HashSet::new()
+            vec![]
         };
 
         self.initial_scan(roots);

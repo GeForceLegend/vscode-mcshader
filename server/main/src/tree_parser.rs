@@ -160,7 +160,7 @@ impl TreeParser {
                 let query_str = function_def_pattern(current_node.utf8_text(content_bytes).unwrap());
                 Self::simple_global_search(url, tree, content_bytes, &query_str)
             }
-            (_, "function_declarator") | (_, "preproc_function_def") => std::vec::from_elem(current_node.to_location(url), 1),
+            (_, "function_declarator") | (_, "preproc_function_def") => vec![current_node.to_location(url); 1],
             ("identifier", "argument_list")
             | ("identifier", "field_expression")
             | ("identifier", "binary_expression")

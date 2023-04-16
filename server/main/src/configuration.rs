@@ -29,7 +29,7 @@ impl Configuration {
         folder_pattern += "}]";
 
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
-            watchers: Vec::from([
+            watchers: vec![
                 FileSystemWatcher {
                     glob_pattern: GlobPattern::String(glsl_file_pattern),
                     kind: Some(WatchKind::all()),
@@ -38,7 +38,7 @@ impl Configuration {
                     glob_pattern: GlobPattern::String(folder_pattern),
                     kind: Some(WatchKind::Delete),
                 },
-            ]),
+            ],
         };
         // let will_rename_files = FileOperationRegistrationOptions {
         //     filters: vec![FileOperationFilter {
@@ -50,7 +50,7 @@ impl Configuration {
         //         }
         //     }]
         // };
-        Vec::from([
+        vec![
             Registration {
                 id: "workspace/didChangeWatchedFiles".to_owned(),
                 method: "workspace/didChangeWatchedFiles".to_owned(),
@@ -61,6 +61,6 @@ impl Configuration {
             //     method: String::from("workspace/willRenameFiles"),
             //     register_options: Some(serde_json::to_value(will_rename_files).unwrap()),
             // },
-        ])
+        ]
     }
 }

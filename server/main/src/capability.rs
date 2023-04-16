@@ -11,7 +11,7 @@ impl ServerCapabilitiesFactroy {
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: std::vec::from_elem("virtualMerge".to_owned(), 1),
+                    commands: vec!["virtualMerge".to_owned(); 1],
                     work_done_progress_options: Default::default(),
                 }),
                 workspace: Some(WorkspaceServerCapabilities {
