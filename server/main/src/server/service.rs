@@ -164,7 +164,7 @@ impl MinecraftLanguageServer {
 
     fn update_diagnostics(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
-        diagnostics: &HashMap<Url, Vec<Diagnostic>>
+        diagnostics: &HashMap<Url, Vec<Diagnostic>>,
     ) {
         for (url, diagnostics) in diagnostics {
             let file_path = url.to_file_path().unwrap();
@@ -206,18 +206,18 @@ impl MinecraftLanguageServer {
             for (shader_path, shader_file) in shader_files {
                 diagnostics.extend(self.lint_shader(&workspace_files, shader_file, &shader_path));
             }
-            Some(diagnostics)
+            diagnostics
         } else {
             if let Some(temp_file) = TempFile::new(&mut parser, &file_path) {
                 let diagnostics = self.temp_lint(&temp_file, &file_path);
                 temp_files.insert(file_path, temp_file);
-                Some(diagnostics)
+                diagnostics
             } else {
                 return None;
             }
         };
-        self.update_diagnostics(&workspace_files, &temp_files, diagnostics.as_ref().unwrap());
-        diagnostics
+        self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
+        Some(diagnostics)
     }
 
     pub fn change_file(&self, url: Url, changes: Vec<TextDocumentContentChangeEvent>) -> Option<HashMap<Url, Vec<Diagnostic>>> {
@@ -257,19 +257,7 @@ impl MinecraftLanguageServer {
             return None;
         };
 
-        let mut diagnostics = TreeParser::simple_lint(&tree).into_iter().map(|range| {
-            Diagnostic {
-                range,
-                severity: Some(DiagnosticSeverity::ERROR),
-                code: None,
-                code_description: None,
-                source: Some("mcshader-glsl".to_owned()),
-                message: "Syntax error by simple real-time search".to_owned(),
-                related_information: None,
-                tags: None,
-                data: None,
-            }
-        }).collect::<Vec<_>>();
+        let mut diagnostics = TreeParser::simple_lint(&tree);
         diagnostics.extend(compile_diagnostics);
         let diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::from([(url, diagnostics)]);
 
@@ -283,8 +271,7 @@ impl MinecraftLanguageServer {
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
-        let result;
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             // If this file is ended with watched extension, it should get updated through update_watched_files
             if !server_data
                 .extensions
@@ -322,23 +309,21 @@ impl MinecraftLanguageServer {
                 for (shader_path, shader_file) in shader_files {
                     diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
                 }
-                result = Some(diagnostics);
+                diagnostics
             } else {
-                result = None;
+                return None;
             }
         } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
-            result = Some(self.temp_lint(temp_file, &file_path));
+            self.temp_lint(temp_file, &file_path)
         } else {
-            result = None;
-        }
-        if let Some(diagnostics) = result.as_ref() {
-            self.update_diagnostics(&workspace_files, &temp_files, diagnostics);
-        }
+            return None;
+        };
+        self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
 
         self.collect_memory(&mut workspace_files);
-        return result;
+        Some(diagnostics)
     }
 
     pub fn close_file(&self, file_url: &Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
@@ -430,14 +415,13 @@ impl MinecraftLanguageServer {
         let file_path = params.text_document_position_params.text_document.uri.to_file_path().unwrap();
         let position = params.text_document_position_params.position;
 
-        let file: &dyn File;
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
-            file = workspace_file;
+        let file: &dyn File = if let Some(workspace_file) = workspace_files.get(&file_path) {
+            workspace_file
         } else if let Some(temp_file) = temp_files.get(&file_path) {
-            file = temp_file;
+            temp_file
         } else {
             return Ok(None);
-        }
+        };
 
         let content = file.content().borrow();
         let tree = file.tree().borrow();
@@ -460,14 +444,13 @@ impl MinecraftLanguageServer {
         let file_path = params.text_document_position.text_document.uri.to_file_path().unwrap();
         let position = params.text_document_position.position;
 
-        let file: &dyn File;
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
-            file = workspace_file;
+        let file: &dyn File = if let Some(workspace_file) = workspace_files.get(&file_path) {
+            workspace_file
         } else if let Some(temp_file) = temp_files.get(&file_path) {
-            file = temp_file;
+            temp_file
         } else {
             return Ok(None);
-        }
+        };
 
         let content = file.content().borrow();
         let tree = file.tree().borrow();
@@ -482,22 +465,31 @@ impl MinecraftLanguageServer {
         )
     }
 
-    pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) {
+    pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) -> HashMap<Url, Vec<Diagnostic>> {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
+        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         for removed_workspace in events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
-            workspace_files.retain(|file_path, _include| !file_path.starts_with(&removed_path));
+            workspace_files.retain(|file_path, _include| {
+                if file_path.starts_with(&removed_path) {
+                    diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
+                    false
+                } else {
+                    true
+                }
+            });
         }
 
         for added_workspace in events.added {
             let added_path = added_workspace.uri.to_file_path().unwrap();
             self.scan_files_in_root(&mut parser, &mut shader_packs, &mut workspace_files, &mut temp_files, added_path);
         }
+        diagnostics
     }
 
     pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> HashMap<Url, Vec<Diagnostic>> {
@@ -557,6 +549,11 @@ impl MinecraftLanguageServer {
             if file_path.exists() {
                 if let Some(workspace_file) = workspace_files.get(&file_path) {
                     workspace_file.update_from_disc(&mut parser, &file_path);
+                    let mut file_type = workspace_file.file_type().borrow_mut();
+                    if *file_type == gl::INVALID_ENUM {
+                        *file_type = gl::NONE;
+                    }
+                    drop(file_type);
                     // Clone the content so they can be used alone.
                     let pack_path = workspace_file.pack_path().clone();
                     let content = workspace_file.content().borrow().clone();

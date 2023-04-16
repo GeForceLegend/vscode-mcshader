@@ -1,5 +1,5 @@
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{Location, Position, Range};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Location, Position, Range};
 use tree_sitter::{Node, Query, QueryCursor, Tree, TreeCursor};
 use url::Url;
 
@@ -108,11 +108,21 @@ impl TreeParser {
         }
     }
 
-    pub fn error_search(cursor: &mut TreeCursor, error_list: &mut Vec<Range>) {
+    pub fn error_search(cursor: &mut TreeCursor, error_list: &mut Vec<Diagnostic>) {
         loop {
             let current_node = cursor.node();
             if current_node.is_error() {
-                error_list.push(current_node.to_range());
+                error_list.push(Diagnostic {
+                    range: current_node.to_range(),
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    code: None,
+                    code_description: None,
+                    source: Some("mcshader-glsl".to_owned()),
+                    message: "Syntax error by simple real-time search".to_owned(),
+                    related_information: None,
+                    tags: None,
+                    data: None,
+                });
             } else if cursor.goto_first_child() {
                 Self::error_search(cursor, error_list);
                 cursor.goto_parent();
@@ -123,7 +133,7 @@ impl TreeParser {
         }
     }
 
-    pub fn simple_lint(tree: &Tree) -> Vec<Range> {
+    pub fn simple_lint(tree: &Tree) -> Vec<Diagnostic> {
         let mut cursor = tree.walk();
 
         let mut error_list = vec![];

@@ -211,7 +211,8 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
         self.set_status_loading("Applying work space changes...".to_owned()).await;
 
-        self.update_work_spaces(params.event);
+        let diagnostics = self.update_work_spaces(params.event);
+        self.publish_diagnostic(diagnostics).await;
 
         self.set_status_ready().await;
     }

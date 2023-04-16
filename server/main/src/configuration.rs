@@ -40,7 +40,7 @@ impl Configuration {
                 },
             ]),
         };
-        // let glsl_file_filter = FileOperationRegistrationOptions {
+        // let will_rename_files = FileOperationRegistrationOptions {
         //     filters: vec![FileOperationFilter {
         //         scheme: Some(String::from("file")),
         //         pattern: FileOperationPattern {
@@ -59,7 +59,7 @@ impl Configuration {
             // Registration {
             //     id: String::from("workspace/willRenameFiles"),
             //     method: String::from("workspace/willRenameFiles"),
-            //     register_options: Some(serde_json::to_value(glsl_file_filter).unwrap()),
+            //     register_options: Some(serde_json::to_value(will_rename_files).unwrap()),
             // },
         ])
     }

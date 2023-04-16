@@ -191,7 +191,7 @@ pub struct WorkspaceFile {
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
     /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<Vec<Diagnostic>>
+    diagnostics: RefCell<Vec<Diagnostic>>,
 }
 
 #[derive(Clone)]
@@ -211,5 +211,5 @@ pub struct TempFile {
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
     /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<Vec<Diagnostic>>
+    diagnostics: RefCell<Vec<Diagnostic>>,
 }
