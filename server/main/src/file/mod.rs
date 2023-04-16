@@ -58,14 +58,13 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
     Ok(PathBuf::from(resource))
 }
 
-fn generate_line_macro<I: Integer>(line: I, file_id: &str, file_name: &str) -> String {
-    let mut line_macro = "#line ".to_owned();
-    line_macro += Buffer::new().format(line);
-    line_macro += " ";
-    line_macro += file_id;
-    line_macro += "\t//";
-    line_macro += file_name;
-    line_macro
+fn generate_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str, file_name: &str) {
+    content.push_str("#line ");
+    content.push_str(Buffer::new().format(line));
+    content.push(' ');
+    content.push_str(file_id);
+    content.push_str("\t//");
+    content.push_str(file_name);
 }
 
 fn generate_line_mapping(content: &str) -> Vec<usize> {
@@ -74,7 +73,7 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
     content.match_indices("\n").for_each(|new_line| {
         line_mapping.push(new_line.0 + 1);
     });
-    line_mapping.push(content.len());
+    line_mapping.push(content.len() + 1);
     line_mapping
 }
 

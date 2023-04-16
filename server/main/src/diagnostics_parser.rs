@@ -32,9 +32,13 @@ impl DiagnosticsParser {
     }
 
     pub fn parse_diagnostics(
-        &self, compile_log: String, file_list: HashMap<String, Url>, shader_path: &PathBuf,
-    ) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = file_list.iter().map(|(_index, url)| (url.clone(), vec![])).collect();
+        &self, compile_log: String, file_list: HashMap<String, Url>, shader_path: &PathBuf, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
+    ) {
+        for (_, url) in &file_list {
+            if !diagnostics.contains_key(url) {
+                diagnostics.insert(url.clone(), vec![]);
+            }
+        }
 
         let default_path = shader_path.to_str().unwrap();
 
@@ -77,24 +81,6 @@ impl DiagnosticsParser {
             };
 
             diagnostics.get_mut(file_url).unwrap().push(diagnostic);
-        }
-
-        diagnostics
-    }
-}
-
-pub trait DiagnosticsCollection {
-    fn extend_diagnostics<T: IntoIterator<Item = (Url, Vec<Diagnostic>)>>(&mut self, iter: T);
-}
-
-impl DiagnosticsCollection for HashMap<Url, Vec<Diagnostic>> {
-    fn extend_diagnostics<T: IntoIterator<Item = (Url, Vec<Diagnostic>)>>(&mut self, iter: T) {
-        for diagnostic in iter {
-            if let Some(diagnostics) = self.get_mut(&diagnostic.0) {
-                diagnostics.extend(diagnostic.1);
-            } else {
-                self.insert(diagnostic.0, diagnostic.1);
-            }
         }
     }
 }

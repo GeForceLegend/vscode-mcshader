@@ -48,7 +48,7 @@ impl WorkspaceFile {
                         Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                     }
                 });
-            // They are removed from including list of this file. Let's move this file from their parent list.
+            // They are removed from including list of this file. Let's remove this file from their parent list.
             old_including_files
                 .iter()
                 .filter_map(|including_path| workspace_files.get(including_path))
@@ -174,7 +174,7 @@ impl WorkspaceFile {
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
-        shader_content.push_str(&generate_line_macro(1, &curr_file_id, file_name));
+        generate_line_macro(shader_content, 1, &curr_file_id, file_name);
         shader_content.push('\n');
 
         let content = self.content.borrow();
@@ -192,7 +192,7 @@ impl WorkspaceFile {
                 start_index = *end - 1;
 
                 if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
-                    shader_content.push_str(&generate_line_macro(line + 2, &curr_file_id, file_name));
+                    generate_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 } else {
                     shader_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
                 }

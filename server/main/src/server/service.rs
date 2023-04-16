@@ -9,7 +9,6 @@ use tree_sitter::Parser;
 use url::Url;
 
 use crate::constant::*;
-use crate::diagnostics_parser::DiagnosticsCollection;
 use crate::file::*;
 use crate::tree_parser::TreeParser;
 
@@ -102,14 +101,9 @@ impl MinecraftLanguageServer {
     }
 
     fn lint_shader(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf,
-    ) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut file_list: HashMap<String, Url> = HashMap::new();
-        let mut shader_content = String::new();
-        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
-        preprocess_shader(&mut shader_content, shader_file.pack_path().borrow());
-
-        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
+        &self, file_path: &PathBuf, file_type: u32, source: String, file_list: HashMap<String, Url>, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>
+    ) {
+        let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
         match validation_result {
             Some(compile_log) => {
@@ -118,48 +112,38 @@ impl MinecraftLanguageServer {
                     file_path.to_str().unwrap(),
                     compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path)
+                DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path, diagnostics);
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
-                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
-                for include_file in file_list {
-                    diagnostics.insert(include_file.1, vec![]);
+                for (_, url) in file_list {
+                    if !diagnostics.contains_key(&url) {
+                        diagnostics.insert(url, vec![]);
+                    }
                 }
-                diagnostics
             }
-        }
+        };
     }
 
-    fn temp_lint(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
+    fn lint_workspace_shader(
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
+    ) {
+        let mut file_list: HashMap<String, Url> = HashMap::new();
+        let mut shader_content = String::new();
+        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
+        preprocess_shader(&mut shader_content, shader_file.pack_path().borrow());
+
+        self.lint_shader(file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)
+    }
+
+    fn lint_temp_file(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
         let mut file_list: HashMap<String, Url> = HashMap::new();
 
+        let mut diagnostics = HashMap::new();
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
-            let validation_result = OPENGL_CONTEXT.validate_shader(result.0, result.1);
-
-            match validation_result {
-                Some(compile_log) => {
-                    info!(
-                        "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
-                        file_path.to_str().unwrap(),
-                        compile_log
-                    );
-                    DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path)
-                }
-                None => {
-                    info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
-                    let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                    diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
-                    for include_file in file_list {
-                        diagnostics.insert(include_file.1, vec![]);
-                    }
-                    diagnostics
-                }
-            }
-        } else {
-            HashMap::new()
+            self.lint_shader(file_path, result.0, result.1, file_list, &mut diagnostics);
         }
+        diagnostics
     }
 
     fn update_diagnostics(
@@ -204,17 +188,15 @@ impl MinecraftLanguageServer {
             workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
 
             for (shader_path, shader_file) in shader_files {
-                diagnostics.extend(self.lint_shader(&workspace_files, shader_file, &shader_path));
+                self.lint_workspace_shader(&workspace_files, shader_file, &shader_path, &mut diagnostics);
             }
             diagnostics
+        } else if let Some(temp_file) = TempFile::new(&mut parser, &file_path) {
+            let diagnostics = self.lint_temp_file(&temp_file, &file_path);
+            temp_files.insert(file_path, temp_file);
+            diagnostics
         } else {
-            if let Some(temp_file) = TempFile::new(&mut parser, &file_path) {
-                let diagnostics = self.temp_lint(&temp_file, &file_path);
-                temp_files.insert(file_path, temp_file);
-                diagnostics
-            } else {
-                return None;
-            }
+            return None;
         };
         self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
         Some(diagnostics)
@@ -307,7 +289,7 @@ impl MinecraftLanguageServer {
                 };
 
                 for (shader_path, shader_file) in shader_files {
-                    diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
+                    self.lint_workspace_shader(&workspace_files, shader_file, &shader_path, &mut diagnostics);
                 }
                 diagnostics
             } else {
@@ -316,7 +298,7 @@ impl MinecraftLanguageServer {
         } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
-            self.temp_lint(temp_file, &file_path)
+            self.lint_temp_file(temp_file, &file_path)
         } else {
             return None;
         };
@@ -365,7 +347,7 @@ impl MinecraftLanguageServer {
             };
 
             for (shader_path, shader_file) in shader_files {
-                diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &shader_path));
+                self.lint_workspace_shader(&workspace_files, shader_file, &shader_path, &mut diagnostics);
             }
 
             self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
@@ -622,7 +604,7 @@ impl MinecraftLanguageServer {
         }
         for file_path in updated_shaders {
             match workspace_files.get(&file_path) {
-                Some(shader_file) => diagnostics.extend_diagnostics(self.lint_shader(&workspace_files, shader_file, &file_path)),
+                Some(shader_file) => self.lint_workspace_shader(&workspace_files, shader_file, &file_path, &mut diagnostics),
                 None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
             }
         }
