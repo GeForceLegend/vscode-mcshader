@@ -10,9 +10,7 @@ use tower_lsp::jsonrpc::Result;
 use crate::file::*;
 use crate::server::{LanguageServerError, ServerData};
 
-use super::Command;
-
-pub struct VirtualMerge {}
+use super::*;
 
 impl Command for VirtualMerge {
     fn run(&self, arguments: &[Value], server_data: &MutexGuard<ServerData>) -> Result<Option<Value>> {

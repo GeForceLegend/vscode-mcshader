@@ -1,6 +1,3 @@
-#![feature(option_get_or_insert_default)]
-#![feature(linked_list_cursors)]
-
 use tower_lsp::{LspService, Server};
 use tree_sitter::Parser;
 

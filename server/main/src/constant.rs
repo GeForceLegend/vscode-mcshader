@@ -1,8 +1,9 @@
-use hashbrown::HashSet;
+use hashbrown::{HashMap, HashSet};
 use itoa::Buffer;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+use crate::commands::*;
 use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 
@@ -73,6 +74,11 @@ lazy_static! {
         set.insert("csh".to_owned());
         set.insert("glsl".to_owned());
         set
+    };
+    pub static ref COMMAND_LIST: HashMap<String, Box<dyn Command + Sync + Send>> = {
+        let mut command_list: HashMap<String, Box<dyn Command + Sync + Send>> = HashMap::new();
+        command_list.insert("virtualMerge".to_owned(), Box::new(VirtualMerge {}));
+        command_list
     };
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();

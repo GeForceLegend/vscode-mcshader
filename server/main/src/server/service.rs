@@ -101,7 +101,8 @@ impl MinecraftLanguageServer {
     }
 
     fn lint_shader(
-        &self, file_path: &PathBuf, file_type: u32, source: String, file_list: HashMap<String, Url>, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>
+        &self, file_path: &PathBuf, file_type: u32, source: String, file_list: HashMap<String, Url>,
+        diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
         let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
@@ -126,7 +127,8 @@ impl MinecraftLanguageServer {
     }
 
     fn lint_workspace_shader(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf,
+        diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
         let mut file_list: HashMap<String, Url> = HashMap::new();
         let mut shader_content = String::new();
@@ -366,25 +368,25 @@ impl MinecraftLanguageServer {
         let workspace_files = server_data.workspace_files.borrow();
         let temp_files = server_data.temp_files.borrow();
 
-        let mut include_links = vec![];
-        let including_files;
-        if let Some(workspace_file) = workspace_files.get(file_path) {
-            including_files = workspace_file.including_files().borrow();
+        let including_files = if let Some(workspace_file) = workspace_files.get(file_path) {
+            workspace_file.including_files().borrow()
         } else if let Some(temp_file) = temp_files.get(file_path) {
-            including_files = temp_file.including_files().borrow();
+            temp_file.including_files().borrow()
         } else {
             return None;
-        }
-        for (line, start, end, include_path) in including_files.iter() {
-            let url = Url::from_file_path(include_path).unwrap();
-
-            include_links.push(DocumentLink {
-                range: Range::new(Position::new(*line as u32, *start as u32), Position::new(*line as u32, *end as u32)),
-                tooltip: Some(url.path().to_owned()),
-                target: Some(url),
-                data: None,
-            });
-        }
+        };
+        let include_links = including_files
+            .iter()
+            .map(|(line, start, end, include_path)| {
+                let url = Url::from_file_path(include_path).unwrap();
+                DocumentLink {
+                    range: Range::new(Position::new(*line as u32, *start as u32), Position::new(*line as u32, *end as u32)),
+                    tooltip: Some(url.path().to_owned()),
+                    target: Some(url),
+                    data: None,
+                }
+            })
+            .collect::<Vec<_>>();
 
         Some(include_links)
     }
@@ -457,7 +459,7 @@ impl MinecraftLanguageServer {
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         for removed_workspace in events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
-            workspace_files.retain(|file_path, _include| {
+            workspace_files.retain(|file_path, _workspace_file| {
                 if file_path.starts_with(&removed_path) {
                     diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
                     false
@@ -585,19 +587,21 @@ impl MinecraftLanguageServer {
 
                     updated_shaders.remove(&file_path);
                 } else {
-                    workspace_files
-                        .iter()
-                        .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
-                        .for_each(|(file_path, workspace_file)| {
-                            diagnostics.insert(Url::from_file_path(file_path).unwrap(), vec![]);
-                            workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
-                            workspace_file.clear(&mut parser);
+                    diagnostics.extend(
+                        workspace_files
+                            .iter()
+                            .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
+                            .map(|(file_path, workspace_file)| {
+                                workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
+                                workspace_file.clear(&mut parser);
 
-                            workspace_files.values().for_each(|workspace_file| {
-                                workspace_file.included_files().borrow_mut().remove(file_path);
-                            });
-                        });
-                    // There might some include files inserted deleted shader into update list.
+                                workspace_files.values().for_each(|workspace_file| {
+                                    workspace_file.included_files().borrow_mut().remove(file_path);
+                                });
+                                (Url::from_file_path(file_path).unwrap(), vec![])
+                            }),
+                    );
+                    // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
                     updated_shaders.retain(|shader_path| !shader_path.starts_with(&file_path));
                 }
             }

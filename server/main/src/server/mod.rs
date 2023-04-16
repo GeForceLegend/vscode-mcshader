@@ -17,7 +17,6 @@ mod error;
 mod service;
 
 use crate::capability::ServerCapabilitiesFactroy;
-use crate::commands::CommandList;
 use crate::configuration::Configuration;
 use crate::constant::*;
 use crate::file::*;
@@ -37,10 +36,8 @@ pub struct ServerData {
 /// Other things that do not need to be mutable
 pub struct MinecraftLanguageServer {
     client: Client,
-    command_list: CommandList,
     server_data: Mutex<ServerData>,
     _log_guard: logging::GlobalLoggerGuard,
-    roots: Mutex<HashSet<PathBuf>>,
 }
 
 pub struct LanguageServerError;
@@ -49,10 +46,8 @@ impl MinecraftLanguageServer {
     pub fn new(client: Client, parser: Parser) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
-            command_list: CommandList::new(),
             server_data: Mutex::new(ServerData::new(parser)),
             _log_guard: logging::init_logger(),
-            roots: Mutex::new(HashSet::new()),
         }
     }
 
@@ -91,25 +86,24 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
-        let mut roots: HashSet<PathBuf> = HashSet::new();
-        if let Some(work_spaces) = params.workspace_folders {
-            for work_space in work_spaces {
-                roots.insert(work_space.uri.to_file_path().unwrap());
-            }
+        let roots: HashSet<PathBuf> = if let Some(work_spaces) = params.workspace_folders {
+            work_spaces
+                .iter()
+                .map(|work_space| work_space.uri.to_file_path().unwrap())
+                .collect::<HashSet<_>>()
         } else if let Some(uri) = params.root_uri {
-            roots.insert(uri.to_file_path().unwrap());
-        }
+            HashSet::from([uri.to_file_path().unwrap()])
+        } else {
+            HashSet::new()
+        };
 
-        *self.roots.lock().unwrap() = roots;
-        // self.initial_scan(roots);
+        self.initial_scan(roots);
 
         Ok(initialize_result)
     }
 
     #[logging::with_trace_id]
     async fn initialized(&self, _params: InitializedParams) {
-        let roots = self.roots.lock().unwrap().clone();
-        self.initial_scan(roots);
         self.set_status_ready().await;
     }
 
@@ -119,7 +113,11 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
-        self.command_list.execute(&params.command, &params.arguments, &self.server_data)
+        let server_data = self.server_data.lock().unwrap();
+        match COMMAND_LIST.get(&params.command) {
+            Some(command) => command.run(&params.arguments, &server_data),
+            None => Err(LanguageServerError::invalid_command_error()),
+        }
     }
 
     #[logging_macro::with_trace_id]
