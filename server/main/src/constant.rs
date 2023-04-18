@@ -16,6 +16,7 @@ lazy_static! {
             set.insert("deferred.".to_owned() + ext);
             set.insert("prepare.".to_owned() + ext);
             set.insert("shadowcomp.".to_owned() + ext);
+            set.insert("final.".to_owned() + ext);
             for i in 1..=99 {
                 let mut suffix = Buffer::new().format(i).to_owned() + ".";
                 suffix += ext;
@@ -24,7 +25,6 @@ lazy_static! {
                 set.insert("prepare".to_owned() + &suffix);
                 set.insert("shadowcomp".to_owned() + &suffix);
             }
-            set.insert("final.".to_owned() + ext);
         }
         for ext in ["fsh", "vsh", "gsh"] {
             set.insert("gbuffers_armor_glint.".to_owned() + ext);
@@ -75,7 +75,7 @@ lazy_static! {
         set
     };
     pub static ref COMMAND_LIST: HashMap<String, Box<dyn Command + Sync + Send>> = {
-        let mut command_list: HashMap<String, Box<dyn Command + Sync + Send>> = HashMap::new();
+        let mut command_list: HashMap<String, Box<dyn Command + Sync + Send>> = HashMap::with_capacity(1);
         command_list.insert("virtualMerge".to_owned(), Box::new(VirtualMerge {}));
         command_list
     };

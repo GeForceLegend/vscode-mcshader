@@ -8,13 +8,15 @@ use crate::file::*;
 use super::ServerData;
 
 impl ServerData {
-    pub fn new(parser: Parser) -> Self {
+    pub fn new() -> Self {
+        let mut tree_sitter_parser = Parser::new();
+        tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
         ServerData {
             extensions: RefCell::new(HashSet::new()),
             shader_packs: RefCell::new(HashSet::new()),
             workspace_files: RefCell::new(HashMap::new()),
             temp_files: RefCell::new(HashMap::new()),
-            tree_sitter_parser: RefCell::new(parser),
+            tree_sitter_parser: RefCell::new(tree_sitter_parser),
         }
     }
 

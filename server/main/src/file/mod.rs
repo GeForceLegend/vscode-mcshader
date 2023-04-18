@@ -70,8 +70,8 @@ fn generate_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str,
 fn generate_line_mapping(content: &str) -> Vec<usize> {
     let mut line_mapping = vec![];
     line_mapping.push(0);
-    content.match_indices("\n").for_each(|new_line| {
-        line_mapping.push(new_line.0 + 1);
+    content.match_indices("\n").for_each(|(line, _content)| {
+        line_mapping.push(line + 1);
     });
     line_mapping.push(content.len() + 1);
     line_mapping
@@ -80,10 +80,8 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
 fn push_str_without_line(shader_content: &mut String, str: &str) {
     let mut start_index = 0;
     RE_MACRO_LINE_MULTILINE.find_iter(str).for_each(|capture| {
-        let start = capture.start();
-        let end = capture.end();
-        shader_content.push_str(unsafe { str.get_unchecked(start_index..start) });
-        start_index = end;
+        shader_content.push_str(unsafe { str.get_unchecked(start_index..capture.start()) });
+        start_index = capture.end();
     });
     shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
 }
@@ -137,8 +135,8 @@ pub trait File {
 
         for change in changes {
             let range = change.range.unwrap();
-            let start = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
-            let end = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
+            let start_byte = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
+            let end_byte = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
 
             let last_line = change.text.split("\n").enumerate().last().unwrap();
             let new_end_position = match last_line.0 {
@@ -152,9 +150,9 @@ pub trait File {
                 },
             };
             tree.edit(&InputEdit {
-                start_byte: start,
-                old_end_byte: end,
-                new_end_byte: start + change.text.len(),
+                start_byte,
+                old_end_byte: end_byte,
+                new_end_byte: start_byte + change.text.len(),
                 start_position: Point {
                     row: range.start.line as usize,
                     column: range.start.character as usize,
@@ -166,7 +164,7 @@ pub trait File {
                 new_end_position,
             });
 
-            content.replace_range(start..end, &change.text);
+            content.replace_range(start_byte..end_byte, &change.text);
         }
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
         *line_mapping = generate_line_mapping(&content);

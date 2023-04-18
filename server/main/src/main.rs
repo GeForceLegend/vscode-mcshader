@@ -1,5 +1,4 @@
 use tower_lsp::{LspService, Server};
-use tree_sitter::Parser;
 
 mod capability;
 mod commands;
@@ -17,9 +16,6 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let mut tree_sitter_parser = Parser::new();
-    tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
-
-    let (service, socket) = LspService::new(|client| server::MinecraftLanguageServer::new(client, tree_sitter_parser));
+    let (service, socket) = LspService::new(|client| server::MinecraftLanguageServer::new(client));
     Server::new(stdin, stdout, socket).serve(service).await;
 }

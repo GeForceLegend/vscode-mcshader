@@ -53,12 +53,12 @@ fn variable_def_pattern(name: &str) -> String {
     pattern
 }
 
-trait ToLocation {
+trait ToLspTypes {
     fn to_location(&self, url: &Url) -> Location;
     fn to_range(&self) -> Range;
 }
 
-impl ToLocation for Node<'_> {
+impl ToLspTypes for Node<'_> {
     fn to_location(&self, url: &Url) -> Location {
         let start = self.start_position();
         let end = self.end_position();
@@ -93,18 +93,19 @@ impl ToLocation for Node<'_> {
     }
 }
 
-pub struct TreeParser {}
+pub struct TreeParser;
 
 impl TreeParser {
     fn current_node_fetch<'a>(position: &Position, tree: &'a Tree, content: &[u8], line_mapping: &Vec<usize>) -> Option<Node<'a>> {
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
-        if content[position_offset].is_ascii_alphanumeric() {
-            tree.root_node()
-                .named_descendant_for_byte_range(position_offset, position_offset + 1)
-        } else {
-            tree.root_node()
-                .named_descendant_for_byte_range(position_offset - 1, position_offset)
+        match content[position_offset] {
+            b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_' => tree
+                .root_node()
+                .named_descendant_for_byte_range(position_offset, position_offset + 1),
+            _ => tree
+                .root_node()
+                .named_descendant_for_byte_range(position_offset - 1, position_offset),
         }
     }
 

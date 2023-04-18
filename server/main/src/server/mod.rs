@@ -43,10 +43,10 @@ pub struct MinecraftLanguageServer {
 pub struct LanguageServerError;
 
 impl MinecraftLanguageServer {
-    pub fn new(client: Client, parser: Parser) -> MinecraftLanguageServer {
+    pub fn new(client: Client) -> MinecraftLanguageServer {
         MinecraftLanguageServer {
             client,
-            server_data: Mutex::new(ServerData::new(parser)),
+            server_data: Mutex::new(ServerData::new()),
             _log_guard: logging::init_logger(),
         }
     }

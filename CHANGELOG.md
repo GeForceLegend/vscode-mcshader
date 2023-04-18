@@ -6,9 +6,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Added
+
+- A completely new double-linked file system, with less possible data racing and better edit experience;
+- Tree-sitter based real-time syntax error linting;
+
+### Removed
+
+- Removed compile call in document_link function, compiling will only happen on file saving or disc content changing;
+
 ### Fixed
 
-- Fixed errors of temp files keep in workspace error list after they are closed
+- Fixed errors of temp files keep in workspace error list after they are closed;
+- Fixed deleting a workspace will not clean linting results of its contained files.
 
 ## [0.2.0]
 

@@ -101,6 +101,9 @@ impl TempFile {
         file_list.insert("0".to_owned(), Url::from_file_path(file_path).unwrap());
         let mut file_id = 0;
         let file_name = file_path.to_str().unwrap();
+        temp_content += "#line 1 0\t//";
+        temp_content += file_name;
+        temp_content += "\n";
 
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
@@ -122,22 +125,7 @@ impl TempFile {
             }
         }
         push_str_without_line(&mut temp_content, unsafe { content.get_unchecked(start_index..) });
-
-        // Move #version to the top line
-        if let Some(capture) = RE_MACRO_VERSION.captures(&temp_content) {
-            let version = capture.get(0).unwrap();
-            let mut version_content = version.as_str().to_owned() + "\n";
-
-            temp_content.replace_range(version.start()..version.end(), "");
-            // If we are not in the debug folder, add Optifine's macros
-            if self.pack_path.parent().unwrap().file_name().unwrap() != "debug" {
-                version_content += OPTIFINE_MACROS;
-            }
-            version_content += "#line 1 0\t//";
-            version_content += file_name;
-            version_content += "\n";
-            temp_content.insert_str(0, &version_content);
-        }
+        preprocess_shader(&mut temp_content, &self.pack_path);
 
         Some((*self.file_type.borrow(), temp_content))
     }
