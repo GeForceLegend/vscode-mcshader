@@ -1,10 +1,13 @@
-mod definition;
-mod reference;
+use std::collections::LinkedList;
 
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Location, Position, Range};
+use lazy_static::lazy_static;
+use tower_lsp::lsp_types::*;
 use tree_sitter::{Node, Query, QueryCursor, Tree, TreeCursor};
 use url::Url;
+
+mod definition;
+mod reference;
+mod symbols;
 
 trait ToLspTypes {
     fn to_location(&self, url: &Url) -> Location;

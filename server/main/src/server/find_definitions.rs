@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn find_definitions(&self, params: GotoDeclarationParams) -> Result<Option<Vec<Location>>> {
+    pub fn find_definitions(&self, params: GotoDeclarationParams) -> Option<Vec<Location>> {
         let server_data = self.server_data.lock().unwrap();
         let workspace_files = server_data.workspace_files.borrow();
         let temp_files = server_data.temp_files.borrow();
@@ -14,7 +14,7 @@ impl MinecraftLanguageServer {
         } else if let Some(temp_file) = temp_files.get(&file_path) {
             temp_file
         } else {
-            return Ok(None);
+            return None;
         };
 
         let content = file.content().borrow();

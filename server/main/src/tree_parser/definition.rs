@@ -66,16 +66,16 @@ impl TreeParser {
 
     pub fn find_definitions(
         url: &Url, position: &Position, tree: &Tree, content: &str, line_mapping: &Vec<usize>,
-    ) -> Result<Option<Vec<Location>>> {
+    ) -> Option<Vec<Location>> {
         let content_bytes = content.as_bytes();
         let current_node = match Self::current_node_fetch(position, tree, content_bytes, line_mapping) {
             Some(node) => node,
-            None => return Ok(None),
+            None => return None,
         };
 
         let parent = match current_node.parent() {
             Some(parent) => parent,
-            None => return Ok(None),
+            None => return None,
         };
 
         let locations = match (current_node.kind(), parent.kind()) {
@@ -93,8 +93,8 @@ impl TreeParser {
                 Some(_) => Self::tree_climbing_search(content_bytes, url, current_node),
                 None => vec![],
             },
-            _ => return Ok(None),
+            _ => return None,
         };
-        Ok(Some(locations))
+        Some(locations)
     }
 }

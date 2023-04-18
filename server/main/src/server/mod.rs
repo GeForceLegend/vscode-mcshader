@@ -19,6 +19,7 @@ mod document_links;
 mod error;
 mod find_definitions;
 mod find_references;
+mod list_symbols;
 mod open_file;
 mod save_file;
 mod update_watched_files;
@@ -201,7 +202,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
-        match self.find_definitions(params).unwrap() {
+        match self.find_definitions(params) {
             Some(locatons) => Ok(Some(GotoDefinitionResponse::Array(locatons))),
             None => Ok(None),
         }
@@ -209,7 +210,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
-        match self.find_references(params).unwrap() {
+        match self.find_references(params) {
             Some(locatons) => Ok(Some(locatons)),
             None => Ok(None),
         }
@@ -217,9 +218,10 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn document_symbol(&self, params: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
-        let _ = params;
-        error!("Got a textDocument/documentSymbol request, but it is not implemented");
-        Err(tower_lsp::jsonrpc::Error::method_not_found())
+        match self.list_symbols(params) {
+            Some(symbols) => Ok(Some(symbols)),
+            None => Ok(None),
+        }
     }
 
     #[logging::with_trace_id]
