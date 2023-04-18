@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{PathBuf, MAIN_SEPARATOR_STR};
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -8,19 +8,29 @@ use logging::{error, info, warn};
 use hashbrown::{HashMap, HashSet};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
+use tower_lsp::lsp_types::{request::*, *};
 use tower_lsp::{Client, LanguageServer};
 use tree_sitter::Parser;
 
+mod change_file;
+mod close_file;
 mod data;
+mod document_links;
 mod error;
-mod service;
+mod find_definitions;
+mod find_references;
+mod open_file;
+mod save_file;
+mod update_watched_files;
+mod update_work_spaces;
+mod utility;
 
 use crate::capability::ServerCapabilitiesFactroy;
 use crate::configuration::Configuration;
 use crate::constant::*;
 use crate::file::*;
 use crate::notification;
+use crate::tree_parser::TreeParser;
 
 /// Everything mutable in this struct.
 ///
@@ -203,6 +213,13 @@ impl LanguageServer for MinecraftLanguageServer {
             Some(locatons) => Ok(Some(locatons)),
             None => Ok(None),
         }
+    }
+
+    #[logging::with_trace_id]
+    async fn document_symbol(&self, params: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
+        let _ = params;
+        error!("Got a textDocument/documentSymbol request, but it is not implemented");
+        Err(tower_lsp::jsonrpc::Error::method_not_found())
     }
 
     #[logging::with_trace_id]
