@@ -3,6 +3,7 @@ use std::{cell::RefCell, path::PathBuf};
 use hashbrown::{HashMap, HashSet};
 use tree_sitter::Parser;
 
+use crate::constant::BASIC_EXTENSIONS;
 use crate::file::*;
 
 use super::ServerData;
@@ -12,7 +13,7 @@ impl ServerData {
         let mut tree_sitter_parser = Parser::new();
         tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
         ServerData {
-            extensions: RefCell::new(HashSet::new()),
+            extensions: RefCell::new(BASIC_EXTENSIONS.clone()),
             shader_packs: RefCell::new(HashSet::new()),
             workspace_files: RefCell::new(HashMap::new()),
             temp_files: RefCell::new(HashMap::new()),

@@ -69,7 +69,10 @@ impl DiagnosticsParser {
             let file_url = file_list.get(index.as_str()).unwrap();
 
             let diagnostic = Diagnostic {
-                range: Range::new(Position::new(line, 0), Position::new(line, u32::MAX)),
+                range: Range {
+                    start: Position { line, character: 0 },
+                    end: Position { line, character: u32::MAX },
+                },
                 code: None,
                 severity: Some(severity),
                 source: Some("mcshader-glsl".to_owned()),

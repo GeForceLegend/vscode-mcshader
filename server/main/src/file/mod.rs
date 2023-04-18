@@ -133,7 +133,7 @@ pub trait File {
         let mut tree = self.tree().borrow_mut();
         let mut line_mapping = self.line_mapping().borrow_mut();
 
-        for change in changes {
+        for change in &changes {
             let range = change.range.unwrap();
             let start_byte = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
             let end_byte = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;

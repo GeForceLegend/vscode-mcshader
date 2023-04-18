@@ -8,7 +8,6 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 
 lazy_static! {
-    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref DEFAULT_SHADERS: HashSet<String> = {
         let mut set = HashSet::with_capacity(12064);
         for ext in ["fsh", "vsh", "gsh", "csh"] {
@@ -79,6 +78,7 @@ lazy_static! {
         command_list.insert("virtualMerge".to_owned(), Box::new(VirtualMerge {}));
         command_list
     };
+    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();

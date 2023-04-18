@@ -207,9 +207,7 @@ impl TreeParser {
         let mut locations = vec![];
 
         for m in query_cursor.matches(&query, tree.root_node(), content) {
-            for capture in m.captures {
-                locations.push(capture.node.to_location(url));
-            }
+            locations.extend(m.captures.iter().map(|capture| capture.node.to_location(url)));
         }
 
         locations
@@ -229,9 +227,7 @@ impl TreeParser {
 
         while let Some(parent_node) = parent {
             for m in query_cursor.matches(&query, parent_node, source) {
-                for capture in m.captures {
-                    locations.push(capture.node.to_location(url));
-                }
+                locations.extend(m.captures.iter().map(|capture| capture.node.to_location(url)));
             }
 
             if !locations.is_empty() {
