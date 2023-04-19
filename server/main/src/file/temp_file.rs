@@ -5,9 +5,9 @@ use logging::warn;
 use super::*;
 
 impl TempFile {
-    pub fn new(parser: &mut Parser, file_path: &PathBuf) -> Option<Self> {
+    pub fn new(parser: &mut Parser, file_path: &PathBuf, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
-        let file_type = match file_path.extension() {
+        let mut file_type = match file_path.extension() {
             Some(extension) => {
                 if extension == "fsh" {
                     gl::FRAGMENT_SHADER
@@ -33,38 +33,48 @@ impl TempFile {
                         continue;
                     }
                 }
-                _ => return None,
+                _ => {
+                    file_type = gl::INVALID_ENUM;
+                    break;
+                },
             }
         }
 
         let mut resource = OsString::new();
-        for component in buffer {
-            resource.push(component);
-            match component {
-                Component::Prefix(_) | Component::RootDir => {}
-                _ => resource.push(MAIN_SEPARATOR_STR),
+        if file_type != gl::INVALID_ENUM {
+            for component in buffer {
+                resource.push(component);
+                match component {
+                    Component::Prefix(_) | Component::RootDir => {}
+                    _ => resource.push(MAIN_SEPARATOR_STR),
+                }
             }
+            resource.push("shaders");
         }
-        resource.push("shaders");
+
+        let tree = parser.parse(&content, None).unwrap();
+        let line_mapping = generate_line_mapping(&content);
 
         let temp_file = TempFile {
             file_type: RefCell::new(file_type),
             pack_path: PathBuf::from(resource),
-            content: RefCell::new(String::new()),
-            tree: RefCell::new(parser.parse("", None).unwrap()),
-            line_mapping: RefCell::new(vec![]),
+            content: RefCell::new(content),
+            tree: RefCell::new(tree),
+            line_mapping: RefCell::new(line_mapping),
             included_files: RefCell::new(HashSet::new()),
             including_files: RefCell::new(vec![]),
             diagnostics: RefCell::new(vec![]),
         };
 
-        temp_file.update_from_disc(parser, file_path);
         temp_file.parse_includes(file_path);
 
-        Some(temp_file)
+        temp_file
     }
 
     pub fn parse_includes(&self, file_path: &PathBuf) {
+        if *self.file_type.borrow() == gl::INVALID_ENUM {
+            return;
+        }
         let pack_path = self.pack_path.borrow();
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
@@ -93,7 +103,8 @@ impl TempFile {
     }
 
     pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
-        if *self.file_type.borrow() == gl::NONE {
+        let file_type = *self.file_type.borrow();
+        if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
             return None;
         }
 

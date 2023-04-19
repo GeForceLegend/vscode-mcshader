@@ -128,6 +128,8 @@ impl MinecraftLanguageServer {
         let mut diagnostics = HashMap::new();
         if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
             self.lint_shader(file_path, result.0, result.1, file_list, &mut diagnostics);
+        } else {
+            diagnostics.insert(Url::from_file_path(file_path).unwrap(), TreeParser::simple_lint(&temp_file.tree().borrow()));
         }
         diagnostics
     }

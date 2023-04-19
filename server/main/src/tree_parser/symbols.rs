@@ -54,12 +54,12 @@ impl TreeParser {
         let mut symbol_stack: LinkedList<Range> = LinkedList::new();
 
         for query_match in query_cursor.matches(&SYMBOLS_QUERY, tree.root_node(), content_bytes) {
-            if query_match.captures.is_empty() {
-                continue;
-            }
             let mut capture_iter = query_match.captures.iter();
+            let capture = match capture_iter.next() {
+                Some(capture) => capture,
+                None => continue,
+            };
 
-            let capture = capture_iter.next().unwrap();
             let capture_name = SYMBOLS_QUERY.capture_names()[capture.index as usize].as_str();
 
             let (kind, node) = match capture_name {
