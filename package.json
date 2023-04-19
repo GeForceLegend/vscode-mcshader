@@ -66,12 +66,20 @@
                 "mcshader.logLevel": {
                     "type": "string",
                     "default": "info",
-                    "enum": ["trace", "debug", "info", "warn", "error"],
+                    "enum": [
+                        "trace",
+                        "debug",
+                        "info",
+                        "warn",
+                        "error"
+                    ],
                     "description": "%mcshader.configuration.logLevel%"
                 },
                 "mcshader.extraExtension": {
                     "type": "array",
-                    "default": ["inc"],
+                    "default": [
+                        "inc"
+                    ],
                     "description": "%mcshader.configuration.extraExtension%"
                 }
             }
@@ -86,8 +94,7 @@
         "lint": "eslint 'client/**/*.ts' --max-warnings 1",
         "fix": "eslint 'client/**/*.ts' --fix"
     },
-    "dependencies": {
-    },
+    "dependencies": {},
     "devDependencies": {
         "@types/node": "^17.0.21",
         "@typescript-eslint/parser": "^5.15.0",
