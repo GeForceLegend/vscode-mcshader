@@ -36,7 +36,7 @@ impl TempFile {
                 _ => {
                     file_type = gl::INVALID_ENUM;
                     break;
-                },
+                }
             }
         }
 

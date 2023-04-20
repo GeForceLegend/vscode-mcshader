@@ -21,16 +21,26 @@ impl ServerCapabilitiesFactroy {
                         change_notifications: Some(OneOf::Left(true)),
                     }),
                     file_operations: Some(WorkspaceFileOperationsServerCapabilities {
-                        // will_rename: Some(FileOperationRegistrationOptions {
-                        //     filters: vec![FileOperationFilter{
-                        //         scheme: Some(String::from("file")),
-                        //         pattern: FileOperationPattern {
-                        //             glob: String::from("**/*.{vsh,gsh,fsh,csh,glsl}"),
-                        //             matches: Some(FileOperationPatternKind::File),
-                        //             options: None
-                        //         }
-                        //     }]
-                        // }),
+                        will_rename: Some(FileOperationRegistrationOptions {
+                            filters: vec![
+                                FileOperationFilter {
+                                    scheme: Some("file".to_owned()),
+                                    pattern: FileOperationPattern {
+                                        glob: "**/*.{vsh,gsh,fsh,csh,glsl}".to_owned(),
+                                        matches: Some(FileOperationPatternKind::File),
+                                        options: None,
+                                    },
+                                },
+                                FileOperationFilter {
+                                    scheme: Some("file".to_owned()),
+                                    pattern: FileOperationPattern {
+                                        glob: "**/shaders/**/*".to_owned(),
+                                        matches: Some(FileOperationPatternKind::Folder),
+                                        options: None,
+                                    },
+                                },
+                            ],
+                        }),
                         ..Default::default()
                     }),
                 }),

@@ -21,6 +21,7 @@ mod find_definitions;
 mod find_references;
 mod list_symbols;
 mod open_file;
+mod rename_files;
 mod save_file;
 mod update_watched_files;
 mod update_work_spaces;
@@ -181,13 +182,10 @@ impl LanguageServer for MinecraftLanguageServer {
         }
     }
 
-    // Doesn't implemented yet
-    // #[logging::with_trace_id]
-    // async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
-    //     let _ = params;
-    //     error!("Got a workspace/willRenameFiles request, but it is not implemented");
-    //     Err(Error::method_not_found())
-    // }
+    #[logging::with_trace_id]
+    async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
+        Ok(self.rename_files(params))
+    }
 
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {

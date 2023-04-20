@@ -31,7 +31,7 @@ impl Configuration {
         let did_change_watched_files = DidChangeWatchedFilesRegistrationOptions {
             watchers: vec![
                 FileSystemWatcher {
-                    glob_pattern: GlobPattern::String(glsl_file_pattern),
+                    glob_pattern: GlobPattern::String(glsl_file_pattern.clone()),
                     kind: Some(WatchKind::all()),
                 },
                 FileSystemWatcher {
@@ -40,27 +40,37 @@ impl Configuration {
                 },
             ],
         };
-        // let will_rename_files = FileOperationRegistrationOptions {
-        //     filters: vec![FileOperationFilter {
-        //         scheme: Some(String::from("file")),
-        //         pattern: FileOperationPattern {
-        //             glob: glsl_pattern,
-        //             matches: Some(FileOperationPatternKind::File),
-        //             options: None
-        //         }
-        //     }]
-        // };
+        let will_rename_files = FileOperationRegistrationOptions {
+            filters: vec![
+                FileOperationFilter {
+                    scheme: Some("file".to_owned()),
+                    pattern: FileOperationPattern {
+                        glob: glsl_file_pattern,
+                        matches: Some(FileOperationPatternKind::File),
+                        options: None,
+                    },
+                },
+                FileOperationFilter {
+                    scheme: Some("file".to_owned()),
+                    pattern: FileOperationPattern {
+                        glob: "**/shaders/**/*".to_owned(),
+                        matches: Some(FileOperationPatternKind::Folder),
+                        options: None,
+                    },
+                },
+            ],
+        };
         vec![
             Registration {
                 id: "workspace/didChangeWatchedFiles".to_owned(),
                 method: "workspace/didChangeWatchedFiles".to_owned(),
                 register_options: Some(serde_json::to_value(did_change_watched_files).unwrap()),
             },
-            // Registration {
-            //     id: String::from("workspace/willRenameFiles"),
-            //     method: String::from("workspace/willRenameFiles"),
-            //     register_options: Some(serde_json::to_value(will_rename_files).unwrap()),
-            // },
+            Registration {
+                id: "workspace/willRenameFiles".to_owned(),
+                method: "workspace/willRenameFiles".to_owned(),
+                register_options: Some(serde_json::to_value(will_rename_files).unwrap()),
+            },
         ]
     }
 }
