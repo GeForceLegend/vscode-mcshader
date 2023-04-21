@@ -39,7 +39,7 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
 fn rename_file(
     workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, before_path: &PathBuf, after_path: &PathBuf,
     changes: &mut HashMap<Url, Vec<TextEdit>>,
-) {
+) -> bool {
     if let Some(workspace_file) = workspace_files.get(before_path) {
         match abstract_include_path(workspace_file.pack_path(), &after_path) {
             Ok(include_path) => {
@@ -78,7 +78,10 @@ fn rename_file(
                 });
             }
             Err(_) => error!("Cannot generate include path from new path"),
-        }
+        };
+        true
+    } else {
+        false
     }
 }
 
@@ -88,70 +91,58 @@ impl MinecraftLanguageServer {
         let mut workspace_files = server_data.workspace_files.borrow_mut();
 
         let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+        let mut rename_list: HashMap<PathBuf, PathBuf> = HashMap::new();
 
         for renamed_file in params.files {
             let before_path = Url::parse(&renamed_file.old_uri).unwrap().to_file_path().unwrap();
             let after_path = Url::parse(&renamed_file.new_uri).unwrap().to_file_path().unwrap();
 
             if before_path.is_file() {
-                rename_file(&mut workspace_files, &before_path, &after_path, &mut changes);
-                if let Some(workspace_file) = workspace_files.get(&before_path) {
-                    workspace_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .for_each(|(_, _, _, include_path)| {
-                            if let Some(include_file) = workspace_files.get(include_path) {
-                                let mut parent_list = include_file.included_files().borrow_mut();
-                                parent_list.remove(&before_path);
-                                parent_list.insert(after_path.clone());
-                            }
-                        });
-                    let workspace_file = workspace_files.remove(&before_path).unwrap();
-                    workspace_files.insert(after_path, workspace_file);
+                if rename_file(&mut workspace_files, &before_path, &after_path, &mut changes) {
+                    rename_list.insert(after_path, before_path);
                 }
             } else {
                 let update_list = workspace_files
                     .iter()
                     .filter_map(|(file_path, _)| match file_path.strip_prefix(&before_path) {
-                        Ok(stripped_path) => Some((file_path.clone(), after_path.join(stripped_path))),
+                        Ok(stripped_path) => Some((after_path.join(stripped_path), file_path.clone())),
                         Err(_) => None,
                     })
-                    .collect::<Vec<_>>();
-            
-                let path_map: HashMap<_, _> = update_list.iter().map(|(before_path, after_path)| (after_path.clone(), before_path.clone())).collect();
+                    .collect::<HashMap<_, _>>();
 
-                for (before_path, after_path) in &update_list {
+                for (after_path, before_path) in &update_list {
                     rename_file(&mut workspace_files, before_path, after_path, &mut changes);
                 }
-                // Only modify parents when all changes are pushed to list
-                // Or modification may targets to modified url
-                for (before_path, after_path) in &update_list {
-                    let workspace_file = workspace_files.get(before_path).unwrap();
-                    workspace_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .for_each(|(_, _, _, include_path)| {
-                            if let Some(include_file) = workspace_files.get(include_path) {
-                                let mut parent_list = include_file.included_files().borrow_mut();
-                                parent_list.remove(before_path);
-                                parent_list.insert(after_path.clone());
-                            } else if let Some(path) = path_map.get(include_path) {
-                                let mut parent_list = workspace_files.get(path).unwrap().included_files().borrow_mut();
-                                parent_list.remove(before_path);
-                                parent_list.insert(after_path.clone());
-                            }
-                        });
-                }
-                // Move them after all modifications on including and included lists are applied
-                // This will avoid targeting modified url, causing applying edits or updating parents failed
-                for (before_path, after_path) in update_list {
-                    let workspace_file = workspace_files.remove(&before_path).unwrap();
-                    workspace_files.insert(after_path, workspace_file);
-                }
+                rename_list.extend(update_list);
             }
         }
+        // Only modify parents when all changes are pushed to list
+        // Or modification may targets to modified url
+        for (after_path, before_path) in &rename_list {
+            let workspace_file = workspace_files.get(before_path).unwrap();
+            workspace_file
+                .including_files()
+                .borrow()
+                .iter()
+                .for_each(|(_, _, _, include_path)| {
+                    if let Some(include_file) = workspace_files.get(include_path) {
+                        let mut parent_list = include_file.included_files().borrow_mut();
+                        parent_list.remove(before_path);
+                        parent_list.insert(after_path.clone());
+                    } else if let Some(path) = rename_list.get(include_path) {
+                        let mut parent_list = workspace_files.get(path).unwrap().included_files().borrow_mut();
+                        parent_list.remove(before_path);
+                        parent_list.insert(after_path.clone());
+                    }
+                });
+        }
+        // Move them after all modifications on including and included lists are applied
+        // This will avoid targeting modified url, causing applying edits or updating parents failed
+        for (after_path, before_path) in rename_list {
+            let workspace_file = workspace_files.remove(&before_path).unwrap();
+            workspace_files.insert(after_path, workspace_file);
+        }
+
         Some(WorkspaceEdit {
             changes: Some(std::collections::HashMap::from_iter(changes)),
             document_changes: None,

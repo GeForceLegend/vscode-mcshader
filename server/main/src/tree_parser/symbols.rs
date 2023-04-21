@@ -7,20 +7,20 @@ const SYMBOLS_QUERY_STR: &str = r#"
             (init_declarator
                 (identifier) @const_ident))
     (#match? @const_qualifier "^const")
-    
+
     ; global uniforms, varyings, struct variables etc
     (translation_unit
     	(declaration
     		(identifier) @ident))
-        
+
     ; #defines
     (preproc_def
         (identifier) @define_ident)
-    
+
     ; function definitions
     (function_declarator
         (identifier) @func_ident)
-    
+
     ; inline functions
     (preproc_function_def
         (identifier) @preproc_func_ident)

@@ -2,7 +2,7 @@ use super::*;
 
 fn function_ref_pattern(name: &str) -> String {
     let mut pattern = r#"(
-            (call_expression 
+            (call_expression
                 (identifier) @call)
 
             (#match? @call "^"#
