@@ -44,6 +44,20 @@ lazy_static! {
     pub static ref SYMBOLS_QUERY: Query = Query::new(tree_sitter_glsl::language(), SYMBOLS_QUERY_STR).unwrap();
 }
 
+// This does not need unsafe code to create another reference
+fn insert_child_symbol(parent_list: &mut Vec<DocumentSymbol>, symbol: DocumentSymbol) {
+    let possible_parent = parent_list.last_mut().unwrap();
+    if possible_parent.range.end < symbol.range.start {
+        parent_list.push(symbol);
+        return;
+    } else if let Some(children_list) = &mut possible_parent.children {
+        insert_child_symbol(children_list, symbol);
+    } else {
+        possible_parent.children = Some(vec![symbol; 1]);
+        return;
+    }
+}
+
 impl TreeParser {
     #[allow(deprecated)]
     pub fn list_symbols(tree: &Tree, content: &str) -> Vec<DocumentSymbol> {
@@ -51,7 +65,7 @@ impl TreeParser {
         let mut query_cursor = QueryCursor::new();
 
         let mut symbols: Vec<DocumentSymbol> = vec![];
-        let mut symbol_stack: LinkedList<Range> = LinkedList::new();
+        // let mut symbol_stack: LinkedList<Range> = LinkedList::new();
 
         for query_match in query_cursor.matches(&SYMBOLS_QUERY, tree.root_node(), content_bytes) {
             let mut capture_iter = query_match.captures.iter();
@@ -72,43 +86,28 @@ impl TreeParser {
                 "field_list" => (SymbolKind::FIELD, capture_iter.next().unwrap().node),
                 _ => (SymbolKind::NULL, capture.node),
             };
-            let range = node.to_range();
-            let symbol_range = match capture_name {
+            let selection_range = node.to_range();
+            let range = match capture_name {
                 "func_ident" => node.parent().unwrap().parent().unwrap().to_range(),
                 _ => node.parent().unwrap().to_range(),
             };
 
-            let name = node.utf8_text(content_bytes).unwrap().to_string();
-
-            let curr_symbol = DocumentSymbol {
-                name,
+            let current_symbol = DocumentSymbol {
+                name: node.utf8_text(content_bytes).unwrap().to_string(),
                 detail: None,
                 kind,
                 tags: None,
                 deprecated: None,
                 range,
-                selection_range: range,
+                selection_range,
                 children: None,
             };
 
-            loop {
-                if let Some(last_stack) = symbol_stack.back() {
-                    if last_stack.end < range.start {
-                        symbol_stack.pop_back();
-                    } else {
-                        let mut parent = symbols.last_mut().unwrap();
-                        match &mut parent.children {
-                            Some(chlidren) => chlidren.push(curr_symbol),
-                            None => parent.children = Some(vec![curr_symbol; 1]),
-                        }
-                        break;
-                    }
-                } else {
-                    symbols.push(curr_symbol);
-                    break;
-                }
+            if symbols.len() == 0 {
+                symbols.push(current_symbol);
+            } else {
+                insert_child_symbol(&mut symbols, current_symbol);
             }
-            symbol_stack.push_back(symbol_range);
         }
         symbols
     }

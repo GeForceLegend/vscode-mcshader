@@ -1,5 +1,3 @@
-use std::collections::LinkedList;
-
 use lazy_static::lazy_static;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{Node, Query, QueryCursor, Tree, TreeCursor};
