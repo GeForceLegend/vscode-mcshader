@@ -10,10 +10,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 - A completely new double-linked file system, with less possible data racing and better edit experience;
 - Tree-sitter based real-time syntax error linting;
+- Tree-sitter based symbol provider (have some issues with macros, please keep the code as standard as possible);
+- Edit include macros when renaming files or folders;
 
 ### Removed
 
-- Removed compile call in document_link function, compiling will only happen on file saving or disc content changing;
+- Removed compiling call in document_link function, compiling will only happen on file saving or disc content changing;
 
 ### Fixed
 

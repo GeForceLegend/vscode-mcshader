@@ -2,10 +2,10 @@ use super::*;
 
 fn function_def_pattern(name: &str) -> String {
     let mut pattern = r#"[
-            (function_declarator 
+            (function_declarator
                 (identifier) @function)
 
-            (preproc_function_def name: 
+            (preproc_function_def name:
                 (identifier) @function)
 
             (#match? @function "^"#

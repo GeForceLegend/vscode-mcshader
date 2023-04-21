@@ -37,52 +37,46 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
 }
 
 fn rename_file(
-    workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, before_path: &PathBuf, after_path: &PathBuf,
+    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &PathBuf, after_path: &PathBuf,
     changes: &mut HashMap<Url, Vec<TextEdit>>,
-) -> bool {
-    if let Some(workspace_file) = workspace_files.get(before_path) {
-        match abstract_include_path(workspace_file.pack_path(), &after_path) {
-            Ok(include_path) => {
-                workspace_file.included_files().borrow().iter().for_each(|parent_path| {
-                    if let Some(parent_file) = workspace_files.get(parent_path) {
-                        let url = Url::from_file_path(parent_path).unwrap();
-                        parent_file
-                            .including_files()
-                            .borrow_mut()
-                            .iter_mut()
-                            .for_each(|(line, start, end, prev_include_path)| {
-                                if *before_path == *prev_include_path {
-                                    let edit: TextEdit = TextEdit {
-                                        range: Range {
-                                            start: Position {
-                                                line: *line as u32,
-                                                character: *start as u32,
-                                            },
-                                            end: Position {
-                                                line: *line as u32,
-                                                character: *end as u32,
-                                            },
-                                        },
-                                        new_text: include_path.clone(),
-                                    };
-                                    if let Some(change) = changes.get_mut(&url) {
-                                        change.push(edit)
-                                    } else {
-                                        changes.insert(url.clone(), vec![edit; 1]);
-                                    }
-                                    *end = *start + include_path.len();
-                                    *prev_include_path = after_path.clone();
-                                }
-                            });
-                    }
-                });
-            }
-            Err(_) => error!("Cannot generate include path from new path"),
-        };
-        true
-    } else {
-        false
-    }
+) {
+    match abstract_include_path(workspace_file.pack_path(), &after_path) {
+        Ok(include_path) => {
+            workspace_file.included_files().borrow().iter().for_each(|parent_path| {
+                if let Some(parent_file) = workspace_files.get(parent_path) {
+                    let url = Url::from_file_path(parent_path).unwrap();
+                    parent_file
+                        .including_files()
+                        .borrow_mut()
+                        .iter_mut()
+                        .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
+                        .for_each(|(line, start, end, prev_include_path)| {
+                            let edit: TextEdit = TextEdit {
+                                range: Range {
+                                    start: Position {
+                                        line: *line as u32,
+                                        character: *start as u32,
+                                    },
+                                    end: Position {
+                                        line: *line as u32,
+                                        character: *end as u32,
+                                    },
+                                },
+                                new_text: include_path.clone(),
+                            };
+                            if let Some(change) = changes.get_mut(&url) {
+                                change.push(edit)
+                            } else {
+                                changes.insert(url.clone(), vec![edit; 1]);
+                            }
+                            *end = *start + include_path.len();
+                            *prev_include_path = after_path.clone();
+                        });
+                }
+            });
+        }
+        Err(_) => error!("Cannot generate include path from new path"),
+    };
 }
 
 impl MinecraftLanguageServer {
@@ -98,26 +92,25 @@ impl MinecraftLanguageServer {
             let after_path = Url::parse(&renamed_file.new_uri).unwrap().to_file_path().unwrap();
 
             if before_path.is_file() {
-                if rename_file(&mut workspace_files, &before_path, &after_path, &mut changes) {
+                if let Some(workspace_file) = workspace_files.get(&before_path) {
+                    rename_file(&workspace_files, workspace_file, &before_path, &after_path, &mut changes);
                     rename_list.insert(after_path, before_path);
                 }
             } else {
-                let update_list = workspace_files
-                    .iter()
-                    .filter_map(|(file_path, _)| match file_path.strip_prefix(&before_path) {
-                        Ok(stripped_path) => Some((after_path.join(stripped_path), file_path.clone())),
+                rename_list.extend(workspace_files.iter().filter_map(|(file_path, workspace_file)| {
+                    match file_path.strip_prefix(&before_path) {
+                        Ok(stripped_path) => {
+                            let after_path = after_path.join(stripped_path);
+                            rename_file(&workspace_files, workspace_file, file_path, &after_path, &mut changes);
+                            Some((after_path, file_path.clone()))
+                        }
                         Err(_) => None,
-                    })
-                    .collect::<HashMap<_, _>>();
-
-                for (after_path, before_path) in &update_list {
-                    rename_file(&mut workspace_files, before_path, after_path, &mut changes);
-                }
-                rename_list.extend(update_list);
+                    }
+                }));
             }
         }
         // Only modify parents when all changes are pushed to list
-        // Or modification may targets to modified url
+        // Or modification may targets to modified url when an renamed file includes another renamed one
         for (after_path, before_path) in &rename_list {
             let workspace_file = workspace_files.get(before_path).unwrap();
             workspace_file
@@ -130,6 +123,7 @@ impl MinecraftLanguageServer {
                         parent_list.remove(before_path);
                         parent_list.insert(after_path.clone());
                     } else if let Some(path) = rename_list.get(include_path) {
+                        // Since generating change list modifies including list, this may targets to a path after rename
                         let mut parent_list = workspace_files.get(path).unwrap().included_files().borrow_mut();
                         parent_list.remove(before_path);
                         parent_list.insert(after_path.clone());
@@ -137,7 +131,7 @@ impl MinecraftLanguageServer {
                 });
         }
         // Move them after all modifications on including and included lists are applied
-        // This will avoid targeting modified url, causing applying edits or updating parents failed
+        // This will avoid targeting modified path, causing applying edits or updating parents failed
         for (after_path, before_path) in rename_list {
             let workspace_file = workspace_files.remove(&before_path).unwrap();
             workspace_files.insert(after_path, workspace_file);
