@@ -14,12 +14,12 @@ impl MinecraftLanguageServer {
     ) -> bool {
         for shader_pack in shader_packs {
             if file_path.starts_with(shader_pack) {
-                let relative_path = file_path.strip_prefix(shader_pack).unwrap();
-                if DEFAULT_SHADERS.contains(relative_path.to_str().unwrap()) {
+                let relative_path = file_path.strip_prefix(shader_pack).unwrap().to_str().unwrap();
+                if RE_BASIC_SHADER.is_match(relative_path) {
                     WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
                     return true;
-                } else if let Some(result) = relative_path.to_str().unwrap().split_once(MAIN_SEPARATOR_STR) {
-                    if RE_DIMENSION_FOLDER.is_match(result.0) && DEFAULT_SHADERS.contains(result.1) {
+                } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR_STR) {
+                    if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
                         return true;
                     }
@@ -64,14 +64,14 @@ impl MinecraftLanguageServer {
                 if let Ok(file) = file {
                     let file_path = file.path();
                     if file_path.is_file() {
-                        if DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
+                        if RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                             WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                         }
                     } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                         for dim_file in file_path.read_dir().expect("read dimension folder failed") {
                             if let Ok(dim_file) = dim_file {
                                 let file_path = dim_file.path();
-                                if file_path.is_file() && DEFAULT_SHADERS.contains(file_path.file_name().unwrap().to_str().unwrap()) {
+                                if file_path.is_file() && RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                                     WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                                 }
                             }

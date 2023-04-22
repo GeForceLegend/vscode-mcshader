@@ -1,5 +1,4 @@
 use hashbrown::{HashMap, HashSet};
-use itoa::Buffer;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -8,62 +7,6 @@ use crate::diagnostics_parser::DiagnosticsParser;
 use crate::opengl::OpenGlContext;
 
 lazy_static! {
-    pub static ref DEFAULT_SHADERS: HashSet<String> = {
-        let mut set = HashSet::with_capacity(12064);
-        for ext in ["fsh", "vsh", "gsh", "csh"] {
-            set.insert("composite.".to_owned() + ext);
-            set.insert("deferred.".to_owned() + ext);
-            set.insert("prepare.".to_owned() + ext);
-            set.insert("shadowcomp.".to_owned() + ext);
-            set.insert("final.".to_owned() + ext);
-            for i in 1..=99 {
-                let mut suffix = Buffer::new().format(i).to_owned() + ".";
-                suffix += ext;
-                set.insert("composite".to_owned() + &suffix);
-                set.insert("deferred".to_owned() + &suffix);
-                set.insert("prepare".to_owned() + &suffix);
-                set.insert("shadowcomp".to_owned() + &suffix);
-            }
-        }
-        for ext in ["fsh", "vsh", "gsh"] {
-            set.insert("gbuffers_armor_glint.".to_owned() + ext);
-            set.insert("gbuffers_basic.".to_owned() + ext);
-            set.insert("gbuffers_beaconbeam.".to_owned() + ext);
-            set.insert("gbuffers_block.".to_owned() + ext);
-            set.insert("gbuffers_clouds.".to_owned() + ext);
-            set.insert("gbuffers_damagedblock.".to_owned() + ext);
-            set.insert("gbuffers_entities.".to_owned() + ext);
-            set.insert("gbuffers_entities_glowing.".to_owned() + ext);
-            set.insert("gbuffers_hand.".to_owned() + ext);
-            set.insert("gbuffers_hand_water.".to_owned() + ext);
-            set.insert("gbuffers_line.".to_owned() + ext);
-            set.insert("gbuffers_skybasic.".to_owned() + ext);
-            set.insert("gbuffers_skytextured.".to_owned() + ext);
-            set.insert("gbuffers_spidereyes.".to_owned() + ext);
-            set.insert("gbuffers_terrain.".to_owned() + ext);
-            set.insert("gbuffers_textured.".to_owned() + ext);
-            set.insert("gbuffers_textured_lit.".to_owned() + ext);
-            set.insert("gbuffers_water.".to_owned() + ext);
-            set.insert("gbuffers_weather.".to_owned() + ext);
-            set.insert("shadow.".to_owned() + ext);
-        }
-        for suffix_index in b'a'..=b'z' {
-            let suffix_char = unsafe { String::from_utf8_unchecked(vec![suffix_index, b'.', b'c', b's', b'h']) };
-            set.insert("composite_".to_owned() + &suffix_char);
-            set.insert("deferred_".to_owned() + &suffix_char);
-            set.insert("prepare_".to_owned() + &suffix_char);
-            set.insert("shadowcomp_".to_owned() + &suffix_char);
-            for i in 1..=99 {
-                let mut suffix = Buffer::new().format(i).to_owned() + "_";
-                suffix += &suffix_char;
-                set.insert("composite".to_owned() + &suffix);
-                set.insert("deferred".to_owned() + &suffix);
-                set.insert("prepare".to_owned() + &suffix);
-                set.insert("shadowcomp".to_owned() + &suffix);
-            }
-        }
-        set
-    };
     pub static ref BASIC_EXTENSIONS: HashSet<String> = {
         let mut set = HashSet::with_capacity(5);
         set.insert("vsh".to_owned());
@@ -73,6 +16,9 @@ lazy_static! {
         set.insert("glsl".to_owned());
         set
     };
+    pub static ref RE_BASIC_SHADER: Regex = Regex::new(
+        r#"^(shadow|gbuffers_(armor_glint|basic|beaconbeam|block|clouds|damagedblock|entities|entities_glowing|hand|hand_water|line|skybasic|skytextured|spidereyes|terrain|textured|textured_lit|water|weather)).(vsh|gsh|fsh)|(final|(shadowcomp|prepare|deferred|composite)\d{0,2})(.vsh|.gsh|.fsh|(_[a-z])?.csh)$"#
+    ).unwrap();
     pub static ref COMMAND_LIST: HashMap<String, Box<dyn Command + Sync + Send>> = {
         let mut command_list: HashMap<String, Box<dyn Command + Sync + Send>> = HashMap::with_capacity(1);
         command_list.insert("virtualMerge".to_owned(), Box::new(VirtualMerge {}));

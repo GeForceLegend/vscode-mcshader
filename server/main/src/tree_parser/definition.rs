@@ -50,8 +50,8 @@ impl TreeParser {
         query_cursor.set_byte_range(0..start_node.end_byte());
 
         while let Some(parent_node) = parent {
-            for m in query_cursor.matches(&query, parent_node, source) {
-                locations.extend(m.captures.iter().map(|capture| capture.node.to_location(url)));
+            for query_match in query_cursor.matches(&query, parent_node, source) {
+                locations.extend(query_match.captures.iter().map(|capture| capture.node.to_location(url)));
             }
 
             if !locations.is_empty() {

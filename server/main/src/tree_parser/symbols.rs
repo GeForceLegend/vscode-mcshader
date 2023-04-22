@@ -47,14 +47,12 @@ lazy_static! {
 // This does not need unsafe code to create another reference
 fn insert_child_symbol(parent_list: &mut Vec<DocumentSymbol>, symbol: DocumentSymbol) {
     let possible_parent = parent_list.last_mut().unwrap();
-    if possible_parent.range.end < symbol.range.start {
+    if possible_parent.range.end < symbol.range.end {
         parent_list.push(symbol);
-        return;
     } else if let Some(children_list) = &mut possible_parent.children {
         insert_child_symbol(children_list, symbol);
     } else {
         possible_parent.children = Some(vec![symbol; 1]);
-        return;
     }
 }
 
@@ -65,7 +63,6 @@ impl TreeParser {
         let mut query_cursor = QueryCursor::new();
 
         let mut symbols: Vec<DocumentSymbol> = vec![];
-        // let mut symbol_stack: LinkedList<Range> = LinkedList::new();
 
         for query_match in query_cursor.matches(&SYMBOLS_QUERY, tree.root_node(), content_bytes) {
             let mut capture_iter = query_match.captures.iter();

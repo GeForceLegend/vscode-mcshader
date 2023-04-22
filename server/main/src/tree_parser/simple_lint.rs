@@ -16,7 +16,7 @@ impl TreeParser {
                     tags: None,
                     data: None,
                 });
-            } else if current_node.has_error() && cursor.goto_first_child() {
+            } else if cursor.goto_first_child() {
                 Self::error_search(cursor, error_list);
                 cursor.goto_parent();
             }
