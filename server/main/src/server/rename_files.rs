@@ -4,12 +4,11 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
     let mut pack_path_components = pack_path.components();
     let mut absolute_path_components = absolute_path.components();
 
-    let mut resource;
     loop {
         match (pack_path_components.next(), absolute_path_components.next()) {
             (Some(ref x), Some(ref y)) if x == y => (),
             (Some(_), Some(component)) => {
-                resource = "/../".to_owned();
+                let mut resource = "/../".to_owned();
                 while let Some(_) = pack_path_components.next() {
                     resource += "../";
                 }
@@ -18,22 +17,21 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
                     resource.push('/');
                     resource += component.as_os_str().to_str().unwrap();
                 }
-                break;
+                break Ok(resource);
             }
             (Some(_), None) => return Err(()),
             (None, Some(component)) => {
-                resource = "/".to_owned();
+                let mut resource = "/".to_owned();
                 resource += component.as_os_str().to_str().unwrap();
                 while let Some(component) = absolute_path_components.next() {
                     resource.push('/');
                     resource += component.as_os_str().to_str().unwrap();
                 }
-                break;
+                break Ok(resource);
             }
-            (None, None) => return Err(()),
+            (None, None) => break Err(()),
         }
     }
-    Ok(resource)
 }
 
 fn rename_file(

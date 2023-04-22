@@ -28,7 +28,7 @@ impl MinecraftLanguageServer {
                             character: *end as u32,
                         },
                     },
-                    tooltip: Some(url.path().to_owned()),
+                    tooltip: Some(include_path.to_str().unwrap().to_owned()),
                     target: Some(url),
                     data: None,
                 }

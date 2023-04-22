@@ -14,7 +14,6 @@ use tree_sitter::Parser;
 
 mod change_file;
 mod close_file;
-mod data;
 mod document_links;
 mod error;
 mod find_definitions;
@@ -43,6 +42,28 @@ pub struct ServerData {
     workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,
+}
+
+impl ServerData {
+    pub fn new() -> Self {
+        let mut tree_sitter_parser = Parser::new();
+        tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
+        ServerData {
+            extensions: RefCell::new(BASIC_EXTENSIONS.clone()),
+            shader_packs: RefCell::new(HashSet::new()),
+            workspace_files: RefCell::new(HashMap::new()),
+            temp_files: RefCell::new(HashMap::new()),
+            tree_sitter_parser: RefCell::new(tree_sitter_parser),
+        }
+    }
+
+    pub fn workspace_files(&self) -> &RefCell<HashMap<PathBuf, WorkspaceFile>> {
+        &self.workspace_files
+    }
+
+    pub fn temp_files(&self) -> &RefCell<HashMap<PathBuf, TempFile>> {
+        &self.temp_files
+    }
 }
 
 /// Other things that do not need to be mutable

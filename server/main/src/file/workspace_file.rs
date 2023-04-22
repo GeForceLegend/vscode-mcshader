@@ -158,7 +158,7 @@ impl WorkspaceFile {
                 depth,
             );
         } else {
-            error!("File not found in workspace! File: {}", file_path.to_str().unwrap());
+            error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
             workspace_files.insert(file_path.clone(), include_file);
         }
     }
@@ -206,18 +206,18 @@ impl WorkspaceFile {
     }
 
     pub fn get_base_shaders<'a>(
-        &'a self, workspace_files: &'a HashMap<PathBuf, WorkspaceFile>, base_shaders: &mut HashMap<PathBuf, &'a WorkspaceFile>,
-        file_path: &PathBuf, mut depth: u8,
+        &'a self, workspace_files: &'a HashMap<PathBuf, WorkspaceFile>, base_shaders: &mut HashMap<&'a PathBuf, &'a WorkspaceFile>,
+        file_path: &'a PathBuf, mut depth: u8,
     ) {
         depth += 1;
         let file_type = *self.file_type.borrow();
         if file_type != gl::NONE && file_type != gl::INVALID_ENUM {
             // workspace_files would not change when linting shaders. This should be safe.
-            base_shaders.insert(file_path.clone(), self);
+            base_shaders.insert(file_path, self);
         }
         if depth < 10 {
             for included_path in self.included_files.borrow().iter() {
-                if let Some(workspace_file) = workspace_files.get(included_path) {
+                if let Some((included_path, workspace_file)) = workspace_files.get_key_value(included_path) {
                     workspace_file.get_base_shaders(workspace_files, base_shaders, included_path, depth);
                 }
             }

@@ -14,7 +14,7 @@ impl MinecraftLanguageServer {
             let mut shader_files = HashMap::new();
             workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
 
-            for (shader_path, shader_file) in &shader_files {
+            for (shader_path, shader_file) in shader_files {
                 self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
             }
             diagnostics

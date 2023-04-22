@@ -7,7 +7,6 @@ impl MinecraftLanguageServer {
         let temp_files = server_data.temp_files.borrow();
 
         let file_path = params.text_document_position_params.text_document.uri.to_file_path().unwrap();
-        let position = params.text_document_position_params.position;
 
         let file: &dyn File = if let Some(workspace_file) = workspace_files.get(&file_path) {
             workspace_file
@@ -23,7 +22,7 @@ impl MinecraftLanguageServer {
 
         TreeParser::find_definitions(
             &params.text_document_position_params.text_document.uri,
-            &position,
+            &params.text_document_position_params.position,
             &tree,
             &content,
             &line_mapping,
