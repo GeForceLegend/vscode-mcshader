@@ -14,7 +14,7 @@ impl MinecraftLanguageServer {
 
         let mut change_list: HashSet<PathBuf> = HashSet::new();
 
-        for change in changes {
+        for change in &changes {
             let file_path = change.uri.to_file_path().unwrap();
             if change.typ == FileChangeType::CHANGED {
                 if let Some(workspace_file) = workspace_files.get(&file_path) {

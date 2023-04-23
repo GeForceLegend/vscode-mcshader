@@ -20,7 +20,7 @@ impl MinecraftLanguageServer {
             diagnostics
         } else {
             let temp_file = TempFile::new(&mut parser, &file_path, params.text_document.text);
-            let diagnostics = self.lint_temp_file(&temp_file, &file_path);
+            let diagnostics = self.lint_temp_file(&temp_file, &file_path, params.text_document.uri);
             temp_files.insert(file_path, temp_file);
             diagnostics
         };

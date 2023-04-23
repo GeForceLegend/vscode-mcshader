@@ -28,24 +28,25 @@ impl Command for VirtualMerge {
         let workspace_files = server_data.workspace_files().borrow();
         let temp_files = server_data.temp_files().borrow();
 
-        let mut content = String::new();
         let mut file_list = HashMap::new();
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let content = if let Some(workspace_file) = workspace_files.get(&file_path) {
             match *workspace_file.file_type().borrow() {
                 gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
                 _ => {
-                    workspace_file.merge_file(&workspace_files, &mut file_list, &mut content, &file_path, &mut -1, 0);
+                    let mut content = String::new();
+                    workspace_file.merge_file(&workspace_files, &mut file_list, &mut content, &file_path, &mut 0, 0);
                     preprocess_shader(&mut content, workspace_file.pack_path());
+                    content
                 }
             }
         } else if let Some(temp_file) = temp_files.get(&file_path) {
-            content = match temp_file.merge_self(&file_path, &mut file_list) {
+            match temp_file.merge_self(&file_path) {
                 Some(temp_content) => temp_content.1,
                 None => return Err(LanguageServerError::not_shader_error()),
             }
         } else {
             return Err(LanguageServerError::not_shader_error());
-        }
+        };
 
         Ok(Some(Value::String(content)))
     }

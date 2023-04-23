@@ -66,7 +66,10 @@ impl DiagnosticsParser {
             };
 
             let index = diagnostic_capture.name("filepath").unwrap();
-            let file_url = file_list.get(index.as_str()).unwrap();
+            let file_url = match file_list.get(index.as_str()) {
+                Some(url) => url,
+                None => file_list.get("0").unwrap(),
+            };
 
             let diagnostic = Diagnostic {
                 range: Range {

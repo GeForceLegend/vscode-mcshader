@@ -85,7 +85,7 @@ impl MinecraftLanguageServer {
         let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
         let mut rename_list: HashMap<PathBuf, PathBuf> = HashMap::new();
 
-        for renamed_file in params.files {
+        for renamed_file in &params.files {
             let before_path = Url::parse(&renamed_file.old_uri).unwrap().to_file_path().unwrap();
             let after_path = Url::parse(&renamed_file.new_uri).unwrap().to_file_path().unwrap();
 

@@ -189,9 +189,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-        let file_path = params.text_document.uri.to_file_path().unwrap();
-
-        if let Some(diagnostics) = self.save_file(file_path) {
+        if let Some(diagnostics) = self.save_file(params.text_document.uri) {
             self.publish_diagnostic(diagnostics).await;
         }
     }

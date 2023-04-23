@@ -26,7 +26,7 @@ impl MinecraftLanguageServer {
                         }
                     }
                     return false;
-                },
+                }
                 Err(_) => continue,
             }
         }
@@ -34,19 +34,17 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn find_shader_packs(&self, shader_packs: &mut Vec<PathBuf>, curr_path: &PathBuf) {
-        for file in curr_path.read_dir().unwrap() {
-            if let Ok(file) = file {
-                let file_path = file.path();
-                if file_path.is_dir() {
-                    if file.file_name() == "shaders" {
-                        info!("Find shader pack {}", file_path.to_str().unwrap());
-                        shader_packs.push(file_path);
-                    } else {
-                        self.find_shader_packs(shader_packs, &file_path);
-                    }
+        curr_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
+            let file_path = file.path();
+            if file_path.is_dir() {
+                if file.file_name() == "shaders" {
+                    info!("Find shader pack {}", file_path.to_str().unwrap());
+                    shader_packs.push(file_path);
+                } else {
+                    self.find_shader_packs(shader_packs, &file_path);
                 }
             }
-        }
+        })
     }
 
     pub(super) fn scan_files_in_root(
@@ -63,25 +61,21 @@ impl MinecraftLanguageServer {
         }
 
         for pack_path in &sub_shader_packs {
-            for file in pack_path.read_dir().unwrap() {
-                if let Ok(file) = file {
-                    let file_path = file.path();
-                    if file_path.is_file() {
-                        if RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
+            pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
+                let file_path = file.path();
+                if file_path.is_file() {
+                    if RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
+                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
+                    }
+                } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
+                    file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
+                        let file_path = dim_file.path();
+                        if file_path.is_file() && RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                             WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                         }
-                    } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
-                        for dim_file in file_path.read_dir().expect("read dimension folder failed") {
-                            if let Ok(dim_file) = dim_file {
-                                let file_path = dim_file.path();
-                                if file_path.is_file() && RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
-                                    WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
-                                }
-                            }
-                        }
-                    }
+                    })
                 }
-            }
+            })
         }
 
         shader_packs.extend(sub_shader_packs);
@@ -119,23 +113,19 @@ impl MinecraftLanguageServer {
     ) {
         let mut file_list: HashMap<String, Url> = HashMap::new();
         let mut shader_content = String::new();
-        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
+        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut 0, 0);
         preprocess_shader(&mut shader_content, shader_file.pack_path());
 
         self.lint_shader(file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)
     }
 
-    pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &PathBuf) -> HashMap<Url, Vec<Diagnostic>> {
-        let mut file_list: HashMap<String, Url> = HashMap::new();
-
+    pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &PathBuf, url: Url) -> HashMap<Url, Vec<Diagnostic>> {
         let mut diagnostics = HashMap::new();
-        if let Some(result) = temp_file.merge_self(file_path, &mut file_list) {
+        if let Some(result) = temp_file.merge_self(file_path) {
+            let file_list = HashMap::from([("0".to_owned(), url)]);
             self.lint_shader(file_path, result.0, result.1, file_list, &mut diagnostics);
         } else {
-            diagnostics.insert(
-                Url::from_file_path(file_path).unwrap(),
-                TreeParser::simple_lint(&temp_file.tree().borrow()),
-            );
+            diagnostics.insert(url, TreeParser::simple_lint(&temp_file.tree().borrow()));
         }
         diagnostics
     }

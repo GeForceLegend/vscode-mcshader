@@ -1,7 +1,9 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn save_file(&self, file_path: PathBuf) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+    pub fn save_file(&self, url: Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+        let file_path = url.to_file_path().unwrap();
+
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
@@ -52,7 +54,7 @@ impl MinecraftLanguageServer {
         } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
-            self.lint_temp_file(temp_file, &file_path)
+            self.lint_temp_file(temp_file, &file_path, url)
         } else {
             return None;
         };

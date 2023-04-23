@@ -102,14 +102,13 @@ impl TempFile {
             });
     }
 
-    pub fn merge_self(&self, file_path: &PathBuf, file_list: &mut HashMap<String, Url>) -> Option<(u32, String)> {
+    pub fn merge_self(&self, file_path: &PathBuf) -> Option<(u32, String)> {
         let file_type = *self.file_type.borrow();
         if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
             return None;
         }
 
         let mut temp_content = String::new();
-        file_list.insert("0".to_owned(), Url::from_file_path(file_path).unwrap());
         let mut file_id = 0;
         let file_name = file_path.to_str().unwrap();
         temp_content += "#line 1 0\t//";
@@ -129,7 +128,7 @@ impl TempFile {
             push_str_without_line(&mut temp_content, before_content);
             start_index = *end - 1;
 
-            if Self::merge_temp(&self.pack_path, include_path, file_list, &mut temp_content, &mut file_id, 1) {
+            if Self::merge_temp(&self.pack_path, include_path, &mut temp_content, &mut file_id, 1) {
                 generate_line_macro(&mut temp_content, line + 2, "0", file_name);
             } else {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
@@ -142,7 +141,7 @@ impl TempFile {
     }
 
     fn merge_temp(
-        pack_path: &PathBuf, file_path: &PathBuf, file_list: &mut HashMap<String, Url>, temp_content: &mut String, file_id: &mut i32,
+        pack_path: &PathBuf, file_path: &PathBuf, temp_content: &mut String, file_id: &mut i32,
         depth: i32,
     ) -> bool {
         if depth > 10 || !file_path.exists() {
@@ -178,7 +177,7 @@ impl TempFile {
                     start_index = end;
                     lines += before_content.matches("\n").count();
 
-                    if Self::merge_temp(pack_path, &include_path, file_list, temp_content, file_id, depth + 1) {
+                    if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
                         generate_line_macro(temp_content, lines, &curr_file_id, file_name);
                     } else {
                         temp_content.push_str(capture_content);
@@ -191,7 +190,6 @@ impl TempFile {
             });
             temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
             temp_content.push('\n');
-            file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
             true
         } else {
             warn!("Unable to read file"; "path" => file_path.to_str().unwrap());

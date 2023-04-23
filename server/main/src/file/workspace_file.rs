@@ -182,22 +182,26 @@ impl WorkspaceFile {
         let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
-        for (line, _start, _end, include_path) in including_files.iter() {
-            if let Some(workspace_file) = workspace_files.get(include_path) {
+        including_files
+            .iter()
+            .filter_map(|(line, _, _, include_path)| match workspace_files.get(include_path) {
+                Some(workspace_file) => Some((line, include_path, workspace_file)),
+                None => None,
+            })
+            .for_each(|(line, include_path, workspace_file)| {
                 let start = line_mapping.get(*line).unwrap();
                 let end = line_mapping.get(line + 1).unwrap();
 
                 let before_content = unsafe { content.get_unchecked(start_index..*start) };
                 push_str_without_line(shader_content, before_content);
-                start_index = *end - 1;
+                start_index = end - 1;
 
                 if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
                     generate_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 } else {
                     shader_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
                 }
-            }
-        }
+            });
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
         file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
@@ -216,11 +220,13 @@ impl WorkspaceFile {
             base_shaders.insert(file_path, self);
         }
         if depth < 10 {
-            for included_path in self.included_files.borrow().iter() {
-                if let Some((included_path, workspace_file)) = workspace_files.get_key_value(included_path) {
+            self.included_files
+                .borrow()
+                .iter()
+                .filter_map(|included_path| workspace_files.get_key_value(included_path))
+                .for_each(|(included_path, workspace_file)| {
                     workspace_file.get_base_shaders(workspace_files, base_shaders, included_path, depth);
-                }
-            }
+                });
         }
     }
 
@@ -234,11 +240,13 @@ impl WorkspaceFile {
             base_shaders.insert(file_path.clone());
         }
         if depth < 10 {
-            for included_path in self.included_files.borrow().iter() {
-                if let Some(workspace_file) = workspace_files.get(included_path) {
+            self.included_files
+                .borrow()
+                .iter()
+                .filter_map(|included_path| workspace_files.get_key_value(included_path))
+                .for_each(|(included_path, workspace_file)| {
                     workspace_file.get_base_shader_pathes(workspace_files, base_shaders, included_path, depth);
-                }
-            }
+                });
         }
     }
 
