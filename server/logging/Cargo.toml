@@ -18,5 +18,5 @@ slog-scope-futures = "0.1.1"
 log = "0.4.16"
 rand = "0.8"
 lazy_static = "1.4"
-tokio = { version = "1.18.0", features = ["full"] }
+tokio = { version = "1.27", features = ["full"] }
 logging_macro = { path = "../logging_macro" }
