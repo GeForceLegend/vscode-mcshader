@@ -130,7 +130,7 @@ impl WorkspaceFile {
         pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32,
     ) {
         let include_file = WorkspaceFile {
-            file_type: RefCell::new(gl::INVALID_ENUM),
+            file_type: RefCell::new(gl::NONE),
             pack_path: pack_path.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
@@ -140,7 +140,6 @@ impl WorkspaceFile {
             diagnostics: RefCell::new(vec![]),
         };
         if file_path.exists() {
-            *include_file.file_type.borrow_mut() = gl::NONE;
             include_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
             let content = include_file.content.borrow().clone();
@@ -158,6 +157,7 @@ impl WorkspaceFile {
                 depth,
             );
         } else {
+            *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
             workspace_files.insert(file_path.clone(), include_file);
         }

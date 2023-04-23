@@ -19,7 +19,7 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
                 }
                 break Ok(resource);
             }
-            (Some(_), None) => return Err(()),
+            (Some(_), None) => break Err(()),
             (None, Some(component)) => {
                 let mut resource = "/".to_owned();
                 resource += component.as_os_str().to_str().unwrap();

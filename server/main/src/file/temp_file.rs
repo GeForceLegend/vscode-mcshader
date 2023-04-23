@@ -23,25 +23,26 @@ impl TempFile {
             }
             None => gl::NONE,
         };
-        let mut buffer = file_path.components();
-        loop {
-            match buffer.next_back() {
-                Some(Component::Normal(file_name)) => {
-                    if file_name == "shaders" {
-                        break;
-                    } else {
-                        continue;
-                    }
-                }
-                _ => {
-                    file_type = gl::INVALID_ENUM;
-                    break;
-                }
-            }
-        }
 
         let mut resource = OsString::new();
         if file_type != gl::INVALID_ENUM {
+            let mut buffer = file_path.components();
+            loop {
+                match buffer.next_back() {
+                    Some(Component::Normal(file_name)) => {
+                        if file_name == "shaders" {
+                            break;
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => {
+                        file_type = gl::INVALID_ENUM;
+                        break;
+                    }
+                }
+            }
+
             for component in buffer {
                 resource.push(component);
                 match component {
@@ -140,10 +141,7 @@ impl TempFile {
         Some((*self.file_type.borrow(), temp_content))
     }
 
-    fn merge_temp(
-        pack_path: &PathBuf, file_path: &PathBuf, temp_content: &mut String, file_id: &mut i32,
-        depth: i32,
-    ) -> bool {
+    fn merge_temp(pack_path: &PathBuf, file_path: &PathBuf, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {
         if depth > 10 || !file_path.exists() {
             return false;
         }

@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - A completely new double-linked file system, with less possible data racing and better edit experience;
 - Tree-sitter based real-time syntax error linting;
 - Tree-sitter based symbol provider (have some issues with macros, please keep the code as standard as possible);
-- Edit include macros when renaming files or folders;
+- Apply edits to include macros when renaming files or folders (because of [vscode-languageserver-node/#1215](https://github.com/microsoft/vscode-languageserver-node/issues/1215), server cannot receive rename request from pathes that contain `.minecraft`, please develop outside the game folder or using mklink to provide a path without `.minecraft` to use this feature);
 
 ### Removed
 

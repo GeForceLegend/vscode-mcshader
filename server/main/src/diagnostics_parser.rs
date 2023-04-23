@@ -42,51 +42,49 @@ impl DiagnosticsParser {
 
         let default_path = shader_path.to_str().unwrap();
 
-        for log_line in compile_log.split_terminator('\n') {
-            let diagnostic_capture = match self.line_regex.captures(log_line) {
-                Some(captures) => captures,
-                None => continue,
-            };
+        compile_log
+            .split_terminator('\n')
+            .filter_map(|log_line| self.line_regex.captures(log_line))
+            .for_each(|captures| {
+                let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
+                msg += default_path;
 
-            let mut msg = diagnostic_capture.name("output").unwrap().as_str().to_owned() + ", from file: ";
-            msg += default_path;
+                let line = match captures.name("linenum") {
+                    Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
+                    None => 0,
+                } - self.line_offset;
 
-            let line = match diagnostic_capture.name("linenum") {
-                Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
-                None => 0,
-            } - self.line_offset;
-
-            let severity = match diagnostic_capture.name("severity") {
-                Some(c) => match c.as_str().to_lowercase().as_str() {
-                    "error" => DiagnosticSeverity::ERROR,
-                    "warning" => DiagnosticSeverity::WARNING,
+                let severity = match captures.name("severity") {
+                    Some(c) => match c.as_str().to_lowercase().as_str() {
+                        "error" => DiagnosticSeverity::ERROR,
+                        "warning" => DiagnosticSeverity::WARNING,
+                        _ => DiagnosticSeverity::INFORMATION,
+                    },
                     _ => DiagnosticSeverity::INFORMATION,
-                },
-                _ => DiagnosticSeverity::INFORMATION,
-            };
+                };
 
-            let index = diagnostic_capture.name("filepath").unwrap();
-            let file_url = match file_list.get(index.as_str()) {
-                Some(url) => url,
-                None => file_list.get("0").unwrap(),
-            };
+                let index = captures.name("filepath").unwrap();
+                let file_url = match file_list.get(index.as_str()) {
+                    Some(url) => url,
+                    None => file_list.get("0").unwrap(),
+                };
 
-            let diagnostic = Diagnostic {
-                range: Range {
-                    start: Position { line, character: 0 },
-                    end: Position { line, character: u32::MAX },
-                },
-                code: None,
-                severity: Some(severity),
-                source: Some("mcshader-glsl".to_owned()),
-                message: msg,
-                related_information: None,
-                tags: None,
-                code_description: None,
-                data: None,
-            };
+                let diagnostic = Diagnostic {
+                    range: Range {
+                        start: Position { line, character: 0 },
+                        end: Position { line, character: u32::MAX },
+                    },
+                    code: None,
+                    severity: Some(severity),
+                    source: Some("mcshader-glsl".to_owned()),
+                    message: msg,
+                    related_information: None,
+                    tags: None,
+                    code_description: None,
+                    data: None,
+                };
 
-            diagnostics.get_mut(file_url).unwrap().push(diagnostic);
-        }
+                diagnostics.get_mut(file_url).unwrap().push(diagnostic);
+            });
     }
 }
