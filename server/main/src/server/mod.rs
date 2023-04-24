@@ -182,9 +182,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        if let Some(diagnostics) = self.change_file(params.text_document.uri, params.content_changes) {
-            self.publish_diagnostic(diagnostics).await;
-        }
+        self.change_file(params.text_document.uri, params.content_changes);
     }
 
     #[logging::with_trace_id]
@@ -208,9 +206,13 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
-        let file_path = params.text_document.uri.to_file_path().unwrap();
-
-        let result = self.document_links(&file_path);
+        let result = match self.document_links(params.text_document.uri) {
+            Some((document_links, diagnostics)) => {
+                self.publish_diagnostic(diagnostics).await;
+                Some(document_links)
+            },
+            None => None,
+        };
 
         Ok(result)
     }

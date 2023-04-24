@@ -1,14 +1,24 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn document_links(&self, file_path: &PathBuf) -> Option<Vec<DocumentLink>> {
+    pub fn document_links(&self, url: Url) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)> {
+        let file_path = url.to_file_path().unwrap();
+
         let server_data = self.server_data.lock().unwrap();
         let workspace_files = server_data.workspace_files.borrow();
         let temp_files = server_data.temp_files.borrow();
 
-        let including_files = if let Some(workspace_file) = workspace_files.get(file_path) {
+        let mut diagnostics = HashMap::new();
+        let including_files = if let Some(workspace_file) = workspace_files.get(&file_path) {
+            let mut shader_files = HashMap::new();
+            workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
+            for (shader_path, shader_file) in shader_files {
+                self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
+            }
+
             workspace_file.including_files().borrow()
-        } else if let Some(temp_file) = temp_files.get(file_path) {
+        } else if let Some(temp_file) = temp_files.get(&file_path) {
+            diagnostics = self.lint_temp_file(temp_file, &file_path, url);
             temp_file.including_files().borrow()
         } else {
             return None;
@@ -35,6 +45,6 @@ impl MinecraftLanguageServer {
             })
             .collect::<Vec<_>>();
 
-        Some(include_links)
+        Some((include_links, diagnostics))
     }
 }
