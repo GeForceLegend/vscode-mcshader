@@ -25,13 +25,12 @@ impl TreeParser {
             None => return None,
         };
 
-        let locations = match (current_node.kind(), parent.kind()) {
+        match (current_node.kind(), parent.kind()) {
             (_, "function_declarator") | (_, "preproc_function_def") => {
                 let query_str = function_ref_pattern(current_node.utf8_text(content_bytes).unwrap());
-                Self::simple_global_search(url, tree, content_bytes, &query_str)
+                Some(Self::simple_global_search(url, tree, content_bytes, &query_str))
             }
-            _ => return None,
-        };
-        Some(locations)
+            _ => None,
+        }
     }
 }

@@ -6,22 +6,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.3.0] - 2023-04-25
+
 ### Added
 
 - A completely new double-linked file system, with less possible data racing and better edit experience;
 - Tree-sitter based symbol provider (have some issues with macros, please keep the code as standard as possible);
 - Apply edits to include macros when renaming files or folders (because of [vscode-languageserver-node/#1215](https://github.com/microsoft/vscode-languageserver-node/issues/1215), server cannot receive rename request from pathes that contain `.minecraft`, please develop outside the game folder or using mklink to provide a path without `.minecraft` to use this feature);
 
-### Removed
-
-- Removed compiling call in document_link function, compiling will only happen on file saving or disc content changing;
-
 ### Fixed
 
 - Fixed errors of temp files keep in workspace error list after they are closed;
 - Fixed deleting a workspace will not clean linting results of its contained files.
 
-## [0.2.0]
+## [0.2.0] - 2023-04-11
 
 ### Added
 
