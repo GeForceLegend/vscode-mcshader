@@ -113,7 +113,7 @@ impl MinecraftLanguageServer {
     ) {
         let mut file_list: HashMap<String, Url> = HashMap::new();
         let mut shader_content = String::new();
-        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut 0, 0);
+        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
         preprocess_shader(&mut shader_content, shader_file.pack_path());
 
         self.lint_shader(file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)

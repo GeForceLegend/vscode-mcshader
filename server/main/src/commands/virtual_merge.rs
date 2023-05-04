@@ -34,7 +34,7 @@ impl Command for VirtualMerge {
                 _ => {
                     let mut content = String::new();
                     let mut file_list = HashMap::new();
-                    workspace_file.merge_file(&workspace_files, &mut file_list, &mut content, &file_path, &mut 0, 0);
+                    workspace_file.merge_file(&workspace_files, &mut file_list, &mut content, &file_path, &mut -1, 0);
                     preprocess_shader(&mut content, workspace_file.pack_path());
                     content
                 }
