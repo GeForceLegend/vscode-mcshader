@@ -22,6 +22,8 @@ Work spaces support idea from Fayer3
  - Temporary linting and document link for files outside work space (temporary linting only supports base shader file);
  - Virtual merge for base shader file;
  - File watcher for file changes (creating, deleting, etc). Defaultly supports file with `[vsh, gsh, fsh, csh, glsl, inc]` extensions, you can add more by extension configuration;
- - Single-file goto-definitions and references.
+ - Single-file goto-definitions and references;
+ - Document symbols provider;
+ - Workspace edits for include macro when renaming files (due to [vscode-languageserver-node/#1215](https://github.com/microsoft/vscode-languageserver-node/issues/1215), renaming pathes contains component named start with `.` cannot notify server currently).
 
 This extension does not provide syntax highlight for GLSL yet. If you want GLSL syntax highlight, you can install this extension with [vscode-glsl](https://github.com/GeForceLegend/vscode-glsl) or [vscode-shader](https://github.com/stef-levesque/vscode-shader).

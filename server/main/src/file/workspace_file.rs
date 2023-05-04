@@ -1,6 +1,8 @@
 use super::*;
 
 impl WorkspaceFile {
+    /// Sending the standalone clone data of a shader file to update its include.
+    /// Since workspace_files may get amortized, using reference to workspace file inside it is not allowed.
     pub fn update_include(
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         mut old_including_files: HashSet<PathBuf>, content: &str, pack_path: &PathBuf, file_path: &PathBuf, mut depth: i32,
@@ -93,6 +95,7 @@ impl WorkspaceFile {
             }
             *existing_file_type = file_type;
             workspace_file.update_from_disc(parser, file_path);
+            // Clone the content so they can be used alone.
             content = workspace_file.content.borrow().clone();
         } else {
             let shader_file = WorkspaceFile {

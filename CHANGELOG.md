@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed file ID when merging shader files.
+
 ## [0.3.0] - 2023-04-25
 
 ### Added

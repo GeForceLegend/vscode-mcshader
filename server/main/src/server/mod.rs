@@ -194,7 +194,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
-        if let Some(diagnostics) = self.close_file(&params.text_document.uri) {
+        if let Some(diagnostics) = self.close_file(params.text_document.uri) {
             self.publish_diagnostic(diagnostics).await;
         }
     }
@@ -210,7 +210,7 @@ impl LanguageServer for MinecraftLanguageServer {
             Some((document_links, diagnostics)) => {
                 self.publish_diagnostic(diagnostics).await;
                 Some(document_links)
-            },
+            }
             None => None,
         };
 

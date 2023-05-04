@@ -11,7 +11,6 @@ impl MinecraftLanguageServer {
 
         if let Some(workspace_file) = workspace_files.get(&file_path) {
             workspace_file.apply_edit(changes, &mut parser);
-            // compile_diagnostics = workspace_file.diagnostics().borrow().clone();
             // Clone the content so they can be used alone.
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();

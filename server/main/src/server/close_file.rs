@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn close_file(&self, file_url: &Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+    pub fn close_file(&self, file_url: Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
         let file_path = file_url.to_file_path().unwrap();
 
         let server_data = self.server_data.lock().unwrap();
@@ -49,7 +49,7 @@ impl MinecraftLanguageServer {
         }
 
         match temp_files.remove(&file_path) {
-            Some(_) => Some(HashMap::from([(file_url.clone(), vec![])])),
+            Some(_) => Some(HashMap::from([(file_url, vec![])])),
             None => None,
         }
     }

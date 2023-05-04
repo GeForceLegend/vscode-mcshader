@@ -34,7 +34,7 @@ impl DiagnosticsParser {
     pub fn parse_diagnostics(
         &self, compile_log: String, file_list: HashMap<String, Url>, shader_path: &PathBuf, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
-        for (_, url) in &file_list {
+        for url in file_list.values() {
             if !diagnostics.contains_key(url) {
                 diagnostics.insert(url.clone(), vec![]);
             }

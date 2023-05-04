@@ -43,6 +43,7 @@ fn rename_file(
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
                     let url = Url::from_file_path(parent_path).unwrap();
+                    let mut change_list = vec![];
                     parent_file
                         .including_files()
                         .borrow_mut()
@@ -62,14 +63,15 @@ fn rename_file(
                                 },
                                 new_text: include_path.clone(),
                             };
-                            if let Some(change) = changes.get_mut(&url) {
-                                change.push(edit)
-                            } else {
-                                changes.insert(url.clone(), vec![edit; 1]);
-                            }
+                            change_list.push(edit);
                             *end = *start + include_path.len();
                             *prev_include_path = after_path.clone();
                         });
+                    if let Some(change) = changes.get_mut(&url) {
+                        change.extend(change_list);
+                    } else {
+                        changes.insert(url, change_list);
+                    }
                 }
             });
         }
