@@ -24,25 +24,23 @@ impl TempFile {
             None => gl::NONE,
         };
 
-        let mut resource = OsString::new();
-        if file_type != gl::INVALID_ENUM {
-            let mut buffer = file_path.components();
-            loop {
-                match buffer.next_back() {
-                    Some(Component::Normal(file_name)) => {
-                        if file_name == "shaders" {
-                            break;
-                        } else {
-                            continue;
-                        }
-                    }
-                    _ => {
-                        file_type = gl::INVALID_ENUM;
+        let mut buffer = file_path.components();
+        loop {
+            match buffer.next_back() {
+                Some(Component::Normal(file_name)) => {
+                    if file_name == "shaders" {
                         break;
                     }
                 }
+                _ => {
+                    file_type = gl::INVALID_ENUM;
+                    break;
+                }
             }
+        }
 
+        let mut resource = OsString::new();
+        if file_type != gl::INVALID_ENUM {
             for component in buffer {
                 resource.push(component);
                 match component {
@@ -64,7 +62,6 @@ impl TempFile {
             line_mapping: RefCell::new(line_mapping),
             included_files: RefCell::new(HashSet::new()),
             including_files: RefCell::new(vec![]),
-            diagnostics: RefCell::new(vec![]),
         };
 
         temp_file.parse_includes(file_path);
@@ -114,7 +111,7 @@ impl TempFile {
         let file_name = file_path.to_str().unwrap();
         temp_content += "#line 1 0\t//";
         temp_content += file_name;
-        temp_content += "\n";
+        temp_content.push('\n');
 
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
@@ -208,7 +205,6 @@ impl TempFile {
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
-            diagnostics: self.diagnostics,
         };
         workspace_files.insert(file_path.clone(), workspace_file);
 
@@ -252,9 +248,5 @@ impl File for TempFile {
 
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
         &self.including_files
-    }
-
-    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>> {
-        &self.diagnostics
     }
 }

@@ -80,7 +80,7 @@ impl WorkspaceFile {
             } else if extension == "csh" {
                 gl::COMPUTE_SHADER
             } else {
-                // This will never be used since we have ensured the extension through basic shaders list.
+                // This will never be used since we have ensured the extension through basic shaders regex.
                 gl::NONE
             }
         };
@@ -106,7 +106,6 @@ impl WorkspaceFile {
                 line_mapping: RefCell::new(vec![]),
                 included_files: RefCell::new(HashSet::new()),
                 including_files: RefCell::new(vec![]),
-                diagnostics: RefCell::new(vec![]),
             };
             shader_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
@@ -140,7 +139,6 @@ impl WorkspaceFile {
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
-            diagnostics: RefCell::new(vec![]),
         };
         if file_path.exists() {
             include_file.update_from_disc(parser, file_path);
@@ -260,6 +258,14 @@ impl WorkspaceFile {
         self.line_mapping.borrow_mut().clear();
         self.including_files.borrow_mut().clear();
     }
+
+    pub fn including_pathes(&self) -> HashSet<PathBuf> {
+        self.including_files()
+            .borrow()
+            .iter()
+            .map(|including_data| including_data.3.clone())
+            .collect::<HashSet<_>>()
+    }
 }
 
 impl File for WorkspaceFile {
@@ -289,9 +295,5 @@ impl File for WorkspaceFile {
 
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
         &self.including_files
-    }
-
-    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>> {
-        &self.diagnostics
     }
 }

@@ -24,7 +24,6 @@ impl MinecraftLanguageServer {
             temp_files.insert(file_path, temp_file);
             diagnostics
         };
-        self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
         Some(diagnostics)
     }
 }

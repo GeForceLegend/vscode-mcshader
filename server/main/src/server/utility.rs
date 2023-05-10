@@ -13,21 +13,18 @@ impl MinecraftLanguageServer {
         temp_files: &mut HashMap<PathBuf, TempFile>, file_path: &PathBuf,
     ) -> bool {
         for shader_pack in shader_packs {
-            match file_path.strip_prefix(shader_pack) {
-                Ok(relative_path) => {
-                    let relative_path = relative_path.to_str().unwrap();
-                    if RE_BASIC_SHADER.is_match(relative_path) {
+            if let Ok(relative_path) = file_path.strip_prefix(shader_pack) {
+                let relative_path = relative_path.to_str().unwrap();
+                if RE_BASIC_SHADER.is_match(relative_path) {
+                    WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
+                    return true;
+                } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR_STR) {
+                    if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
                         return true;
-                    } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR_STR) {
-                        if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
-                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
-                            return true;
-                        }
                     }
-                    return false;
                 }
-                Err(_) => continue,
+                return false;
             }
         }
         false
@@ -128,20 +125,6 @@ impl MinecraftLanguageServer {
             diagnostics.insert(url, TreeParser::simple_lint(&temp_file.tree().borrow()));
         }
         diagnostics
-    }
-
-    pub(super) fn update_diagnostics(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
-        diagnostics: &HashMap<Url, Vec<Diagnostic>>,
-    ) {
-        for (url, diagnostics) in diagnostics {
-            let file_path = url.to_file_path().unwrap();
-            if let Some(workspace_file) = workspace_files.get(&file_path) {
-                *workspace_file.diagnostics().borrow_mut() = diagnostics.clone();
-            } else if let Some(temp_file) = temp_files.get(&file_path) {
-                *temp_file.diagnostics().borrow_mut() = diagnostics.clone();
-            }
-        }
     }
 
     pub fn initial_scan(&self, roots: Vec<PathBuf>) {

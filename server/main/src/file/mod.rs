@@ -93,7 +93,10 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &PathBuf) {
 
         shader_content.replace_range(version.start()..version.end(), "");
         // If we are not in the debug folder, add Optifine's macros
-        if pack_path.parent().unwrap().file_name().unwrap() != "debug" {
+        let mut components = pack_path.components();
+        components.next_back();
+        let shader_name = components.next_back().unwrap();
+        if shader_name.as_os_str() != "debug" {
             version_content += OPTIFINE_MACROS;
         }
         shader_content.insert_str(0, &version_content);
@@ -108,15 +111,6 @@ pub trait File {
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>>;
-    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>>;
-
-    fn including_pathes(&self) -> HashSet<PathBuf> {
-        self.including_files()
-            .borrow()
-            .iter()
-            .map(|including_data| including_data.3.clone())
-            .collect::<HashSet<_>>()
-    }
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
         if let Ok(content) = read_to_string(file_path) {
@@ -187,8 +181,6 @@ pub struct WorkspaceFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
-    /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<Vec<Diagnostic>>,
 }
 
 #[derive(Clone)]
@@ -207,6 +199,4 @@ pub struct TempFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
-    /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<Vec<Diagnostic>>,
 }
