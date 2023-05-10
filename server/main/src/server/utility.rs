@@ -127,6 +127,20 @@ impl MinecraftLanguageServer {
         diagnostics
     }
 
+    pub(super) fn update_diagnostics(
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
+        diagnostics: &HashMap<Url, Vec<Diagnostic>>,
+    ) {
+        for (url, diagnostics) in diagnostics {
+            let file_path = url.to_file_path().unwrap();
+            if let Some(workspace_file) = workspace_files.get(&file_path) {
+                *workspace_file.diagnostics().borrow_mut() = diagnostics.clone();
+            } else if let Some(temp_file) = temp_files.get(&file_path) {
+                *temp_file.diagnostics().borrow_mut() = diagnostics.clone();
+            }
+        }
+    }
+
     pub fn initial_scan(&self, roots: Vec<PathBuf>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();

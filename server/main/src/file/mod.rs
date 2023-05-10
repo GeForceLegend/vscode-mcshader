@@ -111,6 +111,7 @@ pub trait File {
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>>;
+    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
         if let Ok(content) = read_to_string(file_path) {
@@ -181,6 +182,8 @@ pub struct WorkspaceFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    /// Diagnostics parsed by compiler but not tree-sitter
+    diagnostics: RefCell<Vec<Diagnostic>>,
 }
 
 #[derive(Clone)]
@@ -199,4 +202,6 @@ pub struct TempFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    /// Diagnostics parsed by compiler but not tree-sitter
+    diagnostics: RefCell<Vec<Diagnostic>>,
 }

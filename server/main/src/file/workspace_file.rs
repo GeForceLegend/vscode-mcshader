@@ -106,6 +106,7 @@ impl WorkspaceFile {
                 line_mapping: RefCell::new(vec![]),
                 included_files: RefCell::new(HashSet::new()),
                 including_files: RefCell::new(vec![]),
+                diagnostics: RefCell::new(vec![]),
             };
             shader_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
@@ -139,6 +140,7 @@ impl WorkspaceFile {
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
+            diagnostics: RefCell::new(vec![]),
         };
         if file_path.exists() {
             include_file.update_from_disc(parser, file_path);
@@ -295,5 +297,9 @@ impl File for WorkspaceFile {
 
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
         &self.including_files
+    }
+
+    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>> {
+        &self.diagnostics
     }
 }

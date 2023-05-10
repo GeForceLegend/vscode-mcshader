@@ -62,6 +62,7 @@ impl TempFile {
             line_mapping: RefCell::new(line_mapping),
             included_files: RefCell::new(HashSet::new()),
             including_files: RefCell::new(vec![]),
+            diagnostics: RefCell::new(vec![]),
         };
 
         temp_file.parse_includes(file_path);
@@ -205,6 +206,7 @@ impl TempFile {
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
+            diagnostics: self.diagnostics,
         };
         workspace_files.insert(file_path.clone(), workspace_file);
 
@@ -248,5 +250,9 @@ impl File for TempFile {
 
     fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
         &self.including_files
+    }
+
+    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>> {
+        &self.diagnostics
     }
 }
