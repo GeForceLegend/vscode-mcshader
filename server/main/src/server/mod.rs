@@ -37,6 +37,7 @@ use crate::tree_parser::TreeParser;
 ///
 /// By sending the Mutex of server data to snyc functions, we can handle it like single thread
 pub struct ServerData {
+    temp_lint: RefCell<bool>,
     extensions: RefCell<HashSet<String>>,
     shader_packs: RefCell<HashSet<PathBuf>>,
     workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
@@ -49,6 +50,7 @@ impl ServerData {
         let mut tree_sitter_parser = Parser::new();
         tree_sitter_parser.set_language(tree_sitter_glsl::language()).unwrap();
         ServerData {
+            temp_lint: RefCell::new(false),
             extensions: RefCell::new(BASIC_EXTENSIONS.clone()),
             shader_packs: RefCell::new(HashSet::new()),
             workspace_files: RefCell::new(HashMap::new()),
@@ -170,7 +172,10 @@ impl LanguageServer for MinecraftLanguageServer {
         }
 
         config.extra_extension.extend(BASIC_EXTENSIONS.clone());
-        *self.server_data.lock().unwrap().extensions.borrow_mut() = config.extra_extension;
+
+        let server_data = self.server_data.lock().unwrap();
+        *server_data.extensions.borrow_mut() = config.extra_extension;
+        *server_data.temp_lint.borrow_mut() = config.temp_lint;
     }
 
     #[logging::with_trace_id]
@@ -182,7 +187,9 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        self.change_file(params.text_document.uri, params.content_changes);
+        if let Some(diagnostics) = self.change_file(params.text_document.uri, params.content_changes) {
+            self.publish_diagnostic(diagnostics).await;
+        }
     }
 
     #[logging::with_trace_id]

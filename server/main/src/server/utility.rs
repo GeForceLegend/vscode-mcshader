@@ -116,13 +116,17 @@ impl MinecraftLanguageServer {
         self.lint_shader(file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)
     }
 
-    pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &PathBuf, url: Url) -> HashMap<Url, Vec<Diagnostic>> {
+    pub(super) fn lint_temp_file(
+        &self, temp_file: &TempFile, file_path: &PathBuf, url: Url, temp_lint: bool,
+    ) -> HashMap<Url, Vec<Diagnostic>> {
         let mut diagnostics = HashMap::new();
         if let Some(result) = temp_file.merge_self(file_path) {
             let file_list = HashMap::from([("0".to_owned(), url)]);
             self.lint_shader(file_path, result.0, result.1, file_list, &mut diagnostics);
-        } else {
+        } else if temp_lint {
             diagnostics.insert(url, TreeParser::simple_lint(&temp_file.tree().borrow()));
+        } else {
+            diagnostics.insert(url, vec![]);
         }
         diagnostics
     }

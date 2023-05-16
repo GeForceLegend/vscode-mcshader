@@ -7,6 +7,7 @@ impl MinecraftLanguageServer {
         let server_data = self.server_data.lock().unwrap();
         let workspace_files = server_data.workspace_files.borrow();
         let temp_files = server_data.temp_files.borrow();
+        let temp_lint = server_data.temp_lint.borrow();
 
         let mut diagnostics = HashMap::new();
         let including_files = if let Some(workspace_file) = workspace_files.get(&file_path) {
@@ -18,7 +19,7 @@ impl MinecraftLanguageServer {
 
             workspace_file.including_files().borrow()
         } else if let Some(temp_file) = temp_files.get(&file_path) {
-            diagnostics = self.lint_temp_file(temp_file, &file_path, url);
+            diagnostics = self.lint_temp_file(temp_file, &file_path, url, *temp_lint);
             temp_file.including_files().borrow()
         } else {
             return None;
