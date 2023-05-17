@@ -16,7 +16,7 @@ use crate::constant::*;
 mod temp_file;
 mod workspace_file;
 
-fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str) -> Result<PathBuf, String> {
+fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
     let additional = match additional.strip_prefix("/") {
         Some(path) => {
@@ -35,12 +35,12 @@ fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str)
             Component::ParentDir => {
                 if let Some(Component::Normal(_)) = buffer.pop() {
                 } else {
-                    return Err("Unable to find parent while creating include path".to_owned());
+                    return Err("Unable to find parent while creating include path");
                 }
             }
             Component::Normal(_) => buffer.push(component),
             Component::CurDir => {}
-            _ => return Err("Invalid component in include path".to_owned()),
+            _ => return Err("Invalid component in include path"),
         }
     }
 

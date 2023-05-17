@@ -19,9 +19,9 @@ lazy_static! {
     pub static ref RE_BASIC_SHADER: Regex = Regex::new(
         r#"^(shadow|gbuffers_(armor_glint|basic|beaconbeam|block|clouds|damagedblock|entities|entities_glowing|hand|hand_water|line|skybasic|skytextured|spidereyes|terrain|textured|textured_lit|water|weather)).(vsh|gsh|fsh)|(final|(shadowcomp|prepare|deferred|composite)\d{0,2})(.vsh|.gsh|.fsh|(_[a-z])?.csh)$"#
     ).unwrap();
-    pub static ref COMMAND_LIST: HashMap<String, Box<dyn Command + Sync + Send>> = {
-        let mut command_list: HashMap<String, Box<dyn Command + Sync + Send>> = HashMap::with_capacity(1);
-        command_list.insert("virtualMerge".to_owned(), Box::new(VirtualMerge {}));
+    pub static ref COMMAND_LIST: HashMap<&'static str, Box<dyn Command + Sync + Send>> = {
+        let mut command_list: HashMap<&'static str, Box<dyn Command + Sync + Send>> = HashMap::with_capacity(1);
+        command_list.insert("virtualMerge", Box::new(VirtualMerge {}));
         command_list
     };
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();

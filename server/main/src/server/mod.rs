@@ -149,7 +149,7 @@ impl LanguageServer for MinecraftLanguageServer {
     #[logging::with_trace_id]
     async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<Value>> {
         let server_data = self.server_data.lock().unwrap();
-        match COMMAND_LIST.get(&params.command) {
+        match COMMAND_LIST.get(params.command.as_str()) {
             Some(command) => command.run(&params.arguments, &server_data),
             None => Err(LanguageServerError::invalid_command_error()),
         }
