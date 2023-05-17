@@ -6,7 +6,7 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
 
     loop {
         match (pack_path_components.next(), absolute_path_components.next()) {
-            (Some(ref x), Some(ref y)) if x == y => (),
+            (Some(x), Some(y)) if x == y => (),
             (Some(_), Some(component)) => {
                 let mut resource = "/../".to_owned();
                 while let Some(_) = pack_path_components.next() {

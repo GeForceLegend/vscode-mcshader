@@ -4,8 +4,6 @@ use std::{
 };
 
 use hashbrown::HashMap;
-use serde_json::Value;
-use tower_lsp::jsonrpc::Result;
 
 use crate::file::*;
 use crate::server::{LanguageServerError, ServerData};
@@ -33,8 +31,7 @@ impl Command for VirtualMerge {
                 gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
                 _ => {
                     let mut content = String::new();
-                    let mut file_list = HashMap::new();
-                    workspace_file.merge_file(&workspace_files, &mut file_list, &mut content, &file_path, &mut -1, 0);
+                    workspace_file.merge_file(&workspace_files, &mut HashMap::new(), &mut content, &file_path, &mut -1, 0);
                     preprocess_shader(&mut content, workspace_file.pack_path());
                     content
                 }

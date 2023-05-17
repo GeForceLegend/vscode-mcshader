@@ -8,6 +8,7 @@ impl MinecraftLanguageServer {
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let workspace_files = server_data.workspace_files.borrow();
         let mut temp_files = server_data.temp_files.borrow_mut();
+        let temp_lint = server_data.temp_lint.borrow();
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
@@ -20,7 +21,7 @@ impl MinecraftLanguageServer {
             diagnostics
         } else {
             let temp_file = TempFile::new(&mut parser, &file_path, params.text_document.text);
-            let diagnostics = self.lint_temp_file(&temp_file, &file_path, params.text_document.uri);
+            let diagnostics = self.lint_temp_file(&temp_file, &file_path, params.text_document.uri, *temp_lint);
             temp_files.insert(file_path, temp_file);
             diagnostics
         };

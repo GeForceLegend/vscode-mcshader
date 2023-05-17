@@ -9,6 +9,8 @@ pub struct Configuration {
     pub log_level: String,
     #[serde(alias = "extraExtension")]
     pub extra_extension: HashSet<String>,
+    #[serde(alias = "tempLint")]
+    pub temp_lint: bool,
 }
 
 impl Configuration {

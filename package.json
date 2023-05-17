@@ -81,6 +81,11 @@
                         "inc"
                     ],
                     "description": "%mcshader.configuration.extraExtension%"
+                },
+                "mcshader.tempLint": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "%mcshader.configuration.tempLint%"
                 }
             }
         }

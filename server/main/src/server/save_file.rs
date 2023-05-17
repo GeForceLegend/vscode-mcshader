@@ -8,6 +8,7 @@ impl MinecraftLanguageServer {
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
+        let temp_lint = server_data.temp_lint.borrow();
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             // If this file is ended with watched extension, it should get updated through update_watched_files
@@ -54,7 +55,7 @@ impl MinecraftLanguageServer {
         } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
-            self.lint_temp_file(temp_file, &file_path, url)
+            self.lint_temp_file(temp_file, &file_path, url, *temp_lint)
         } else {
             return None;
         };
