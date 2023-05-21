@@ -79,7 +79,7 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_shader(
-        &self, file_path: &Path, file_type: u32, source: String, file_list: HashMap<String, Url>,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_path: &Path, file_type: u32, source: String, file_list: HashMap<String, PathBuf>,
         diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
         let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
@@ -91,11 +91,12 @@ impl MinecraftLanguageServer {
                     file_path.to_str().unwrap(),
                     compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(compile_log, file_list, file_path, diagnostics);
+                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, compile_log, &file_list, file_path);
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
-                for (_, url) in file_list {
+                for (_, file_path) in &file_list {
+                    let url = Url::from_file_path(file_path).unwrap();
                     if !diagnostics.contains_key(&url) {
                         diagnostics.insert(url, vec![]);
                     }
@@ -108,12 +109,12 @@ impl MinecraftLanguageServer {
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &PathBuf,
         diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
-        let mut file_list: HashMap<String, Url> = HashMap::new();
+        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let mut shader_content = String::new();
         shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
         preprocess_shader(&mut shader_content, shader_file.pack_path());
 
-        self.lint_shader(file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)
+        self.lint_shader(workspace_files, file_path, *shader_file.file_type().borrow(), shader_content, file_list, diagnostics)
     }
 
     pub(super) fn lint_temp_file(
@@ -121,8 +122,8 @@ impl MinecraftLanguageServer {
     ) -> HashMap<Url, Vec<Diagnostic>> {
         if let Some(result) = temp_file.merge_self(file_path) {
             let mut diagnostics = HashMap::new();
-            let file_list = HashMap::from([("0".to_owned(), url)]);
-            self.lint_shader(file_path, result.0, result.1, file_list, &mut diagnostics);
+            let file_list = HashMap::from([("0".to_owned(), file_path.to_path_buf())]);
+            self.lint_shader(&HashMap::new(), file_path, result.0, result.1, file_list, &mut diagnostics);
             diagnostics
         } else if temp_lint {
             HashMap::from([(url, TreeParser::simple_lint(&temp_file.tree().borrow()))])
@@ -131,21 +132,21 @@ impl MinecraftLanguageServer {
         }
     }
 
-    pub(super) fn update_diagnostics(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
-        diagnostics: &HashMap<Url, Vec<Diagnostic>>,
-    ) {
-        for (url, diagnostics) in diagnostics {
-            let file_path = url.to_file_path().unwrap();
-            if let Some(workspace_file) = workspace_files.get(&file_path) {
-                *workspace_file.diagnostics().borrow_mut() = diagnostics.clone();
-            } else if let Some(temp_file) = temp_files.get(&file_path) {
-                *temp_file.diagnostics().borrow_mut() = diagnostics.clone();
-            }
-        }
-    }
+    // pub(super) fn update_diagnostics(
+    //     &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, temp_files: &HashMap<PathBuf, TempFile>,
+    //     diagnostics: &HashMap<Url, Vec<Diagnostic>>,
+    // ) {
+    //     for (url, diagnostics) in diagnostics {
+    //         let file_path = url.to_file_path().unwrap();
+    //         if let Some(workspace_file) = workspace_files.get(&file_path) {
+    //             // *workspace_file.diagnostics().borrow_mut() = diagnostics.clone();
+    //         } else if let Some(temp_file) = temp_files.get(&file_path) {
+    //             // *temp_file.diagnostics().borrow_mut() = diagnostics.clone();
+    //         }
+    //     }
+    // }
 
-    pub fn initial_scan(&self, roots: Vec<PathBuf>) {
+    pub(super) fn initial_scan(&self, roots: Vec<PathBuf>) {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();

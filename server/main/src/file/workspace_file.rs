@@ -103,7 +103,7 @@ impl WorkspaceFile {
                 line_mapping: RefCell::new(vec![]),
                 included_files: RefCell::new(HashSet::new()),
                 including_files: RefCell::new(vec![]),
-                diagnostics: RefCell::new(vec![]),
+                diagnostics: RefCell::new(HashMap::new()),
             };
             shader_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
@@ -137,7 +137,7 @@ impl WorkspaceFile {
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
             including_files: RefCell::new(vec![]),
-            diagnostics: RefCell::new(vec![]),
+            diagnostics: RefCell::new(HashMap::new()),
         };
         if file_path.exists() {
             include_file.update_from_disc(parser, file_path);
@@ -164,7 +164,7 @@ impl WorkspaceFile {
     }
 
     pub fn merge_file(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, Url>, shader_content: &mut String,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String,
         file_path: &PathBuf, file_id: &mut i32, mut depth: u8,
     ) -> bool {
         if !file_path.exists() || depth > 10 {
@@ -201,7 +201,7 @@ impl WorkspaceFile {
             });
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
-        file_list.insert(curr_file_id, Url::from_file_path(file_path).unwrap());
+        file_list.insert(curr_file_id, file_path.clone());
 
         true
     }
@@ -293,7 +293,7 @@ impl File for WorkspaceFile {
         &self.including_files
     }
 
-    fn diagnostics(&self) -> &RefCell<Vec<Diagnostic>> {
+    fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>> {
         &self.diagnostics
     }
 }

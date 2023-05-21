@@ -138,7 +138,7 @@ impl MinecraftLanguageServer {
             }
         }
 
-        self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
+        // self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
         self.collect_memory(&mut workspace_files);
         diagnostics
     }

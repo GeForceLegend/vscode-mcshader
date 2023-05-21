@@ -1,11 +1,10 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use hashbrown::HashMap;
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
-use url::Url;
 
-use crate::opengl;
+use crate::{opengl, file::{WorkspaceFile, File}};
 
 pub struct DiagnosticsParser {
     line_offset: u32,
@@ -32,15 +31,22 @@ impl DiagnosticsParser {
     }
 
     pub fn parse_diagnostics(
-        &self, compile_log: String, file_list: HashMap<String, Url>, shader_path: &Path, diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, compile_log: String, file_list: &HashMap<String, PathBuf>, shader_path: &Path,
     ) {
-        for url in file_list.values() {
-            if !diagnostics.contains_key(url) {
-                diagnostics.insert(url.clone(), vec![]);
-            }
-        }
-
         let default_path = shader_path.to_str().unwrap();
+        
+        let mut diagnostics = file_list.iter().map(|(index, path)| {
+            let workspace_file = workspace_files.get(path).unwrap();
+            let mut diagnostics = workspace_file.diagnostics().borrow_mut();
+            diagnostics.insert(shader_path.to_path_buf(), vec![]);
+            (index, diagnostics)
+        })
+        .collect::<Vec<(_, _)>>();
+
+        let mut diagnostic_pointers = diagnostics.iter_mut().map(|(index, diagnostics)| {
+            ((*index).clone(), diagnostics.get_mut(shader_path).unwrap())
+        })
+        .collect::<HashMap<_, _>>();
 
         compile_log
             .split_terminator('\n')
@@ -63,12 +69,6 @@ impl DiagnosticsParser {
                     _ => DiagnosticSeverity::INFORMATION,
                 };
 
-                let index = captures.name("filepath").unwrap();
-                let file_url = match file_list.get(index.as_str()) {
-                    Some(url) => url,
-                    None => return,
-                };
-
                 let diagnostic = Diagnostic {
                     range: Range {
                         start: Position { line, character: 0 },
@@ -84,7 +84,11 @@ impl DiagnosticsParser {
                     data: None,
                 };
 
-                diagnostics.get_mut(file_url).unwrap().push(diagnostic);
+                let index = captures.name("filepath").unwrap();
+                match diagnostic_pointers.get_mut(index.as_str()) {
+                    Some(diagnostics) => diagnostics.push(diagnostic),
+                    None => return,
+                };
             });
     }
 }
