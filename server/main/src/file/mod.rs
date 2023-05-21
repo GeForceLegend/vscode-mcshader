@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     ffi::OsString,
     fs::read_to_string,
-    path::{Component, PathBuf, MAIN_SEPARATOR_STR},
+    path::{Component, PathBuf, MAIN_SEPARATOR_STR, Path},
 };
 
 use hashbrown::{HashMap, HashSet};
@@ -16,9 +16,9 @@ use crate::constant::*;
 mod temp_file;
 mod workspace_file;
 
-fn include_path_join(root_path: &PathBuf, curr_path: &PathBuf, additional: &str) -> Result<PathBuf, &'static str> {
+fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
-    let additional = match additional.strip_prefix("/") {
+    let additional = match additional.strip_prefix('/') {
         Some(path) => {
             buffer = root_path.components().collect();
             PathBuf::from(path)
@@ -70,7 +70,7 @@ fn generate_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str,
 fn generate_line_mapping(content: &str) -> Vec<usize> {
     let mut line_mapping = vec![];
     line_mapping.push(0);
-    content.match_indices("\n").for_each(|(line, _content)| {
+    content.match_indices('\n').for_each(|(line, _content)| {
         line_mapping.push(line + 1);
     });
     line_mapping.push(content.len() + 1);
@@ -86,8 +86,8 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
     shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
 }
 
-pub fn preprocess_shader(shader_content: &mut String, pack_path: &PathBuf) {
-    if let Some(capture) = RE_MACRO_VERSION.captures(&shader_content) {
+pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
+    if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
         let version = capture.get(0).unwrap();
         let mut version_content = version.as_str().to_owned() + "\n";
 
@@ -132,7 +132,7 @@ pub trait File {
             let start_byte = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
             let end_byte = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
 
-            let last_line = change.text.split("\n").enumerate().last().unwrap();
+            let last_line = change.text.split('\n').enumerate().last().unwrap();
             let new_end_position = match last_line.0 {
                 0 => Point {
                     row: range.start.line as usize,

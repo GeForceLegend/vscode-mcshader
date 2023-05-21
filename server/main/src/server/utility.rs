@@ -16,11 +16,11 @@ impl MinecraftLanguageServer {
             if let Ok(relative_path) = file_path.strip_prefix(shader_pack) {
                 let relative_path = relative_path.to_str().unwrap();
                 if RE_BASIC_SHADER.is_match(relative_path) {
-                    WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
+                    WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                     return true;
                 } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR_STR) {
                     if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
-                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, &shader_pack, &file_path);
+                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                         return true;
                     }
                 }
@@ -30,7 +30,7 @@ impl MinecraftLanguageServer {
         false
     }
 
-    pub(super) fn find_shader_packs(&self, shader_packs: &mut Vec<PathBuf>, curr_path: &PathBuf) {
+    pub(super) fn find_shader_packs(&self, shader_packs: &mut Vec<PathBuf>, curr_path: &Path) {
         curr_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
             let file_path = file.path();
             if file_path.is_dir() {
@@ -79,7 +79,7 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_shader(
-        &self, file_path: &PathBuf, file_type: u32, source: String, file_list: HashMap<String, Url>,
+        &self, file_path: &Path, file_type: u32, source: String, file_list: HashMap<String, Url>,
         diagnostics: &mut HashMap<Url, Vec<Diagnostic>>,
     ) {
         let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
@@ -117,7 +117,7 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_temp_file(
-        &self, temp_file: &TempFile, file_path: &PathBuf, url: Url, temp_lint: bool,
+        &self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool,
     ) -> HashMap<Url, Vec<Diagnostic>> {
         if let Some(result) = temp_file.merge_self(file_path) {
             let mut diagnostics = HashMap::new();

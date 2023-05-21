@@ -100,7 +100,7 @@ impl TreeParser {
                 children: None,
             };
 
-            if symbols.len() == 0 {
+            if symbols.is_empty() {
                 symbols.push(current_symbol);
             } else {
                 insert_child_symbol(&mut symbols, current_symbol);

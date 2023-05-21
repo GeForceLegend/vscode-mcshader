@@ -117,7 +117,7 @@ impl MinecraftLanguageServer {
                             .iter()
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
-                                workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, &file_path, 0);
+                                workspace_file.get_base_shader_pathes(&workspace_files, &mut updated_shaders, file_path, 0);
                                 workspace_file.clear(&mut parser);
 
                                 workspace_files.values().for_each(|workspace_file| {

@@ -51,7 +51,7 @@ impl ToLspTypes for Node<'_> {
 pub struct TreeParser;
 
 impl TreeParser {
-    fn current_node_fetch<'a>(position: &Position, tree: &'a Tree, content: &[u8], line_mapping: &Vec<usize>) -> Option<Node<'a>> {
+    fn current_node_fetch<'a>(position: &Position, tree: &'a Tree, content: &[u8], line_mapping: &[usize]) -> Option<Node<'a>> {
         let position_offset = line_mapping[position.line as usize] + position.character as usize;
 
         let (start, end) = match content[position_offset] {

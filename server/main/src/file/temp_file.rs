@@ -1,11 +1,9 @@
-use std::borrow::Borrow;
-
 use logging::warn;
 
 use super::*;
 
 impl TempFile {
-    pub fn new(parser: &mut Parser, file_path: &PathBuf, content: String) -> Self {
+    pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
             Some(extension) => {
@@ -69,22 +67,19 @@ impl TempFile {
         temp_file
     }
 
-    pub fn parse_includes(&self, file_path: &PathBuf) {
+    pub fn parse_includes(&self, file_path: &Path) {
         if *self.file_type.borrow() == gl::INVALID_ENUM {
             return;
         }
-        let pack_path = self.pack_path.borrow();
+        let pack_path = &self.pack_path;
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
 
         self.content
             .borrow()
-            .split_terminator("\n")
+            .split_terminator('\n')
             .enumerate()
-            .filter_map(|(line, content)| match RE_MACRO_INCLUDE.captures(content) {
-                Some(captures) => Some((line, captures)),
-                None => None,
-            })
+            .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, captures)))
             .for_each(|(line, captures)| {
                 let include_content = captures.get(1).unwrap();
                 let path = include_content.as_str();
@@ -100,7 +95,7 @@ impl TempFile {
             });
     }
 
-    pub fn merge_self(&self, file_path: &PathBuf) -> Option<(u32, String)> {
+    pub fn merge_self(&self, file_path: &Path) -> Option<(u32, String)> {
         let file_type = *self.file_type.borrow();
         if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
             return None;
@@ -148,7 +143,7 @@ impl TempFile {
         generate_line_macro(temp_content, 1, &curr_file_id, file_name);
         temp_content.push('\n');
 
-        if let Ok(content) = read_to_string(&file_path) {
+        if let Ok(content) = read_to_string(file_path) {
             let mut start_index = 0;
             let mut lines = 2;
 
@@ -162,15 +157,15 @@ impl TempFile {
                     let path = capture.get(1).unwrap().as_str();
 
                     let include_path = match path.strip_prefix('/') {
-                        Some(path) => pack_path.join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                        Some(path) => pack_path.join(PathBuf::from(path.replace('/', MAIN_SEPARATOR_STR))),
                         None => file_path
                             .parent()
                             .unwrap()
-                            .join(PathBuf::from(path.replace("/", MAIN_SEPARATOR_STR))),
+                            .join(PathBuf::from(path.replace('/', MAIN_SEPARATOR_STR))),
                     };
                     temp_content.push_str(before_content);
                     start_index = end;
-                    lines += before_content.matches("\n").count();
+                    lines += before_content.matches('\n').count();
 
                     if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
                         generate_line_macro(temp_content, lines, &curr_file_id, file_name);
@@ -180,7 +175,7 @@ impl TempFile {
                 } else if RE_MACRO_LINE.is_match(capture_content) {
                     temp_content.push_str(before_content);
                     start_index = end;
-                    lines += before_content.matches("\n").count();
+                    lines += before_content.matches('\n').count();
                 }
             });
             temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
@@ -194,7 +189,7 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32,
+        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &Path, depth: i32,
     ) {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
@@ -203,7 +198,7 @@ impl TempFile {
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
-            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
+            included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
             including_files: RefCell::new(vec![]),
         };
         workspace_files.insert(file_path.clone(), workspace_file);
