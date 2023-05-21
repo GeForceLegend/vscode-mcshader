@@ -1,6 +1,6 @@
 use super::*;
 
-fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::result::Result<String, ()> {
+fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result::Result<String, ()> {
     let mut pack_path_components = pack_path.components();
     let mut absolute_path_components = absolute_path.components();
 
@@ -35,10 +35,10 @@ fn abstract_include_path(pack_path: &PathBuf, absolute_path: &PathBuf) -> core::
 }
 
 fn rename_file(
-    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &PathBuf, after_path: &PathBuf,
+    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &PathBuf, after_path: &Path,
     changes: &mut HashMap<Url, Vec<TextEdit>>,
 ) {
-    match abstract_include_path(workspace_file.pack_path(), &after_path) {
+    match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
@@ -65,7 +65,7 @@ fn rename_file(
                             };
                             change_list.push(edit);
                             *end = *start + include_path.len();
-                            *prev_include_path = after_path.clone();
+                            *prev_include_path = after_path.to_path_buf();
                         });
                     if let Some(change) = changes.get_mut(&url) {
                         change.extend(change_list);

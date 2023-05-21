@@ -50,7 +50,6 @@ impl ServerCapabilitiesFactroy {
                 }),
                 ..Default::default()
             },
-            ..Default::default()
         }
     }
 }

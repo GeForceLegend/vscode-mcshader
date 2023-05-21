@@ -65,7 +65,7 @@ impl TreeParser {
     }
 
     pub fn find_definitions(
-        url: &Url, position: &Position, tree: &Tree, content: &str, line_mapping: &Vec<usize>,
+        url: &Url, position: &Position, tree: &Tree, content: &str, line_mapping: &[usize],
     ) -> Option<Vec<Location>> {
         let content_bytes = content.as_bytes();
         let current_node = match Self::current_node_fetch(position, tree, content_bytes, line_mapping) {

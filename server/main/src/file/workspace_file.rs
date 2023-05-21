@@ -12,12 +12,9 @@ impl WorkspaceFile {
             let mut including_files = vec![];
 
             content
-                .split_terminator("\n")
+                .split_terminator('\n')
                 .enumerate()
-                .filter_map(|(line, content)| match RE_MACRO_INCLUDE.captures(content) {
-                    Some(captures) => Some((line, captures)),
-                    None => None,
-                })
+                .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, captures)))
                 .for_each(|(line, captures)| {
                     let include_content = captures.get(1).unwrap();
                     let path = include_content.as_str();
@@ -130,7 +127,7 @@ impl WorkspaceFile {
 
     pub fn new_include(
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &PathBuf, depth: i32,
+        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &Path, depth: i32,
     ) {
         let include_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
@@ -138,7 +135,7 @@ impl WorkspaceFile {
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
-            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
+            included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
             including_files: RefCell::new(vec![]),
             diagnostics: RefCell::new(vec![]),
         };
@@ -187,10 +184,7 @@ impl WorkspaceFile {
 
         including_files
             .iter()
-            .filter_map(|(line, _, _, include_path)| match workspace_files.get(include_path) {
-                Some(workspace_file) => Some((line, include_path, workspace_file)),
-                None => None,
-            })
+            .filter_map(|(line, _, _, include_path)| workspace_files.get(include_path).map(|workspace_file| (line, include_path, workspace_file)))
             .for_each(|(line, include_path, workspace_file)| {
                 let start = line_mapping.get(*line).unwrap();
                 let end = line_mapping.get(line + 1).unwrap();
@@ -234,13 +228,13 @@ impl WorkspaceFile {
     }
 
     pub fn get_base_shader_pathes(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, base_shaders: &mut HashSet<PathBuf>, file_path: &PathBuf, mut depth: u8,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, base_shaders: &mut HashSet<PathBuf>, file_path: &Path, mut depth: u8,
     ) {
         depth += 1;
         let file_type = *self.file_type.borrow();
         if file_type != gl::NONE && file_type != gl::INVALID_ENUM {
             // workspace_files would not change when linting shaders. This should be safe.
-            base_shaders.insert(file_path.clone());
+            base_shaders.insert(file_path.to_path_buf());
         }
         if depth < 10 {
             self.included_files

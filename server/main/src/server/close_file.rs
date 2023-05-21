@@ -48,9 +48,6 @@ impl MinecraftLanguageServer {
             return Some(diagnostics);
         }
 
-        match temp_files.remove(&file_path) {
-            Some(_) => Some(HashMap::from([(file_url, vec![])])),
-            None => None,
-        }
+        temp_files.remove(&file_path).map(|_| HashMap::from([(file_url, vec![])]))
     }
 }
