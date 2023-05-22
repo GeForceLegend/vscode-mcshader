@@ -190,7 +190,7 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &PathBuf, file_path: &PathBuf, parent_path: &Path, depth: i32,
+        parent_shaders: &HashSet<PathBuf>, pack_path: &PathBuf, file_path: &PathBuf, parent_path: &Path, depth: i32,
     ) {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
@@ -201,6 +201,7 @@ impl TempFile {
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
             including_files: RefCell::new(vec![]),
+            parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: self.diagnostics,
         };
         workspace_files.insert(file_path.clone(), workspace_file);
@@ -210,6 +211,7 @@ impl TempFile {
             temp_files,
             parser,
             HashSet::new(),
+            parent_shaders,
             &content,
             pack_path,
             file_path,

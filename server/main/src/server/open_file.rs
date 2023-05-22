@@ -12,12 +12,14 @@ impl MinecraftLanguageServer {
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-            let mut shader_files = HashMap::new();
-            workspace_file.get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0);
+            let shader_files = workspace_file.parent_shaders().borrow();
+            shader_files
+                .iter()
+                .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
+                .for_each(|(shader_path, shader_file)| {
+                    self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
+                });
 
-            for (shader_path, shader_file) in shader_files {
-                self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
-            }
             diagnostics
         } else {
             let temp_file = TempFile::new(&mut parser, &file_path, params.text_document.text);

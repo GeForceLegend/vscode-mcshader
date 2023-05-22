@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     ffi::OsString,
     fs::read_to_string,
-    path::{Component, PathBuf, MAIN_SEPARATOR_STR, Path},
+    path::{Component, Path, PathBuf, MAIN_SEPARATOR_STR},
 };
 
 use hashbrown::{HashMap, HashSet};
@@ -182,6 +182,8 @@ pub struct WorkspaceFile {
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    /// Shaders Files that include this file
+    parent_shaders: RefCell<HashSet<PathBuf>>,
     /// Diagnostics parsed by compiler but not tree-sitter
     diagnostics: RefCell<HashMap<PathBuf, Vec<Diagnostic>>>,
 }

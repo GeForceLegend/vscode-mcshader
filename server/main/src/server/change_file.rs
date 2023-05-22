@@ -16,12 +16,14 @@ impl MinecraftLanguageServer {
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();
             let old_including_files = workspace_file.including_pathes();
+            let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
             WorkspaceFile::update_include(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,
                 old_including_files,
+                &parent_shaders,
                 &content,
                 &pack_path,
                 &file_path,

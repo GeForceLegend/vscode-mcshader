@@ -22,6 +22,7 @@ impl MinecraftLanguageServer {
                 let pack_path = workspace_file.pack_path().clone();
                 let content = workspace_file.content().borrow().clone();
                 let old_including_files = workspace_file.including_pathes();
+                let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
                 // Get the new pointer of this file (it might changed if workspace file list get reallocated).
                 // workspace_files will not get modded after this call so this should be safe
@@ -30,6 +31,7 @@ impl MinecraftLanguageServer {
                     &mut temp_files,
                     &mut parser,
                     old_including_files,
+                    &parent_shaders,
                     &content,
                     &pack_path,
                     &file_path,
@@ -37,17 +39,21 @@ impl MinecraftLanguageServer {
                 );
 
                 let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                let mut shader_files = HashMap::new();
+                let shader_files = 
                 unsafe {
                     workspace_file
                         .as_ref()
                         .unwrap()
-                        .get_base_shaders(&workspace_files, &mut shader_files, &file_path, 0)
+                        .parent_shaders()
+                        .borrow()
                 };
 
-                for (shader_path, shader_file) in shader_files {
-                    self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
-                }
+                shader_files
+                    .iter()
+                    .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
+                    .for_each(|(shader_path, shader_file)| {
+                        self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
+                    });
                 diagnostics
             } else {
                 return None;

@@ -4,7 +4,10 @@ use hashbrown::HashMap;
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 
-use crate::{opengl, file::{WorkspaceFile, File}};
+use crate::{
+    file::{File, WorkspaceFile},
+    opengl,
+};
 
 pub struct DiagnosticsParser {
     line_offset: u32,
@@ -31,22 +34,25 @@ impl DiagnosticsParser {
     }
 
     pub fn parse_diagnostics(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, compile_log: String, file_list: &HashMap<String, PathBuf>, shader_path: &Path,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, compile_log: String, file_list: &HashMap<String, PathBuf>,
+        shader_path: &Path,
     ) {
         let default_path = shader_path.to_str().unwrap();
-        
-        let mut diagnostics = file_list.iter().map(|(index, path)| {
-            let workspace_file = workspace_files.get(path).unwrap();
-            let mut diagnostics = workspace_file.diagnostics().borrow_mut();
-            diagnostics.insert(shader_path.to_path_buf(), vec![]);
-            (index, diagnostics)
-        })
-        .collect::<Vec<(_, _)>>();
 
-        let mut diagnostic_pointers = diagnostics.iter_mut().map(|(index, diagnostics)| {
-            ((*index).clone(), diagnostics.get_mut(shader_path).unwrap())
-        })
-        .collect::<HashMap<_, _>>();
+        let mut diagnostics = file_list
+            .iter()
+            .map(|(index, path)| {
+                let workspace_file = workspace_files.get(path).unwrap();
+                let mut diagnostics = workspace_file.diagnostics().borrow_mut();
+                diagnostics.insert(shader_path.to_path_buf(), vec![]);
+                (index, diagnostics)
+            })
+            .collect::<Vec<(_, _)>>();
+
+        let mut diagnostic_pointers = diagnostics
+            .iter_mut()
+            .map(|(index, diagnostics)| ((*index).clone(), diagnostics.get_mut(shader_path).unwrap()))
+            .collect::<HashMap<_, _>>();
 
         compile_log
             .split_terminator('\n')
