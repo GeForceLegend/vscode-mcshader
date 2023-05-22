@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use hashbrown::HashMap;
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
+use url::Url;
 
 use crate::{
     file::{File, WorkspaceFile},
@@ -80,14 +81,10 @@ impl DiagnosticsParser {
                         start: Position { line, character: 0 },
                         end: Position { line, character: u32::MAX },
                     },
-                    code: None,
                     severity: Some(severity),
                     source: Some("mcshader-glsl".to_owned()),
                     message: msg,
-                    related_information: None,
-                    tags: None,
-                    code_description: None,
-                    data: None,
+                    ..Diagnostic::default()
                 };
 
                 let index = captures.name("filepath").unwrap();
@@ -96,5 +93,46 @@ impl DiagnosticsParser {
                     None => return,
                 };
             });
+    }
+
+    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url, file_path: &Path) -> HashMap<Url, Vec<Diagnostic>>{
+        let default_path = file_path.to_str().unwrap();
+
+        let diagnostics = compile_log
+            .split_terminator('\n')
+            .filter_map(|log_line| self.line_regex.captures(log_line))
+            .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
+            .map(|captures| {
+                let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
+                msg += default_path;
+
+                let line = match captures.name("linenum") {
+                    Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
+                    None => 0,
+                } - self.line_offset;
+
+                let severity = match captures.name("severity") {
+                    Some(c) => match c.as_str().to_lowercase().as_str() {
+                        "error" => DiagnosticSeverity::ERROR,
+                        "warning" => DiagnosticSeverity::WARNING,
+                        _ => DiagnosticSeverity::INFORMATION,
+                    },
+                    _ => DiagnosticSeverity::INFORMATION,
+                };
+
+                Diagnostic {
+                    range: Range {
+                        start: Position { line, character: 0 },
+                        end: Position { line, character: u32::MAX },
+                    },
+                    severity: Some(severity),
+                    source: Some("mcshader-glsl".to_owned()),
+                    message: msg,
+                    ..Diagnostic::default()
+                }
+            })
+            .collect::<Vec<_>>();
+
+        HashMap::from([(url, diagnostics)])
     }
 }

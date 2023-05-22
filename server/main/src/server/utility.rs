@@ -127,10 +127,24 @@ impl MinecraftLanguageServer {
     pub(super) fn lint_temp_file(
         &self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool,
     ) -> HashMap<Url, Vec<Diagnostic>> {
-        if let Some(result) = temp_file.merge_self(file_path) {
-            let mut diagnostics = HashMap::new();
-            let file_list = HashMap::from([("0".to_owned(), file_path.to_path_buf())]);
-            self.lint_shader(&HashMap::new(), file_path, result.0, result.1, &file_list, &mut diagnostics);
+        if let Some((file_type, source)) = temp_file.merge_self(file_path) {
+            let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
+            // self.lint_shader(&HashMap::new(), file_path, file_type, source, &file_list, &mut diagnostics);
+
+            let diagnostics = match validation_result {
+                Some(compile_log) => {
+                    info!(
+                        "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
+                        file_path.to_str().unwrap(),
+                        compile_log
+                    );
+                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url, file_path)
+                }
+                None => {
+                    info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
+                    HashMap::from([(url, vec![])])
+                }
+            };
             diagnostics
         } else if temp_lint {
             HashMap::from([(url, TreeParser::simple_lint(&temp_file.tree().borrow()))])
