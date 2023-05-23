@@ -11,8 +11,7 @@ impl MinecraftLanguageServer {
 
         let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
         let mut updated_shaders = HashSet::new();
-
-        let mut change_list: HashSet<PathBuf> = HashSet::new();
+        let mut change_list = HashSet::new();
 
         for change in &changes {
             let file_path = change.uri.to_file_path().unwrap();
@@ -39,14 +38,7 @@ impl MinecraftLanguageServer {
                         0,
                     );
 
-                    updated_shaders.extend(unsafe {
-                        workspace_file
-                            .as_ref()
-                            .unwrap()
-                            .parent_shaders()
-                            .borrow()
-                            .clone()
-                    });
+                    updated_shaders.extend(unsafe { workspace_file.as_ref().unwrap().parent_shaders().borrow().clone() });
                 }
             } else {
                 // Insert them to a hashset and handle later
@@ -87,15 +79,7 @@ impl MinecraftLanguageServer {
                         0,
                     );
 
-
-                    updated_shaders.extend(unsafe {
-                        workspace_file
-                            .as_ref()
-                            .unwrap()
-                            .parent_shaders()
-                            .borrow()
-                            .clone()
-                    });
+                    updated_shaders.extend(unsafe { workspace_file.as_ref().unwrap().parent_shaders().borrow().clone() });
                 }
                 if self.scan_new_file(&mut parser, &shader_packs, &mut workspace_files, &mut temp_files, &file_path) {
                     updated_shaders.insert(file_path);
@@ -140,14 +124,15 @@ impl MinecraftLanguageServer {
                 }
             }
         }
+        let mut update_list = HashSet::new();
         for file_path in &updated_shaders {
             match workspace_files.get(file_path) {
-                Some(shader_file) => self.lint_workspace_shader(&workspace_files, shader_file, file_path, &mut diagnostics),
+                Some(shader_file) => self.lint_workspace_shader(&workspace_files, shader_file, file_path, &mut update_list),
                 None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
             }
         }
+        diagnostics.extend(self.merge_diagnostics(&workspace_files, &update_list));
 
-        // self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
         self.collect_memory(&mut workspace_files);
         diagnostics
     }

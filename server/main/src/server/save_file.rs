@@ -38,23 +38,16 @@ impl MinecraftLanguageServer {
                     0,
                 );
 
-                let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
-                let shader_files = 
-                unsafe {
-                    workspace_file
-                        .as_ref()
-                        .unwrap()
-                        .parent_shaders()
-                        .borrow()
-                };
+                let shader_files = unsafe { workspace_file.as_ref().unwrap().parent_shaders().borrow() };
 
+                let mut update_list = HashSet::new();
                 shader_files
                     .iter()
                     .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
                     .for_each(|(shader_path, shader_file)| {
-                        self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut diagnostics);
+                        self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                     });
-                diagnostics
+                self.merge_diagnostics(&workspace_files, &update_list)
             } else {
                 return None;
             }
@@ -65,7 +58,6 @@ impl MinecraftLanguageServer {
         } else {
             return None;
         };
-        // self.update_diagnostics(&workspace_files, &temp_files, &diagnostics);
 
         self.collect_memory(&mut workspace_files);
         Some(diagnostics)

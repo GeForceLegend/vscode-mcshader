@@ -88,14 +88,13 @@ impl DiagnosticsParser {
                 };
 
                 let index = captures.name("filepath").unwrap();
-                match diagnostic_pointers.get_mut(index.as_str()) {
-                    Some(diagnostics) => diagnostics.push(diagnostic),
-                    None => return,
-                };
+                if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
+                    diagnostics.push(diagnostic);
+                }
             });
     }
 
-    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url, file_path: &Path) -> HashMap<Url, Vec<Diagnostic>>{
+    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url, file_path: &Path) -> HashMap<Url, Vec<Diagnostic>> {
         let default_path = file_path.to_str().unwrap();
 
         let diagnostics = compile_log

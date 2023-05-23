@@ -26,14 +26,7 @@ impl WorkspaceFile {
             .borrow()
             .iter()
             .filter_map(|included_path| workspace_files.get(included_path))
-            .flat_map(|workspace_file| {
-                workspace_file
-                    .parent_shaders
-                    .borrow()
-                    .iter()
-                    .map(|shader_path| shader_path.clone())
-                    .collect::<Vec<_>>()
-            })
+            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
             .collect::<HashSet<_>>();
 
         let mut diagnostics = self.diagnostics.borrow_mut();
@@ -245,7 +238,7 @@ impl WorkspaceFile {
 
     pub fn merge_file(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String,
-        file_path: &PathBuf, file_id: &mut i32, mut depth: u8,
+        file_path: &Path, file_id: &mut i32, mut depth: u8,
     ) -> bool {
         if !file_path.exists() || depth > 10 {
             return false;
@@ -285,7 +278,7 @@ impl WorkspaceFile {
             });
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
-        file_list.insert(curr_file_id, file_path.clone());
+        file_list.insert(curr_file_id, file_path.to_path_buf());
 
         true
     }
