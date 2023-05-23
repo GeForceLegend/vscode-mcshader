@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## Added
+
+- Added an option to enable or disable temp file linting using tree-sitter-glsl. Defaultly off because I found it sucks.
+
+## Fixed
+
+- Fixed a multiple file linting issue: If file A and B both includes file C, and linting B will show a error in C, when linting A again, error caused by B will disappear until linting B again.
+
 ## [0.3.1] - 2023-05-04
 
 ### Fixed
