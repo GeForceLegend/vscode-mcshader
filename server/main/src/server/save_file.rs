@@ -1,4 +1,4 @@
-use super::*;
+use super::{utility::extend_diagnostics, *};
 
 impl MinecraftLanguageServer {
     pub fn save_file(&self, url: Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
@@ -26,7 +26,7 @@ impl MinecraftLanguageServer {
 
                 // Get the new pointer of this file (it might changed if workspace file list get reallocated).
                 // workspace_files will not get modded after this call so this should be safe
-                let workspace_file = WorkspaceFile::update_include(
+                let new_including_files = WorkspaceFile::update_include(
                     &mut workspace_files,
                     &mut temp_files,
                     &mut parser,
@@ -36,9 +36,14 @@ impl MinecraftLanguageServer {
                     &pack_path,
                     &file_path,
                     0,
-                );
+                )
+                .unwrap();
+                let workspace_file = workspace_files.get(&file_path).unwrap();
+                let mut old_including_files = workspace_file.including_files().borrow_mut();
+                let mut diagnostics = self.update_include_diagnostics(&workspace_files, &old_including_files, &new_including_files);
+                *old_including_files = new_including_files;
 
-                let shader_files = unsafe { workspace_file.as_ref().unwrap().parent_shaders().borrow() };
+                let shader_files = workspace_file.parent_shaders().borrow();
 
                 let mut update_list = HashSet::new();
                 shader_files
@@ -47,7 +52,8 @@ impl MinecraftLanguageServer {
                     .for_each(|(shader_path, shader_file)| {
                         self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                     });
-                self.merge_diagnostics(&workspace_files, &update_list)
+                extend_diagnostics(&mut diagnostics, self.collect_diagnostics(&workspace_files, &update_list));
+                diagnostics
             } else {
                 return None;
             }

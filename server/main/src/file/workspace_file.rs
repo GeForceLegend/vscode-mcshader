@@ -57,7 +57,7 @@ impl WorkspaceFile {
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         mut old_including_files: HashSet<PathBuf>, parent_shaders: &HashSet<PathBuf>, content: &str, pack_path: &PathBuf,
         file_path: &PathBuf, mut depth: i32,
-    ) -> *const WorkspaceFile {
+    ) -> Option<Vec<IncludeInformation>> {
         if depth <= 10 {
             depth += 1;
             let mut including_files = vec![];
@@ -114,14 +114,12 @@ impl WorkspaceFile {
                 .iter()
                 .filter_map(|including_path| workspace_files.get(including_path))
                 .for_each(|including_file| {
-                    including_file.update_shader_list(workspace_files, depth);
                     including_file.included_files.borrow_mut().remove(file_path);
+                    including_file.update_shader_list(workspace_files, depth);
                 });
-            let workspace_file = workspace_files.get(file_path).unwrap();
-            *workspace_file.including_files.borrow_mut() = including_files;
-            workspace_file as *const Self
+            Some(including_files)
         } else {
-            workspace_files.get(file_path).unwrap() as *const Self
+            None
         }
     }
 
@@ -183,7 +181,7 @@ impl WorkspaceFile {
             workspace_files.insert(file_path.clone(), shader_file);
         }
 
-        Self::update_include(
+        if let Some(including_files) = Self::update_include(
             workspace_files,
             temp_files,
             parser,
@@ -193,7 +191,9 @@ impl WorkspaceFile {
             pack_path,
             file_path,
             0,
-        );
+        ) {
+            *workspace_files.get(file_path).unwrap().including_files.borrow_mut() = including_files;
+        }
     }
 
     pub fn new_include(
@@ -218,7 +218,7 @@ impl WorkspaceFile {
 
             workspace_files.insert(file_path.clone(), include_file);
 
-            Self::update_include(
+            if let Some(including_files) = Self::update_include(
                 workspace_files,
                 temp_files,
                 parser,
@@ -228,7 +228,9 @@ impl WorkspaceFile {
                 pack_path,
                 file_path,
                 depth,
-            );
+            ) {
+                *workspace_files.get(file_path).unwrap().including_files.borrow_mut() = including_files;
+            }
         } else {
             *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
@@ -325,7 +327,7 @@ impl File for WorkspaceFile {
         &self.included_files
     }
 
-    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+    fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
         &self.including_files
     }
 

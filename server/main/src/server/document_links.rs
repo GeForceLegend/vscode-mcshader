@@ -21,7 +21,7 @@ impl MinecraftLanguageServer {
 
             (
                 workspace_file.including_files().borrow(),
-                self.merge_diagnostics(&workspace_files, &update_list),
+                self.collect_diagnostics(&workspace_files, &update_list),
             )
         } else if let Some(temp_file) = temp_files.get(&file_path) {
             (

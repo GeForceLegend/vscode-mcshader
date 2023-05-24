@@ -18,7 +18,7 @@ impl MinecraftLanguageServer {
             let old_including_files = workspace_file.including_pathes();
             let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
-            WorkspaceFile::update_include(
+            let new_including_files = WorkspaceFile::update_include(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,
@@ -28,8 +28,13 @@ impl MinecraftLanguageServer {
                 &pack_path,
                 &file_path,
                 0,
-            );
-            HashMap::new()
+            )
+            .unwrap();
+            let mut old_including_files = workspace_files.get(&file_path).unwrap().including_files().borrow_mut();
+            let diagnostics = self.update_include_diagnostics(&workspace_files, &old_including_files, &new_including_files);
+            *old_including_files = new_including_files;
+
+            diagnostics
         } else if let Some(temp_file) = temp_files.get(&file_path) {
             temp_file.apply_edit(changes, &mut parser);
             temp_file.parse_includes(&file_path);

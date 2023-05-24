@@ -16,6 +16,8 @@ use crate::constant::*;
 mod temp_file;
 mod workspace_file;
 
+pub type IncludeInformation = (usize, usize, usize, PathBuf);
+
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
     let additional = match additional.strip_prefix('/') {
@@ -110,7 +112,7 @@ pub trait File {
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
-    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>>;
+    fn including_files(&self) -> &RefCell<Vec<IncludeInformation>>;
     fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
@@ -181,7 +183,7 @@ pub struct WorkspaceFile {
     /// Files that directly include this file
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    including_files: RefCell<Vec<IncludeInformation>>,
     /// Shaders Files that include this file
     parent_shaders: RefCell<HashSet<PathBuf>>,
     /// Diagnostics parsed by compiler but not tree-sitter
@@ -203,7 +205,7 @@ pub struct TempFile {
     /// Files that directly include this file
     included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+    including_files: RefCell<Vec<IncludeInformation>>,
     /// Diagnostics parsed by compiler but not tree-sitter
     diagnostics: RefCell<HashMap<PathBuf, Vec<Diagnostic>>>,
 }

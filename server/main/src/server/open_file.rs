@@ -20,7 +20,7 @@ impl MinecraftLanguageServer {
                     self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                 });
 
-            self.merge_diagnostics(&workspace_files, &update_list)
+            self.collect_diagnostics(&workspace_files, &update_list)
         } else {
             let temp_file = TempFile::new(&mut parser, &file_path, params.text_document.text);
             let diagnostics = self.lint_temp_file(&temp_file, &file_path, params.text_document.uri, *temp_lint);

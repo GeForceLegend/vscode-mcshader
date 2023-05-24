@@ -206,7 +206,7 @@ impl TempFile {
         };
         workspace_files.insert(file_path.clone(), workspace_file);
 
-        WorkspaceFile::update_include(
+        if let Some(including_files) = WorkspaceFile::update_include(
             workspace_files,
             temp_files,
             parser,
@@ -216,7 +216,9 @@ impl TempFile {
             pack_path,
             file_path,
             depth,
-        );
+        ) {
+            *workspace_files.get(file_path).unwrap().including_files.borrow_mut() = including_files;
+        }
     }
 }
 
@@ -245,7 +247,7 @@ impl File for TempFile {
         &self.included_files
     }
 
-    fn including_files(&self) -> &RefCell<Vec<(usize, usize, usize, PathBuf)>> {
+    fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
         &self.including_files
     }
 
