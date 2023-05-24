@@ -1,4 +1,4 @@
-use super::{utility::extend_diagnostics, *};
+use super::*;
 
 impl MinecraftLanguageServer {
     pub fn close_file(&self, file_url: Url) -> Option<HashMap<Url, Vec<Diagnostic>>> {
@@ -15,16 +15,14 @@ impl MinecraftLanguageServer {
             // Clone the content so they can be used alone.
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();
-            let old_including_files = workspace_file.including_pathes();
+            let mut old_including_files = workspace_file.including_pathes();
             let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
-            // Get the new pointer of this file (it might changed if workspace file list get reallocated).
-            // workspace_files will not get modded after this call so this should be safe
             let new_including_files = WorkspaceFile::update_include(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,
-                old_including_files,
+                &mut old_including_files,
                 &parent_shaders,
                 &content,
                 &pack_path,
@@ -33,14 +31,11 @@ impl MinecraftLanguageServer {
             )
             .unwrap();
             let workspace_file = workspace_files.get(&file_path).unwrap();
-            let mut old_including_files = workspace_file.including_files().borrow_mut();
-            let mut diagnostics = self.update_include_diagnostics(&workspace_files, &old_including_files, &new_including_files);
-            *old_including_files = new_including_files;
-            drop(old_including_files);
+            *workspace_file.including_files().borrow_mut() = new_including_files;
 
             let shader_files = workspace_file.parent_shaders().borrow();
 
-            let mut update_list = HashSet::new();
+            let mut update_list = old_including_files;
             shader_files
                 .iter()
                 .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
@@ -49,7 +44,7 @@ impl MinecraftLanguageServer {
                 });
             drop(shader_files);
 
-            extend_diagnostics(&mut diagnostics, self.collect_diagnostics(&workspace_files, &update_list));
+            let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
             self.collect_memory(&mut workspace_files);
             return Some(diagnostics);
         }

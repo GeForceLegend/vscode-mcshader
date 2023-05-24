@@ -1,18 +1,5 @@
 use super::*;
 
-pub(super) fn extend_diagnostics(diagnostics: &mut HashMap<Url, Vec<Diagnostic>>, extra_diagnostics: HashMap<Url, Vec<Diagnostic>>) {
-    extra_diagnostics
-        .into_iter()
-        .for_each(|(url, diagnostic_list)| match diagnostics.get_mut(&url) {
-            Some(diagnostics) => {
-                diagnostics.extend(diagnostic_list);
-            }
-            None => {
-                diagnostics.insert(url, diagnostic_list);
-            }
-        });
-}
-
 impl MinecraftLanguageServer {
     pub(super) fn collect_memory(&self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>) {
         workspace_files.retain(|_file_path, workspace_file| {
@@ -169,26 +156,6 @@ impl MinecraftLanguageServer {
                 (file_url, diagnostics)
             })
             .collect()
-    }
-
-    pub(super) fn update_include_diagnostics(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, old_including_files: &[IncludeInformation],
-        new_including_files: &[IncludeInformation],
-    ) -> HashMap<Url, Vec<Diagnostic>> {
-        let old_including_pathes = old_including_files
-            .iter()
-            .map(|(_, _, _, including_path)| including_path)
-            .collect::<HashSet<_>>();
-        let new_including_pathes = new_including_files
-            .iter()
-            .map(|(_, _, _, including_path)| including_path)
-            .collect::<HashSet<_>>();
-        let update_list = old_including_pathes
-            .difference(&new_including_pathes)
-            .map(|file_path| (*file_path).clone())
-            .collect::<HashSet<_>>();
-
-        self.collect_diagnostics(workspace_files, &update_list)
     }
 
     pub(super) fn initial_scan(&self, roots: Vec<PathBuf>) {

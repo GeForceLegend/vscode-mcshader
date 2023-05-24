@@ -210,7 +210,7 @@ impl TempFile {
             workspace_files,
             temp_files,
             parser,
-            HashSet::new(),
+            &mut HashSet::new(),
             parent_shaders,
             &content,
             pack_path,
