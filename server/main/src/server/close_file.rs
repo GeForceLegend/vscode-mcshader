@@ -10,7 +10,7 @@ impl MinecraftLanguageServer {
         let mut temp_files = server_data.temp_files.borrow_mut();
 
         // Force closing may result in temp changes discarded, so the content should reset to the disc copy.
-        if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             workspace_file.update_from_disc(&mut parser, &file_path);
             // Clone the content so they can be used alone.
             let pack_path = workspace_file.pack_path().clone();
@@ -46,9 +46,11 @@ impl MinecraftLanguageServer {
 
             let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
             self.collect_memory(&mut workspace_files);
-            return Some(diagnostics);
-        }
+            Some(diagnostics)
+        } else {
+            temp_files.remove(&file_path).map(|_| HashMap::from([(file_url, vec![])]))
+        };
 
-        temp_files.remove(&file_path).map(|_| HashMap::from([(file_url, vec![])]))
+        diagnostics
     }
 }

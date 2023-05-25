@@ -1,6 +1,6 @@
 use tower_lsp::lsp_types::*;
 
-pub struct ServerCapabilitiesFactroy {}
+pub struct ServerCapabilitiesFactroy;
 
 impl ServerCapabilitiesFactroy {
     pub fn initial_capabilities() -> InitializeResult {

@@ -115,7 +115,7 @@ pub trait File {
     fn including_files(&self) -> &RefCell<Vec<IncludeInformation>>;
     fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>>;
 
-    fn update_from_disc(&self, parser: &mut Parser, file_path: &PathBuf) {
+    fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) {
         if let Ok(content) = read_to_string(file_path) {
             *self.tree().borrow_mut() = parser.parse(&content, None).unwrap();
             *self.line_mapping().borrow_mut() = generate_line_mapping(&content);

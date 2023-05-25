@@ -134,7 +134,7 @@ impl TempFile {
         Some((*self.file_type.borrow(), temp_content))
     }
 
-    fn merge_temp(pack_path: &PathBuf, file_path: &PathBuf, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {
+    fn merge_temp(pack_path: &Path, file_path: &Path, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {
         if depth > 10 || !file_path.exists() {
             return false;
         }
@@ -190,12 +190,12 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashSet<PathBuf>, pack_path: &PathBuf, file_path: &PathBuf, parent_path: &Path, depth: i32,
+        parent_shaders: &HashSet<PathBuf>, pack_path: &Path, file_path: &Path, parent_path: &Path, depth: i32,
     ) {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
-            pack_path: pack_path.clone(),
+            pack_path: pack_path.to_path_buf(),
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
@@ -204,7 +204,7 @@ impl TempFile {
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: self.diagnostics,
         };
-        workspace_files.insert(file_path.clone(), workspace_file);
+        workspace_files.insert(file_path.to_path_buf(), workspace_file);
 
         if let Some(including_files) = WorkspaceFile::update_include(
             workspace_files,

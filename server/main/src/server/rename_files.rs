@@ -9,11 +9,11 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
             (Some(x), Some(y)) if x == y => (),
             (Some(_), Some(component)) => {
                 let mut resource = "/../".to_owned();
-                while let Some(_) = pack_path_components.next() {
+                for _ in pack_path_components {
                     resource += "../";
                 }
                 resource += component.as_os_str().to_str().unwrap();
-                while let Some(component) = absolute_path_components.next() {
+                for component in absolute_path_components {
                     resource.push('/');
                     resource += component.as_os_str().to_str().unwrap();
                 }
@@ -23,7 +23,7 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
             (None, Some(component)) => {
                 let mut resource = "/".to_owned();
                 resource += component.as_os_str().to_str().unwrap();
-                while let Some(component) = absolute_path_components.next() {
+                for component in absolute_path_components {
                     resource.push('/');
                     resource += component.as_os_str().to_str().unwrap();
                 }
@@ -35,7 +35,7 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
 }
 
 fn rename_file(
-    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &PathBuf, after_path: &Path,
+    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path,
     changes: &mut HashMap<Url, Vec<TextEdit>>,
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {

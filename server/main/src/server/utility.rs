@@ -10,7 +10,7 @@ impl MinecraftLanguageServer {
 
     pub(super) fn scan_new_file(
         &self, parser: &mut Parser, shader_packs: &HashSet<PathBuf>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
-        temp_files: &mut HashMap<PathBuf, TempFile>, file_path: &PathBuf,
+        temp_files: &mut HashMap<PathBuf, TempFile>, file_path: &Path,
     ) -> bool {
         for shader_pack in shader_packs {
             if let Ok(relative_path) = file_path.strip_prefix(shader_pack) {

@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ## Fixed
 
 - Fixed a multiple file linting issue: If file A and B both includes file C, and linting B will show a error in C, when linting A again, error caused by B will disappear until linting B again.
+- Fixed a multiple file linting issue: If file A includes B, and linting A will show a error in B, when deleting B from A's includes, errors in B will not disappear.
 
 ## [0.3.1] - 2023-05-04
 

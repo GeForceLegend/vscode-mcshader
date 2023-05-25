@@ -52,7 +52,7 @@ impl MinecraftLanguageServer {
             } else {
                 return None;
             }
-        } else if let Some(temp_file) = temp_files.get_mut(&file_path) {
+        } else if let Some(temp_file) = temp_files.get(&file_path) {
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
             self.lint_temp_file(temp_file, &file_path, url, *temp_lint)
