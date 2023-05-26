@@ -8,22 +8,20 @@ use crate::opengl::OpenGlContext;
 
 lazy_static! {
     pub static ref BASIC_EXTENSIONS: HashSet<String> = {
-        let mut set = HashSet::with_capacity(5);
-        set.insert("vsh".to_owned());
-        set.insert("gsh".to_owned());
-        set.insert("fsh".to_owned());
-        set.insert("csh".to_owned());
-        set.insert("glsl".to_owned());
-        set
+        HashSet::from([
+            "vsh".to_owned(),
+            "gsh".to_owned(),
+            "fsh".to_owned(),
+            "csh".to_owned(),
+            "glsl".to_owned(),
+        ])
     };
     pub static ref RE_BASIC_SHADER: Regex = Regex::new(
         r#"^(shadow|gbuffers_(armor_glint|basic|beaconbeam|block|clouds|damagedblock|entities|entities_glowing|hand|hand_water|line|skybasic|skytextured|spidereyes|terrain|textured|textured_lit|water|weather)).(vsh|gsh|fsh)|(final|(shadowcomp|prepare|deferred|composite)\d{0,2})(.vsh|.gsh|.fsh|(_[a-z])?.csh)$"#
     ).unwrap();
-    pub static ref COMMAND_LIST: HashMap<&'static str, Box<dyn Command + Sync + Send>> = {
-        let mut command_list: HashMap<&'static str, Box<dyn Command + Sync + Send>> = HashMap::with_capacity(1);
-        command_list.insert("virtualMerge", Box::new(VirtualMerge {}));
-        command_list
-    };
+    pub static ref COMMAND_LIST: HashMap<&'static str, Box<dyn Command + Sync + Send>> =
+        HashMap::from([("virtualMerge", Box::new(VirtualMerge {}) as Box<dyn Command + Sync + Send>)])
+    ;
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();

@@ -107,13 +107,10 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
 
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
-    fn pack_path(&self) -> &PathBuf;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
-    fn included_files(&self) -> &RefCell<HashSet<PathBuf>>;
     fn including_files(&self) -> &RefCell<Vec<IncludeInformation>>;
-    fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) {
         if let Ok(content) = read_to_string(file_path) {
@@ -202,10 +199,6 @@ pub struct TempFile {
     tree: RefCell<Tree>,
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
-    /// Files that directly include this file
-    included_files: RefCell<HashSet<PathBuf>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
-    /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<HashMap<PathBuf, Vec<Diagnostic>>>,
 }

@@ -5,10 +5,7 @@ use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 use url::Url;
 
-use crate::{
-    file::{File, WorkspaceFile},
-    opengl,
-};
+use crate::{file::WorkspaceFile, opengl};
 
 pub struct DiagnosticsParser {
     line_offset: u32,

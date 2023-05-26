@@ -1,6 +1,22 @@
 use super::*;
 
 impl WorkspaceFile {
+    pub fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
+    pub fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
+        &self.included_files
+    }
+
+    pub fn parent_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
+        &self.parent_shaders
+    }
+
+    pub fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>> {
+        &self.diagnostics
+    }
+
     fn extend_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parent_shaders: &HashSet<PathBuf>, mut depth: i32) {
         self.parent_shaders.borrow_mut().extend(parent_shaders.clone());
         depth += 1;
@@ -43,10 +59,6 @@ impl WorkspaceFile {
                 .filter_map(|including_path| workspace_files.get(including_path))
                 .for_each(|including_file| including_file.update_shader_list(workspace_files, depth));
         }
-    }
-
-    pub fn parent_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
-        &self.parent_shaders
     }
 
     /// Sending the standalone clone data of a shader file to update its include.
@@ -304,10 +316,6 @@ impl File for WorkspaceFile {
         &self.file_type
     }
 
-    fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
     fn content(&self) -> &RefCell<String> {
         &self.content
     }
@@ -320,15 +328,7 @@ impl File for WorkspaceFile {
         &self.line_mapping
     }
 
-    fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
-        &self.included_files
-    }
-
     fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
         &self.including_files
-    }
-
-    fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>> {
-        &self.diagnostics
     }
 }

@@ -58,9 +58,7 @@ impl TempFile {
             content: RefCell::new(content),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
-            included_files: RefCell::new(HashSet::new()),
             including_files: RefCell::new(vec![]),
-            diagnostics: RefCell::new(HashMap::new()),
         };
 
         temp_file.parse_includes(file_path);
@@ -202,7 +200,7 @@ impl TempFile {
             included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(parent_shaders.clone()),
-            diagnostics: self.diagnostics,
+            diagnostics: RefCell::new(HashMap::new()),
         };
         workspace_files.insert(file_path.to_path_buf(), workspace_file);
 
@@ -227,10 +225,6 @@ impl File for TempFile {
         &self.file_type
     }
 
-    fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
     fn content(&self) -> &RefCell<String> {
         &self.content
     }
@@ -243,15 +237,7 @@ impl File for TempFile {
         &self.line_mapping
     }
 
-    fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
-        &self.included_files
-    }
-
     fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
         &self.including_files
-    }
-
-    fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>> {
-        &self.diagnostics
     }
 }
