@@ -13,7 +13,7 @@ impl OpenGlContext {
             .unwrap();
 
         let context = unsafe { not_current_context.make_current().unwrap() };
-        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
+        gl::load_with(|symbol| context.get_proc_address(symbol));
 
         OpenGlContext { _ctx: context }
     }

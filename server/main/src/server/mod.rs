@@ -23,7 +23,7 @@ mod open_file;
 mod rename_files;
 mod save_file;
 mod update_watched_files;
-mod update_work_spaces;
+mod update_workspaces;
 mod utility;
 
 use crate::capability::ServerCapabilitiesFactroy;
@@ -32,6 +32,8 @@ use crate::constant::*;
 use crate::file::*;
 use crate::notification;
 use crate::tree_parser::TreeParser;
+
+pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 
 /// Everything mutable in this struct.
 ///
@@ -86,7 +88,7 @@ impl MinecraftLanguageServer {
         }
     }
 
-    async fn publish_diagnostic(&self, diagnostics: HashMap<Url, Vec<Diagnostic>>) {
+    async fn publish_diagnostic(&self, diagnostics: Diagnostics) {
         for (uri, diagnostics) in diagnostics {
             self.client.publish_diagnostics(uri, diagnostics, None).await;
         }
@@ -121,10 +123,10 @@ impl LanguageServer for MinecraftLanguageServer {
 
         let initialize_result = ServerCapabilitiesFactroy::initial_capabilities();
 
-        let roots: Vec<PathBuf> = if let Some(work_spaces) = params.workspace_folders {
-            work_spaces
+        let roots: Vec<PathBuf> = if let Some(workspaces) = params.workspace_folders {
+            workspaces
                 .iter()
-                .map(|work_space| work_space.uri.to_file_path().unwrap())
+                .map(|workspace| workspace.uri.to_file_path().unwrap())
                 .collect::<Vec<_>>()
         } else if let Some(uri) = params.root_uri {
             vec![uri.to_file_path().unwrap(); 1]
@@ -252,7 +254,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
         self.set_status_loading("Applying work space changes...".to_owned()).await;
 
-        let diagnostics = self.update_work_spaces(params.event);
+        let diagnostics = self.update_workspaces(params.event);
         self.publish_diagnostic(diagnostics).await;
 
         self.set_status_ready().await;

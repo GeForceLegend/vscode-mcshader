@@ -111,9 +111,7 @@ impl MinecraftLanguageServer {
         update_list.extend(file_list.into_values());
     }
 
-    pub(super) fn lint_temp_file(
-        &self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool,
-    ) -> HashMap<Url, Vec<Diagnostic>> {
+    pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         if let Some((file_type, source)) = temp_file.merge_self(file_path) {
             let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
@@ -140,7 +138,7 @@ impl MinecraftLanguageServer {
 
     pub(super) fn collect_diagnostics(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, update_list: &HashSet<PathBuf>,
-    ) -> HashMap<Url, Vec<Diagnostic>> {
+    ) -> Diagnostics {
         update_list
             .into_iter()
             .filter_map(|file_path| workspace_files.get(file_path).map(|workspace_file| (file_path, workspace_file)))
@@ -149,8 +147,8 @@ impl MinecraftLanguageServer {
                 let diagnostics = workspace_file
                     .diagnostics()
                     .borrow()
-                    .iter()
-                    .flat_map(|(_, diagnostics)| diagnostics)
+                    .values()
+                    .flatten()
                     .cloned()
                     .collect::<Vec<_>>();
                 (file_url, diagnostics)

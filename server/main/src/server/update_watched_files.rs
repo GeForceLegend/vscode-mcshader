@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> HashMap<Url, Vec<Diagnostic>> {
+    pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> Diagnostics {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
@@ -9,7 +9,7 @@ impl MinecraftLanguageServer {
         let shader_packs = server_data.shader_packs.borrow();
         let extensions = server_data.extensions.borrow();
 
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+        let mut diagnostics: Diagnostics = HashMap::new();
         let mut updated_shaders = HashSet::new();
         let mut change_list = HashSet::new();
         let mut update_list = HashSet::new();
@@ -106,6 +106,7 @@ impl MinecraftLanguageServer {
                     }
                     workspace_files.values().for_each(|workspace_file| {
                         workspace_file.included_files().borrow_mut().remove(&file_path);
+                        workspace_file.parent_shaders().borrow_mut().remove(&file_path);
                     });
 
                     updated_shaders.remove(&file_path);
@@ -120,6 +121,7 @@ impl MinecraftLanguageServer {
 
                                 workspace_files.values().for_each(|workspace_file| {
                                     workspace_file.included_files().borrow_mut().remove(file_path);
+                                    workspace_file.parent_shaders().borrow_mut().remove(file_path);
                                 });
                                 (Url::from_file_path(file_path).unwrap(), vec![])
                             }),

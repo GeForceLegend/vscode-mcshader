@@ -130,6 +130,19 @@ impl MinecraftLanguageServer {
                     }
                 });
         }
+
+        // Modify parent shaders. Since we dont know how many files are included in this shader, iterating all files is needed.
+        workspace_files
+            .values()
+            .map(|workspace_file| workspace_file.parent_shaders().borrow_mut())
+            .for_each(|mut parent_shaders| {
+                rename_list.iter().for_each(|(after_path, before_path)| {
+                    if parent_shaders.remove(before_path) {
+                        parent_shaders.insert(after_path.clone());
+                    }
+                });
+            });
+
         // Move them after all modifications on including and included lists are applied
         // This will avoid targeting modified path, causing applying edits or updating parents failed
         for (after_path, before_path) in rename_list {

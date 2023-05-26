@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn document_links(&self, url: Url) -> Option<(Vec<DocumentLink>, HashMap<Url, Vec<Diagnostic>>)> {
+    pub fn document_links(&self, url: Url) -> Option<(Vec<DocumentLink>, Diagnostics)> {
         let file_path = url.to_file_path().unwrap();
 
         let server_data = self.server_data.lock().unwrap();

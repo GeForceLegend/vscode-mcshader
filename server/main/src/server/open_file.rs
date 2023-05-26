@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn open_file(&self, params: DidOpenTextDocumentParams) -> Option<HashMap<Url, Vec<Diagnostic>>> {
+    pub fn open_file(&self, params: DidOpenTextDocumentParams) -> Option<Diagnostics> {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let server_data = self.server_data.lock().unwrap();

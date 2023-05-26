@@ -1,14 +1,14 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn update_work_spaces(&self, events: WorkspaceFoldersChangeEvent) -> HashMap<Url, Vec<Diagnostic>> {
+    pub fn update_workspaces(&self, events: WorkspaceFoldersChangeEvent) -> Diagnostics {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut shader_packs = server_data.shader_packs.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
 
-        let mut diagnostics: HashMap<Url, Vec<Diagnostic>> = HashMap::new();
+        let mut diagnostics: Diagnostics = HashMap::new();
         for removed_workspace in &events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
             workspace_files.retain(|file_path, workspace_file| {

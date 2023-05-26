@@ -6,12 +6,11 @@ impl WorkspaceFile {
         depth += 1;
 
         if depth <= 10 {
-            let including_files = self.including_files.borrow();
-            let including_pathes = including_files
+            self.including_files
+                .borrow()
                 .iter()
                 .map(|(_, _, _, including_path)| including_path)
-                .collect::<HashSet<_>>();
-            including_pathes
+                .collect::<HashSet<_>>()
                 .into_iter()
                 .filter_map(|including_path| workspace_files.get(including_path))
                 .for_each(|including_file| including_file.extend_shader_list(workspace_files, parent_shaders, depth));
@@ -26,7 +25,7 @@ impl WorkspaceFile {
             .borrow()
             .iter()
             .filter_map(|included_path| workspace_files.get(included_path))
-            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
+            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().clone())
             .collect::<HashSet<_>>();
 
         let mut diagnostics = self.diagnostics.borrow_mut();
@@ -54,8 +53,8 @@ impl WorkspaceFile {
     /// Since workspace_files may get amortized, using reference to workspace file inside it is not allowed.
     pub fn update_include(
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        old_including_files: &mut HashSet<PathBuf>, parent_shaders: &HashSet<PathBuf>, content: &str, pack_path: &Path,
-        file_path: &Path, mut depth: i32,
+        old_including_files: &mut HashSet<PathBuf>, parent_shaders: &HashSet<PathBuf>, content: &str, pack_path: &Path, file_path: &Path,
+        mut depth: i32,
     ) -> Option<Vec<IncludeInformation>> {
         if depth <= 10 {
             depth += 1;
