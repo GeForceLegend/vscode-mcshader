@@ -88,6 +88,13 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
     shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
 }
 
+fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
+    let line_start = line_mapping.get(position.line as usize).unwrap();
+    let mut rest_content = unsafe { content.get_unchecked(*line_start..) }.chars();
+    let line_offset = (0..position.character as usize).fold(0, |offset, _| offset + rest_content.next().unwrap().len_utf8());
+    line_start + line_offset
+}
+
 pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
     if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
         let version = capture.get(0).unwrap();
@@ -129,8 +136,9 @@ pub trait File {
 
         for change in &changes {
             let range = change.range.unwrap();
-            let start_byte = line_mapping.get(range.start.line as usize).unwrap() + range.start.character as usize;
-            let end_byte = line_mapping.get(range.end.line as usize).unwrap() + range.end.character as usize;
+
+            let start_byte = byte_index(&content, range.start, &line_mapping);
+            let end_byte = byte_index(&content, range.end, &line_mapping);
 
             let last_line = change.text.split('\n').enumerate().last().unwrap();
             let new_end_position = match last_line.0 {
