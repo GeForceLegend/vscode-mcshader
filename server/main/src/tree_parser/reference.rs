@@ -13,7 +13,7 @@ fn function_ref_pattern(name: &str) -> String {
 }
 
 impl TreeParser {
-    pub fn find_references(url: &Url, position: &Position, tree: &Tree, content: &str, line_mapping: &[usize]) -> Option<Vec<Location>> {
+    pub fn find_references(url: &Url, position: Position, tree: &Tree, content: &str, line_mapping: &[usize]) -> Option<Vec<Location>> {
         let current_node = Self::current_node_fetch(position, tree, content, line_mapping)?;
         let parent = current_node.parent()?;
 

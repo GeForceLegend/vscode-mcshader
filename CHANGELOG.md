@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed non-ASCII characters (take 2 or more u8 in String) parsing.
+
 ## [0.3.2] - 2023-05-26
 
 ### Added

@@ -22,7 +22,7 @@ impl MinecraftLanguageServer {
 
         TreeParser::find_references(
             &params.text_document_position.text_document.uri,
-            &params.text_document_position.position,
+            params.text_document_position.position,
             &tree,
             &content,
             &line_mapping,

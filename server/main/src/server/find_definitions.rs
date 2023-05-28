@@ -22,7 +22,7 @@ impl MinecraftLanguageServer {
 
         TreeParser::find_definitions(
             &params.text_document_position_params.text_document.uri,
-            &params.text_document_position_params.position,
+            params.text_document_position_params.position,
             &tree,
             &content,
             &line_mapping,
