@@ -130,7 +130,14 @@ impl MinecraftLanguageServer {
                 }
             }
         } else if temp_lint {
-            HashMap::from([(url, TreeParser::simple_lint(&temp_file.tree().borrow()))])
+            HashMap::from([(
+                url,
+                TreeParser::simple_lint(
+                    &temp_file.tree().borrow(),
+                    &temp_file.content().borrow(),
+                    &temp_file.line_mapping().borrow(),
+                ),
+            )])
         } else {
             HashMap::from([(url, vec![])])
         }

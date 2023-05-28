@@ -11,40 +11,39 @@ mod simple_lint;
 mod symbols;
 
 trait ToLspTypes {
-    fn to_location(&self, url: &Url) -> Location;
-    fn to_range(&self) -> Range;
+    fn to_location(&self, url: &Url, content: &str, line_mapping: &[usize]) -> Location;
+    fn to_range(&self, content: &str, line_mapping: &[usize]) -> Range;
 }
 
 impl ToLspTypes for Node<'_> {
-    fn to_location(&self, url: &Url) -> Location {
-        let start = self.start_position();
-        let end = self.end_position();
+    fn to_location(&self, url: &Url, content: &str, line_mapping: &[usize]) -> Location {
         Location {
             uri: url.clone(),
-            range: Range {
-                start: Position {
-                    line: start.row as u32,
-                    character: start.column as u32,
-                },
-                end: Position {
-                    line: end.row as u32,
-                    character: end.column as u32,
-                },
-            },
+            range: self.to_range(content, line_mapping),
         }
     }
 
-    fn to_range(&self) -> Range {
-        let start = self.start_position();
-        let end = self.end_position();
+    fn to_range(&self, content: &str, line_mapping: &[usize]) -> Range {
+        let start_position = self.start_position();
+        let end_position = self.end_position();
+
+        let start_line_index = line_mapping.get(start_position.row).unwrap();
+        let end_line_index = line_mapping.get(end_position.row).unwrap();
+
+        let start_column = unsafe { content.get_unchecked(*start_line_index..(start_line_index + start_position.column)) }
+            .chars()
+            .count();
+        let end_column = unsafe { content.get_unchecked(*end_line_index..(end_line_index + end_position.column)) }
+            .chars()
+            .count();
         Range {
             start: Position {
-                line: start.row as u32,
-                character: start.column as u32,
+                line: start_position.row as u32,
+                character: start_column as u32,
             },
             end: Position {
-                line: end.row as u32,
-                character: end.column as u32,
+                line: end_position.row as u32,
+                character: end_column as u32,
             },
         }
     }
@@ -63,14 +62,19 @@ impl TreeParser {
         tree.root_node().named_descendant_for_byte_range(start, end)
     }
 
-    fn simple_global_search(url: &Url, tree: &Tree, content: &[u8], query_str: &str) -> Vec<Location> {
+    fn simple_global_search(url: &Url, tree: &Tree, content: &str, query_str: &str, line_mapping: &[usize]) -> Vec<Location> {
         let query = Query::new(tree_sitter_glsl::language(), query_str).unwrap();
         let mut query_cursor = QueryCursor::new();
 
         let mut locations = vec![];
 
-        for query_match in query_cursor.matches(&query, tree.root_node(), content) {
-            locations.extend(query_match.captures.iter().map(|capture| capture.node.to_location(url)));
+        for query_match in query_cursor.matches(&query, tree.root_node(), content.as_bytes()) {
+            locations.extend(
+                query_match
+                    .captures
+                    .iter()
+                    .map(|capture| capture.node.to_location(url, content, line_mapping)),
+            );
         }
 
         locations

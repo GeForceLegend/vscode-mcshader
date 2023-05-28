@@ -58,7 +58,7 @@ fn insert_child_symbol(parent_list: &mut Vec<DocumentSymbol>, symbol: DocumentSy
 
 impl TreeParser {
     #[allow(deprecated)]
-    pub fn list_symbols(tree: &Tree, content: &str) -> Vec<DocumentSymbol> {
+    pub fn list_symbols(tree: &Tree, content: &str, line_mapping: &[usize]) -> Vec<DocumentSymbol> {
         let content_bytes = content.as_bytes();
         let mut query_cursor = QueryCursor::new();
 
@@ -83,10 +83,10 @@ impl TreeParser {
                 "field_list" => (SymbolKind::FIELD, capture_iter.next().unwrap().node),
                 _ => (SymbolKind::NULL, capture.node),
             };
-            let selection_range = node.to_range();
+            let selection_range = node.to_range(content, line_mapping);
             let range = match capture_name {
-                "func_ident" => node.parent().unwrap().parent().unwrap().to_range(),
-                _ => node.parent().unwrap().to_range(),
+                "func_ident" => node.parent().unwrap().parent().unwrap().to_range(content, line_mapping),
+                _ => node.parent().unwrap().to_range(content, line_mapping),
             };
 
             let current_symbol = DocumentSymbol {

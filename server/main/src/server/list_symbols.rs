@@ -18,7 +18,12 @@ impl MinecraftLanguageServer {
 
         let content = file.content().borrow();
         let tree = file.tree().borrow();
+        let line_mapping = file.line_mapping().borrow();
 
-        Some(DocumentSymbolResponse::Nested(TreeParser::list_symbols(&tree, &content)))
+        Some(DocumentSymbolResponse::Nested(TreeParser::list_symbols(
+            &tree,
+            &content,
+            &line_mapping,
+        )))
     }
 }
