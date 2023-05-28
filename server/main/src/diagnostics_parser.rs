@@ -37,19 +37,16 @@ impl DiagnosticsParser {
     ) {
         let default_path = shader_path.to_str().unwrap();
 
-        let mut diagnostics = file_list
+        // After get the raw pointer, there are only opreations directly to the pointer pointed Vec
+        // So the pointer of Vec itself should not get moved. This operation should be safe.
+        let mut diagnostic_pointers = file_list
             .iter()
             .map(|(index, path)| {
                 let workspace_file = workspace_files.get(path).unwrap();
                 let mut diagnostics = workspace_file.diagnostics().borrow_mut();
                 diagnostics.insert(shader_path.to_path_buf(), vec![]);
-                (index, diagnostics)
+                (index.clone(), diagnostics.get_mut(shader_path).unwrap() as *mut Vec<Diagnostic>)
             })
-            .collect::<Vec<(_, _)>>();
-
-        let mut diagnostic_pointers = diagnostics
-            .iter_mut()
-            .map(|(index, diagnostics)| ((*index).clone(), diagnostics.get_mut(shader_path).unwrap()))
             .collect::<HashMap<_, _>>();
 
         compile_log
@@ -86,7 +83,7 @@ impl DiagnosticsParser {
 
                 let index = captures.name("filepath").unwrap();
                 if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
-                    diagnostics.push(diagnostic);
+                    unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
                 }
             });
     }

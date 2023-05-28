@@ -260,7 +260,7 @@ impl WorkspaceFile {
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
-        generate_line_macro(shader_content, 1, &curr_file_id, file_name);
+        push_line_macro(shader_content, 1, &curr_file_id, file_name);
         shader_content.push('\n');
 
         let content = self.content.borrow();
@@ -284,7 +284,7 @@ impl WorkspaceFile {
                 start_index = end - 1;
 
                 if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
-                    generate_line_macro(shader_content, line + 2, &curr_file_id, file_name);
+                    push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 } else {
                     shader_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
                 }

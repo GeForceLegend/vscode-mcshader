@@ -51,10 +51,10 @@ impl MinecraftLanguageServer {
                     HashMap::from([(url, vec![])])
                 }
             } else {
-                HashMap::new()
+                return None;
             }
         } else {
-            HashMap::new()
+            return None;
         };
 
         self.collect_memory(&mut workspace_files);

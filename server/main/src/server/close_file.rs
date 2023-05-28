@@ -42,15 +42,14 @@ impl MinecraftLanguageServer {
                 .for_each(|(shader_path, shader_file)| {
                     self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                 });
-            drop(shader_files);
 
             let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
-            self.collect_memory(&mut workspace_files);
             Some(diagnostics)
         } else {
             temp_files.remove(&file_path).map(|_| HashMap::from([(file_url, vec![])]))
         };
 
+        self.collect_memory(&mut workspace_files);
         diagnostics
     }
 }

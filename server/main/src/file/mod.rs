@@ -41,7 +41,7 @@ fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Re
                 }
             }
             Component::Normal(_) => buffer.push(component),
-            Component::CurDir => {}
+            Component::CurDir => (),
             _ => return Err("Invalid component in include path"),
         }
     }
@@ -60,7 +60,7 @@ fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Re
     Ok(PathBuf::from(resource))
 }
 
-fn generate_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str, file_name: &str) {
+fn push_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str, file_name: &str) {
     content.push_str("#line ");
     content.push_str(Buffer::new().format(line));
     content.push(' ');

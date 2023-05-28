@@ -124,7 +124,7 @@ impl TempFile {
             start_index = *end - 1;
 
             if Self::merge_temp(&self.pack_path, include_path, &mut temp_content, &mut file_id, 1) {
-                generate_line_macro(&mut temp_content, line + 2, "0", file_name);
+                push_line_macro(&mut temp_content, line + 2, "0", file_name);
             } else {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
             }
@@ -142,7 +142,7 @@ impl TempFile {
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
-        generate_line_macro(temp_content, 1, &curr_file_id, file_name);
+        push_line_macro(temp_content, 1, &curr_file_id, file_name);
         temp_content.push('\n');
 
         if let Ok(content) = read_to_string(file_path) {
@@ -170,7 +170,7 @@ impl TempFile {
                     lines += before_content.matches('\n').count();
 
                     if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
-                        generate_line_macro(temp_content, lines, &curr_file_id, file_name);
+                        push_line_macro(temp_content, lines, &curr_file_id, file_name);
                     } else {
                         temp_content.push_str(capture_content);
                     }
