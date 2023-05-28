@@ -8,13 +8,9 @@ impl TreeParser {
                 error_list.push(Diagnostic {
                     range: current_node.to_range(),
                     severity: Some(DiagnosticSeverity::ERROR),
-                    code: None,
-                    code_description: None,
                     source: Some("mcshader-glsl".to_owned()),
                     message: "Syntax error by simple real-time search".to_owned(),
-                    related_information: None,
-                    tags: None,
-                    data: None,
+                    ..Default::default()
                 });
             } else if cursor.goto_first_child() {
                 Self::error_search(cursor, error_list);

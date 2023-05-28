@@ -3,6 +3,8 @@ use tower_lsp::lsp_types::*;
 use tree_sitter::{Node, Query, QueryCursor, Tree, TreeCursor};
 use url::Url;
 
+use crate::file::byte_index;
+
 mod definition;
 mod reference;
 mod simple_lint;
@@ -51,10 +53,10 @@ impl ToLspTypes for Node<'_> {
 pub struct TreeParser;
 
 impl TreeParser {
-    fn current_node_fetch<'a>(position: &Position, tree: &'a Tree, content: &[u8], line_mapping: &[usize]) -> Option<Node<'a>> {
-        let position_offset = line_mapping[position.line as usize] + position.character as usize;
+    fn current_node_fetch<'a>(position: &Position, tree: &'a Tree, content: &str, line_mapping: &[usize]) -> Option<Node<'a>> {
+        let position_offset = byte_index(content, *position, line_mapping);
 
-        let (start, end) = match content[position_offset] {
+        let (start, end) = match content.as_bytes()[position_offset] {
             b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_' => (position_offset, position_offset + 1),
             _ => (position_offset - 1, position_offset),
         };

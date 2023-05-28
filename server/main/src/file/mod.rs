@@ -88,10 +88,10 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
     shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
 }
 
-fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
+pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
     let line_start = line_mapping.get(position.line as usize).unwrap();
     let mut rest_content = unsafe { content.get_unchecked(*line_start..) }.chars();
-    let line_offset = (0..position.character as usize).fold(0, |offset, _| offset + rest_content.next().unwrap().len_utf8());
+    let line_offset = (0..position.character).fold(0, |offset, _| offset + rest_content.next().unwrap().len_utf8());
     line_start + line_offset
 }
 
@@ -104,8 +104,7 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
         // If we are not in the debug folder, add Optifine's macros
         let mut components = pack_path.components();
         components.next_back();
-        let shader_name = components.next_back().unwrap();
-        if shader_name.as_os_str() != "debug" {
+        if components.next_back().unwrap().as_os_str() != "debug" {
             version_content += OPTIFINE_MACROS;
         }
         shader_content.insert_str(0, &version_content);

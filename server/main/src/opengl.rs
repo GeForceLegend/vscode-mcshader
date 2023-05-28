@@ -21,12 +21,12 @@ impl OpenGlContext {
     pub fn validate_shader(&self, file_type: gl::types::GLenum, source: String) -> Option<String> {
         unsafe {
             let shader = gl::CreateShader(file_type);
-            let mut success = gl::FALSE as i32;
             let c_str_frag = CString::new(source).unwrap();
             gl::ShaderSource(shader, 1, &c_str_frag.as_ptr(), ptr::null());
             gl::CompileShader(shader);
 
             // Check for shader compilation errors
+            let mut success = gl::FALSE as i32;
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
             let result = if success != gl::TRUE as i32 {
                 let mut info_len: c_int = 0;

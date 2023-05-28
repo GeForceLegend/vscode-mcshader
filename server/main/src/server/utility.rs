@@ -122,7 +122,7 @@ impl MinecraftLanguageServer {
                         file_path.to_str().unwrap(),
                         compile_log
                     );
-                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url, file_path)
+                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url)
                 }
                 None => {
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());

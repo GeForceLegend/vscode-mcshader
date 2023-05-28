@@ -91,16 +91,13 @@ impl DiagnosticsParser {
             });
     }
 
-    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url, file_path: &Path) -> HashMap<Url, Vec<Diagnostic>> {
-        let default_path = file_path.to_str().unwrap();
-
+    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url) -> HashMap<Url, Vec<Diagnostic>> {
         let diagnostics = compile_log
             .split_terminator('\n')
             .filter_map(|log_line| self.line_regex.captures(log_line))
             .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
             .map(|captures| {
-                let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
-                msg += default_path;
+                let msg = captures.name("output").unwrap().as_str().to_owned();
 
                 let line = match captures.name("linenum") {
                     Some(c) => c.as_str().parse::<u32>().unwrap_or(0),

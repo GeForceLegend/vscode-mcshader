@@ -13,7 +13,7 @@ impl ServerCapabilitiesFactroy {
                 document_symbol_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
                     commands: vec!["virtualMerge".to_owned(); 1],
-                    work_done_progress_options: Default::default(),
+                    ..Default::default()
                 }),
                 workspace: Some(WorkspaceServerCapabilities {
                     workspace_folders: Some(WorkspaceFoldersServerCapabilities {
