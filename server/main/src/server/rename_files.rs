@@ -64,7 +64,7 @@ fn rename_file(
                                 new_text: include_path.clone(),
                             };
                             change_list.push(edit);
-                            *end = *start + include_path.len();
+                            *end = *start + include_path.chars().count();
                             *prev_include_path = after_path.to_path_buf();
                         });
                     if let Some(change) = changes.get_mut(&url) {

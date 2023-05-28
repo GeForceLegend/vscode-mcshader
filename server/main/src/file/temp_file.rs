@@ -84,8 +84,11 @@ impl TempFile {
                 let path = include_content.as_str();
                 match include_path_join(pack_path, file_path, path) {
                     Ok(include_path) => {
-                        let start = include_content.start();
-                        let end = include_content.end();
+                        let line_content = captures.get(0).unwrap().as_str();
+                        let start_byte = include_content.start();
+                        let end_byte = include_content.end();
+                        let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
+                        let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
 
                         including_files.push((line, start, end, include_path));
                     }
