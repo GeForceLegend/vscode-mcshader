@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.3.3] - 2023-05-29
+
 ### Fixed
 
 - Fixed non-ASCII characters (take 2 or more u8 in String) parsing.

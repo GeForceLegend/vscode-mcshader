@@ -155,7 +155,7 @@ impl WorkspaceFile {
                 gl::NONE
             }
         };
-        let (content, parent_shaders): (String, HashSet<_>) = if let Some(workspace_file) = workspace_files.get(file_path) {
+        let (content, parent_shaders) = if let Some(workspace_file) = workspace_files.get(file_path) {
             // Existing as some file's include
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
 

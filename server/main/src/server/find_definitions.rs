@@ -10,10 +10,8 @@ impl MinecraftLanguageServer {
 
         let file: &dyn File = if let Some(workspace_file) = workspace_files.get(&file_path) {
             workspace_file
-        } else if let Some(temp_file) = temp_files.get(&file_path) {
-            temp_file
         } else {
-            return None;
+            temp_files.get(&file_path)?
         };
 
         let content = file.content().borrow();

@@ -12,52 +12,50 @@ impl MinecraftLanguageServer {
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             // If this file is ended with watched extension, it should get updated through update_watched_files
-            if !server_data
+            if server_data
                 .extensions
                 .borrow()
                 .contains(file_path.extension().unwrap().to_str().unwrap())
             {
-                workspace_file.update_from_disc(&mut parser, &file_path);
-                // Clone the content so they can be used alone.
-                let pack_path = workspace_file.pack_path().clone();
-                let content = workspace_file.content().borrow().clone();
-                let mut old_including_files = workspace_file.including_pathes();
-                let parent_shaders = workspace_file.parent_shaders().borrow().clone();
-
-                let new_including_files = WorkspaceFile::update_include(
-                    &mut workspace_files,
-                    &mut temp_files,
-                    &mut parser,
-                    &mut old_including_files,
-                    &parent_shaders,
-                    &content,
-                    &pack_path,
-                    &file_path,
-                    0,
-                )
-                .unwrap();
-                let workspace_file = workspace_files.get(&file_path).unwrap();
-                *workspace_file.including_files().borrow_mut() = new_including_files;
-
-                let shader_files = workspace_file.parent_shaders().borrow();
-
-                let mut update_list = old_including_files;
-                shader_files
-                    .iter()
-                    .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
-                    .for_each(|(shader_path, shader_file)| {
-                        self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
-                    });
-                self.collect_diagnostics(&workspace_files, &update_list)
-            } else {
                 return None;
             }
-        } else if let Some(temp_file) = temp_files.get(&file_path) {
+            workspace_file.update_from_disc(&mut parser, &file_path);
+            // Clone the content so they can be used alone.
+            let pack_path = workspace_file.pack_path().clone();
+            let content = workspace_file.content().borrow().clone();
+            let mut old_including_files = workspace_file.including_pathes();
+            let parent_shaders = workspace_file.parent_shaders().borrow().clone();
+
+            let new_including_files = WorkspaceFile::update_include(
+                &mut workspace_files,
+                &mut temp_files,
+                &mut parser,
+                &mut old_including_files,
+                &parent_shaders,
+                &content,
+                &pack_path,
+                &file_path,
+                0,
+            )
+            .unwrap();
+            let workspace_file = workspace_files.get(&file_path).unwrap();
+            *workspace_file.including_files().borrow_mut() = new_including_files;
+
+            let shader_files = workspace_file.parent_shaders().borrow();
+
+            let mut update_list = old_including_files;
+            shader_files
+                .iter()
+                .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
+                .for_each(|(shader_path, shader_file)| {
+                    self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
+                });
+            self.collect_diagnostics(&workspace_files, &update_list)
+        } else {
+            let temp_file = temp_files.get(&file_path)?;
             temp_file.update_from_disc(&mut parser, &file_path);
             temp_file.parse_includes(&file_path);
             self.lint_temp_file(temp_file, &file_path, url, *temp_lint)
-        } else {
-            return None;
         };
 
         self.collect_memory(&mut workspace_files);

@@ -33,7 +33,8 @@ impl MinecraftLanguageServer {
             *workspace_files.get(&file_path).unwrap().including_files().borrow_mut() = new_including_files;
 
             self.collect_diagnostics(&workspace_files, &old_including_files)
-        } else if let Some(temp_file) = temp_files.get(&file_path) {
+        } else {
+            let temp_file = temp_files.get(&file_path)?;
             temp_file.apply_edit(changes, &mut parser);
             temp_file.parse_includes(&file_path);
             let file_type = *temp_file.file_type().borrow();
@@ -53,8 +54,6 @@ impl MinecraftLanguageServer {
             } else {
                 return None;
             }
-        } else {
-            return None;
         };
 
         self.collect_memory(&mut workspace_files);

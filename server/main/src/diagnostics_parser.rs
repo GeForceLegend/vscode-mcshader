@@ -78,7 +78,7 @@ impl DiagnosticsParser {
                     severity: Some(severity),
                     source: Some("mcshader-glsl".to_owned()),
                     message: msg,
-                    ..Diagnostic::default()
+                    ..Default::default()
                 };
 
                 let index = captures.name("filepath").unwrap();
@@ -118,7 +118,7 @@ impl DiagnosticsParser {
                     severity: Some(severity),
                     source: Some("mcshader-glsl".to_owned()),
                     message: msg,
-                    ..Diagnostic::default()
+                    ..Default::default()
                 }
             })
             .collect::<Vec<_>>();

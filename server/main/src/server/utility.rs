@@ -87,19 +87,19 @@ impl MinecraftLanguageServer {
         shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
         preprocess_shader(&mut shader_content, shader_file.pack_path());
 
+        let shader_path = file_path.to_str().unwrap();
         let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
 
         match validation_result {
             Some(compile_log) => {
                 info!(
                     "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
-                    file_path.to_str().unwrap(),
-                    compile_log
+                    shader_path, compile_log
                 );
                 DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, compile_log, &file_list, file_path);
             }
             None => {
-                info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
+                info!("Compilation reported no errors"; "shader file" => shader_path);
                 file_list
                     .iter()
                     .filter_map(|(_, file_path)| workspace_files.get(file_path))

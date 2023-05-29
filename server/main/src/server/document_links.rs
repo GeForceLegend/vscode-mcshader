@@ -23,13 +23,12 @@ impl MinecraftLanguageServer {
                 workspace_file.including_files().borrow(),
                 self.collect_diagnostics(&workspace_files, &update_list),
             )
-        } else if let Some(temp_file) = temp_files.get(&file_path) {
+        } else {
+            let temp_file = temp_files.get(&file_path)?;
             (
                 temp_file.including_files().borrow(),
                 self.lint_temp_file(temp_file, &file_path, url, *temp_lint),
             )
-        } else {
-            return None;
         };
         let include_links = including_files
             .iter()
