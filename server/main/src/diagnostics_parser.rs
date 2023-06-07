@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use regex::Regex;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range};
 use url::Url;
@@ -32,20 +32,21 @@ impl DiagnosticsParser {
     }
 
     pub fn parse_diagnostics(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, compile_log: String, file_list: &HashMap<String, PathBuf>,
-        shader_path: &Path,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, update_list: &mut HashSet<PathBuf>, compile_log: String,
+        file_list: HashMap<String, PathBuf>, shader_path: &Path,
     ) {
         let default_path = shader_path.to_str().unwrap();
 
         // After get the raw pointer, there are only opreations directly to the pointer pointed Vec
         // So the pointer of Vec itself should not get moved. This operation should be safe.
         let mut diagnostic_pointers = file_list
-            .iter()
+            .into_iter()
             .map(|(index, path)| {
-                let workspace_file = workspace_files.get(path).unwrap();
+                let workspace_file = workspace_files.get(&path).unwrap();
                 let mut diagnostics = workspace_file.diagnostics().borrow_mut();
                 diagnostics.insert(shader_path.to_path_buf(), vec![]);
-                (index.clone(), diagnostics.get_mut(shader_path).unwrap() as *mut Vec<Diagnostic>)
+                update_list.insert(path);
+                (index, diagnostics.get_mut(shader_path).unwrap() as *mut Vec<Diagnostic>)
             })
             .collect::<HashMap<_, _>>();
 
@@ -56,10 +57,7 @@ impl DiagnosticsParser {
                 let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
                 msg += default_path;
 
-                let line = match captures.name("linenum") {
-                    Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
-                    None => 0,
-                } - self.line_offset;
+                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset;
 
                 let severity = match captures.name("severity") {
                     Some(c) => match c.as_str().to_lowercase().as_str() {
@@ -96,10 +94,7 @@ impl DiagnosticsParser {
             .map(|captures| {
                 let msg = captures.name("output").unwrap().as_str().to_owned();
 
-                let line = match captures.name("linenum") {
-                    Some(c) => c.as_str().parse::<u32>().unwrap_or(0),
-                    None => 0,
-                } - self.line_offset;
+                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset;
 
                 let severity = match captures.name("severity") {
                     Some(c) => match c.as_str().to_lowercase().as_str() {

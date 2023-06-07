@@ -41,7 +41,7 @@ impl MinecraftLanguageServer {
                     *workspace_file.including_files().borrow_mut() = new_including_files;
 
                     update_list.extend(old_including_files);
-                    updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
+                    updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
                 }
             } else {
                 // Insert them to a hashset and handle later
@@ -84,7 +84,7 @@ impl MinecraftLanguageServer {
                     *workspace_file.including_files().borrow_mut() = new_including_files;
 
                     update_list.extend(old_including_files);
-                    updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
+                    updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
                 }
                 if self.scan_new_file(&mut parser, &shader_packs, &mut workspace_files, &mut temp_files, &file_path) {
                     updated_shaders.insert(file_path);
@@ -101,7 +101,7 @@ impl MinecraftLanguageServer {
                     diagnostics.insert(Url::from_file_path(&file_path).unwrap(), vec![]);
 
                     if let Some(workspace_file) = workspace_files.get(&file_path) {
-                        updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
+                        updated_shaders.extend(workspace_file.parent_shaders().borrow_mut().drain());
                         workspace_file.clear(&mut parser);
                     }
                     workspace_files.values().for_each(|workspace_file| {
@@ -116,7 +116,7 @@ impl MinecraftLanguageServer {
                             .iter()
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
-                                updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
+                                updated_shaders.extend(workspace_file.parent_shaders().borrow_mut().drain());
                                 workspace_file.clear(&mut parser);
 
                                 workspace_files.values().for_each(|workspace_file| {

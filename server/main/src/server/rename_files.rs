@@ -43,13 +43,12 @@ fn rename_file(
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
                     let url = Url::from_file_path(parent_path).unwrap();
-                    let mut change_list = vec![];
-                    parent_file
+                    let change_list = parent_file
                         .including_files()
                         .borrow_mut()
                         .iter_mut()
                         .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
-                        .for_each(|(line, start, end, prev_include_path)| {
+                        .map(|(line, start, end, prev_include_path)| {
                             let edit: TextEdit = TextEdit {
                                 range: Range {
                                     start: Position {
@@ -63,10 +62,11 @@ fn rename_file(
                                 },
                                 new_text: include_path.clone(),
                             };
-                            change_list.push(edit);
                             *end = *start + include_path.chars().count();
                             *prev_include_path = after_path.to_path_buf();
-                        });
+                            edit
+                        })
+                        .collect();
                     if let Some(change) = changes.get_mut(&url) {
                         change.extend(change_list);
                     } else {

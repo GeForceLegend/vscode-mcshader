@@ -96,19 +96,22 @@ impl MinecraftLanguageServer {
                     "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
                     shader_path, compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, compile_log, &file_list, file_path);
+                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, update_list, compile_log, file_list, file_path);
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
                 file_list
-                    .iter()
-                    .filter_map(|(_, file_path)| workspace_files.get(file_path))
+                    .into_iter()
+                    .filter_map(|(_, file_path)| {
+                        let workspace_file = workspace_files.get(&file_path);
+                        update_list.insert(file_path);
+                        workspace_file
+                    })
                     .for_each(|workspace_file| {
                         workspace_file.diagnostics().borrow_mut().insert(file_path.to_path_buf(), vec![]);
                     });
             }
         };
-        update_list.extend(file_list.into_values());
     }
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
