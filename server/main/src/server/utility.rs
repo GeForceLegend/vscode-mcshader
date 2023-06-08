@@ -85,7 +85,7 @@ impl MinecraftLanguageServer {
         let mut file_list: HashMap<String, PathBuf> = HashMap::new();
         let mut shader_content = String::new();
         shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
-        preprocess_shader(&mut shader_content, shader_file.pack_path());
+        let offset = preprocess_shader(&mut shader_content, shader_file.pack_path());
 
         let shader_path = file_path.to_str().unwrap();
         let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
@@ -96,7 +96,7 @@ impl MinecraftLanguageServer {
                     "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
                     shader_path, compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, update_list, compile_log, file_list, file_path);
+                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, update_list, compile_log, file_list, file_path, offset);
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
@@ -115,7 +115,8 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
-        if let Some((file_type, source)) = temp_file.merge_self(file_path) {
+        if let Some((file_type, mut source)) = temp_file.merge_self(file_path) {
+            let offset = preprocess_shader(&mut source, temp_file.pack_path());
             let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
             match validation_result {
@@ -125,7 +126,7 @@ impl MinecraftLanguageServer {
                         file_path.to_str().unwrap(),
                         compile_log
                     );
-                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url)
+                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url, offset)
                 }
                 None => {
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());

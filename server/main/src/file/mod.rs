@@ -95,9 +95,10 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
     line_start + line_offset
 }
 
-pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
+pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
     if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
         let version = capture.get(0).unwrap();
+        let version_num = capture.get(1).unwrap().as_str().parse::<u32>().unwrap();
         let mut version_content = version.as_str().to_owned() + "\n";
 
         shader_content.replace_range(version.start()..version.end(), "");
@@ -108,11 +109,20 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) {
             version_content += OPTIFINE_MACROS;
         }
         shader_content.insert_str(0, &version_content);
+
+        if version_num > 150 {
+            0
+        } else {
+            1
+        }
+    } else {
+        1
     }
 }
 
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
+    fn pack_path(&self) -> &PathBuf;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;

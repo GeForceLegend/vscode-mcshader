@@ -130,7 +130,6 @@ impl TempFile {
             }
         }
         push_str_without_line(&mut temp_content, unsafe { content.get_unchecked(start_index..) });
-        preprocess_shader(&mut temp_content, &self.pack_path);
 
         Some((*self.file_type.borrow(), temp_content))
     }
@@ -226,6 +225,10 @@ impl TempFile {
 impl File for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
+    }
+
+    fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

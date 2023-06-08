@@ -1,10 +1,6 @@
 use super::*;
 
 impl WorkspaceFile {
-    pub fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
     pub fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
         &self.included_files
     }
@@ -317,6 +313,10 @@ impl WorkspaceFile {
 impl File for WorkspaceFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
+    }
+
+    fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

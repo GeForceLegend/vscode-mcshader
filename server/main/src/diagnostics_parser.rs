@@ -33,7 +33,7 @@ impl DiagnosticsParser {
 
     pub fn parse_diagnostics(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, update_list: &mut HashSet<PathBuf>, compile_log: String,
-        file_list: HashMap<String, PathBuf>, shader_path: &Path,
+        file_list: HashMap<String, PathBuf>, shader_path: &Path, offset: u32,
     ) {
         let default_path = shader_path.to_str().unwrap();
 
@@ -57,7 +57,7 @@ impl DiagnosticsParser {
                 let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
                 msg += default_path;
 
-                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset;
+                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset - offset;
 
                 let severity = match captures.name("severity") {
                     Some(c) => match c.as_str().to_lowercase().as_str() {
@@ -86,7 +86,7 @@ impl DiagnosticsParser {
             });
     }
 
-    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url) -> HashMap<Url, Vec<Diagnostic>> {
+    pub fn parse_temp_diagnostics(&self, compile_log: String, url: Url, offset: u32) -> HashMap<Url, Vec<Diagnostic>> {
         let diagnostics = compile_log
             .split_terminator('\n')
             .filter_map(|log_line| self.line_regex.captures(log_line))
@@ -94,7 +94,7 @@ impl DiagnosticsParser {
             .map(|captures| {
                 let msg = captures.name("output").unwrap().as_str().to_owned();
 
-                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset;
+                let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - self.line_offset - offset;
 
                 let severity = match captures.name("severity") {
                     Some(c) => match c.as_str().to_lowercase().as_str() {
