@@ -25,6 +25,7 @@ lazy_static! {
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
     pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
+    pub static ref RE_MACRO_INCLUDE_TEMP: Regex = Regex::new(r#"^\s*#(include|moj_import)\s+[<"](.+)[>"]"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#version[ ]+(\d+).*$"#).unwrap();
     pub static ref RE_MACRO_LINE_MULTILINE: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#line.*$"#).unwrap();

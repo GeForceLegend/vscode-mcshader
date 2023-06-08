@@ -101,15 +101,27 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         let version_num = capture.get(1).unwrap().as_str().parse::<u32>().unwrap();
         let mut version_content = version.as_str().to_owned() + "\n";
 
-        shader_content.replace_range(version.start()..version.end(), "");
+        let start = version.start();
+        shader_content.replace_range(start..version.end(), "");
         // If we are not in the debug folder, add Optifine's macros
         let mut components = pack_path.components();
         components.next_back();
         if components.next_back().unwrap().as_os_str() != "debug" {
             version_content += OPTIFINE_MACROS;
         }
-        shader_content.insert_str(0, &version_content);
 
+        // Since Mojang added #version in include files, we must remove them so there will only one #version macro.
+        RE_MACRO_VERSION
+            .captures_iter(unsafe { &shader_content.get_unchecked(start..).to_owned() })
+            .collect::<Vec<_>>()
+            .iter()
+            .rev()
+            .for_each(|capture| {
+                let version = capture.get(0).unwrap();
+                shader_content.replace_range((start + version.start())..(start + version.end()), "");
+            });
+
+        *shader_content = version_content + shader_content;
         if version_num > 150 {
             0
         } else {

@@ -78,21 +78,31 @@ impl TempFile {
             .borrow()
             .split_terminator('\n')
             .enumerate()
-            .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, captures)))
+            .filter_map(|(line, content)| RE_MACRO_INCLUDE_TEMP.captures(content).map(|captures| (line, captures)))
             .for_each(|(line, captures)| {
-                let include_content = captures.get(1).unwrap();
+                let include_content = captures.get(2).unwrap();
                 let path = include_content.as_str();
-                match include_path_join(pack_path, file_path, path) {
-                    Ok(include_path) => {
-                        let line_content = captures.get(0).unwrap().as_str();
-                        let start_byte = include_content.start();
-                        let end_byte = include_content.end();
-                        let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
-                        let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+
+                let line_content = captures.get(0).unwrap().as_str();
+                let start_byte = include_content.start();
+                let end_byte = include_content.end();
+                let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
+                let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+                
+                match captures.get(1).unwrap().as_str() {
+                    "include" => {
+                            match include_path_join(pack_path, file_path, path) {
+                                Ok(include_path) => including_files.push((line, start, end, include_path)),
+                                Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                            }
+                        },
+                    _ => {
+                        // If marco name is not include, it must be moj_import
+                        let additional_path = "include/".to_owned() + path;
+                        let include_path = pack_path.join(additional_path);
 
                         including_files.push((line, start, end, include_path));
                     }
-                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                 }
             });
     }
