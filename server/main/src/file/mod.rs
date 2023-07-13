@@ -123,12 +123,12 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
 
         *shader_content = version_content + shader_content;
         if version_num > 150 {
-            0
-        } else {
             1
+        } else {
+            2
         }
     } else {
-        1
+        2
     }
 }
 

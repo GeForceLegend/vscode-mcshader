@@ -96,7 +96,54 @@ impl MinecraftLanguageServer {
                     "Compilation errors reported; shader file: {},\nerrors: \"\n{}\"",
                     shader_path, compile_log
                 );
-                DIAGNOSTICS_PARSER.parse_diagnostics(workspace_files, update_list, compile_log, file_list, file_path, offset);
+
+                // After get the raw pointer, there are only opreations directly to the pointer pointed Vec
+                // So the pointer of Vec itself should not get moved. This operation should be safe.
+                let mut diagnostic_pointers = file_list
+                    .into_iter()
+                    .map(|(index, path)| {
+                        let workspace_file = workspace_files.get(&path).unwrap();
+                        let mut diagnostics = workspace_file.diagnostics().borrow_mut();
+                        diagnostics.insert(file_path.to_path_buf(), vec![]);
+                        update_list.insert(path);
+                        (index, diagnostics.get_mut(file_path).unwrap() as *mut Vec<Diagnostic>)
+                    })
+                    .collect::<HashMap<_, _>>();
+
+                compile_log
+                    .split_terminator('\n')
+                    .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
+                    .for_each(|captures| {
+                        let mut msg = captures.name("output").unwrap().as_str().to_owned() + ", from file: ";
+                        msg += shader_path;
+
+                        let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
+
+                        let severity = match captures.name("severity") {
+                            Some(c) => match c.as_str().to_lowercase().as_str() {
+                                "error" => DiagnosticSeverity::ERROR,
+                                "warning" => DiagnosticSeverity::WARNING,
+                                _ => DiagnosticSeverity::INFORMATION,
+                            },
+                            _ => DiagnosticSeverity::INFORMATION,
+                        };
+
+                        let diagnostic = Diagnostic {
+                            range: Range {
+                                start: Position { line, character: 0 },
+                                end: Position { line, character: u32::MAX },
+                            },
+                            severity: Some(severity),
+                            source: Some("mcshader-glsl".to_owned()),
+                            message: msg,
+                            ..Default::default()
+                        };
+
+                        let index = captures.name("filepath").unwrap();
+                        if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
+                            unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
+                        }
+                    });
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
@@ -126,7 +173,38 @@ impl MinecraftLanguageServer {
                         file_path.to_str().unwrap(),
                         compile_log
                     );
-                    DIAGNOSTICS_PARSER.parse_temp_diagnostics(compile_log, url, offset)
+                    let diagnostics = compile_log
+                        .split_terminator('\n')
+                        .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
+                        .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
+                        .map(|captures| {
+                            let msg = captures.name("output").unwrap().as_str().to_owned();
+
+                            let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
+
+                            let severity = match captures.name("severity") {
+                                Some(c) => match c.as_str().to_lowercase().as_str() {
+                                    "error" => DiagnosticSeverity::ERROR,
+                                    "warning" => DiagnosticSeverity::WARNING,
+                                    _ => DiagnosticSeverity::INFORMATION,
+                                },
+                                _ => DiagnosticSeverity::INFORMATION,
+                            };
+
+                            Diagnostic {
+                                range: Range {
+                                    start: Position { line, character: 0 },
+                                    end: Position { line, character: u32::MAX },
+                                },
+                                severity: Some(severity),
+                                source: Some("mcshader-glsl".to_owned()),
+                                message: msg,
+                                ..Default::default()
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    HashMap::from([(url, diagnostics)])
                 }
                 None => {
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());

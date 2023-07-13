@@ -4,7 +4,6 @@ mod capability;
 mod commands;
 mod configuration;
 mod constant;
-mod diagnostics_parser;
 mod file;
 mod notification;
 mod opengl;
