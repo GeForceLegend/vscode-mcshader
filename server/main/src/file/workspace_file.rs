@@ -268,7 +268,7 @@ impl WorkspaceFile {
                         .get(include_path)
                         .map(|include_file| (line, include_path, include_file))
                 })
-                .filter(|(_, include_path, _)| include_path.exists())
+                .filter(|(_, _, include_file)| *include_file.file_type.borrow() != gl::INVALID_ENUM)
                 .for_each(|(line, include_path, include_file)| {
                     let start = line_mapping.get(*line).unwrap();
                     let end = line_mapping.get(line + 1).unwrap();
