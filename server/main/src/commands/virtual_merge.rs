@@ -41,7 +41,7 @@ impl Command for VirtualMerge {
                 Some(mut temp_content) => {
                     preprocess_shader(&mut temp_content.1, temp_file.pack_path());
                     temp_content.1
-                },
+                }
                 None => return Err(LanguageServerError::not_shader_error()),
             }
         } else {

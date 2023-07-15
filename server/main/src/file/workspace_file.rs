@@ -247,12 +247,8 @@ impl WorkspaceFile {
 
     pub fn merge_file(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String,
-        file_path: &Path, file_id: &mut i32, mut depth: u8,
-    ) -> bool {
-        if !file_path.exists() || depth > 10 {
-            return false;
-        }
-        depth += 1;
+        file_path: &Path, file_id: &mut i32, depth: u8,
+    ) {
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
         let file_name = file_path.to_str().unwrap();
@@ -264,32 +260,30 @@ impl WorkspaceFile {
         let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
-        including_files
-            .iter()
-            .filter_map(|(line, _, _, include_path)| {
-                workspace_files
-                    .get(include_path)
-                    .map(|workspace_file| (line, include_path, workspace_file))
-            })
-            .for_each(|(line, include_path, workspace_file)| {
-                let start = line_mapping.get(*line).unwrap();
-                let end = line_mapping.get(line + 1).unwrap();
+        if depth < 10 {
+            including_files
+                .iter()
+                .filter_map(|(line, _, _, include_path)| {
+                    workspace_files
+                        .get(include_path)
+                        .map(|include_file| (line, include_path, include_file))
+                })
+                .filter(|(_, include_path, _)| include_path.exists())
+                .for_each(|(line, include_path, include_file)| {
+                    let start = line_mapping.get(*line).unwrap();
+                    let end = line_mapping.get(line + 1).unwrap();
 
-                let before_content = unsafe { content.get_unchecked(start_index..*start) };
-                push_str_without_line(shader_content, before_content);
-                start_index = end - 1;
+                    let before_content = unsafe { content.get_unchecked(start_index..*start) };
+                    push_str_without_line(shader_content, before_content);
+                    start_index = end - 1;
 
-                if workspace_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth) {
+                    include_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth + 1);
                     push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
-                } else {
-                    shader_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
-                }
-            });
+                });
+        }
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
         file_list.insert(curr_file_id, file_path.to_path_buf());
-
-        true
     }
 
     pub fn clear(&self, parser: &mut Parser) {

@@ -111,8 +111,9 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         }
 
         // Since Mojang added #version in include files, we must remove them so there will only one #version macro.
+        let shader_content_copy = unsafe { shader_content.get_unchecked(start..).to_owned() };
         RE_MACRO_VERSION
-            .captures_iter(unsafe { &shader_content.get_unchecked(start..).to_owned() })
+            .captures_iter(&shader_content_copy)
             .collect::<Vec<_>>()
             .iter()
             .rev()
