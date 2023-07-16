@@ -41,7 +41,7 @@ impl MinecraftLanguageServer {
                     *workspace_file.including_files().borrow_mut() = new_including_files;
 
                     update_list.extend(old_including_files);
-                    updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
+                    updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
                 }
             } else {
                 // Insert them to a hashset and handle later
@@ -84,7 +84,7 @@ impl MinecraftLanguageServer {
                     *workspace_file.including_files().borrow_mut() = new_including_files;
 
                     update_list.extend(old_including_files);
-                    updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
+                    updated_shaders.extend(workspace_file.parent_shaders().borrow().clone());
                 }
                 if self.scan_new_file(&mut parser, &shader_packs, &mut workspace_files, &mut temp_files, &file_path) {
                     updated_shaders.insert(file_path);

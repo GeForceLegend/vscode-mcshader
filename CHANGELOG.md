@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+
+- Optimized file merging.
+
 ### Fixed
 
 - Fixed line offset in different GLSL versions. Tested on NVIDIA driver 536.23 and AMD driver 23.7.1, may be different in other driver versions or other platforms.

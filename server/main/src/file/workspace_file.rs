@@ -15,9 +15,9 @@ impl WorkspaceFile {
 
     fn extend_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parent_shaders: &HashSet<PathBuf>, mut depth: i32) {
         self.parent_shaders.borrow_mut().extend(parent_shaders.clone());
-        depth += 1;
 
-        if depth <= 10 {
+        if depth < 10 {
+            depth += 1;
             self.including_files
                 .borrow()
                 .iter()
@@ -30,22 +30,23 @@ impl WorkspaceFile {
     }
 
     fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, mut depth: i32) {
-        depth += 1;
-        let old_parent_shaders = self.parent_shaders.borrow();
+        let mut old_parent_shaders = self.parent_shaders.borrow_mut();
         let new_parent_shaders = self
             .included_files
             .borrow()
             .iter()
             .filter_map(|included_path| workspace_files.get(included_path))
-            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().clone())
+            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
             .collect::<HashSet<_>>();
 
         let mut diagnostics = self.diagnostics.borrow_mut();
         old_parent_shaders.difference(&new_parent_shaders).for_each(|deleted_path| {
             diagnostics.remove(deleted_path);
         });
+        *old_parent_shaders = new_parent_shaders;
 
-        if depth <= 10 {
+        if depth < 10 {
+            depth += 1;
             self.including_files
                 .borrow()
                 .iter()
@@ -64,7 +65,7 @@ impl WorkspaceFile {
         old_including_files: &mut HashSet<PathBuf>, parent_shaders: &HashSet<PathBuf>, content: &str, pack_path: &Path, file_path: &Path,
         mut depth: i32,
     ) -> Option<Vec<IncludeInformation>> {
-        if depth <= 10 {
+        if depth < 10 {
             depth += 1;
             let mut including_files = vec![];
 
@@ -247,7 +248,7 @@ impl WorkspaceFile {
 
     pub fn merge_file(
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String,
-        file_path: &Path, file_id: &mut i32, depth: u8,
+        file_path: &Path, file_id: &mut i32, mut depth: u8,
     ) {
         *file_id += 1;
         let curr_file_id = Buffer::new().format(*file_id).to_owned();
@@ -261,6 +262,7 @@ impl WorkspaceFile {
         let mut start_index = 0;
 
         if depth < 10 {
+            depth += 1;
             including_files
                 .iter()
                 .filter_map(|(line, _, _, include_path)| {
@@ -277,7 +279,7 @@ impl WorkspaceFile {
                     push_str_without_line(shader_content, before_content);
                     start_index = end - 1;
 
-                    include_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth + 1);
+                    include_file.merge_file(workspace_files, file_list, shader_content, include_path, file_id, depth);
                     push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 });
         }
