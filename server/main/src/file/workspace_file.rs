@@ -30,20 +30,22 @@ impl WorkspaceFile {
     }
 
     fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, mut depth: i32) {
-        let mut old_parent_shaders = self.parent_shaders.borrow_mut();
-        let new_parent_shaders = self
-            .included_files
-            .borrow()
-            .iter()
-            .filter_map(|included_path| workspace_files.get(included_path))
-            .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
-            .collect::<HashSet<_>>();
+        {
+            let mut old_parent_shaders = self.parent_shaders.borrow_mut();
+            let new_parent_shaders = self
+                .included_files
+                .borrow()
+                .iter()
+                .filter_map(|included_path| workspace_files.get(included_path))
+                .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
+                .collect::<HashSet<_>>();
 
-        let mut diagnostics = self.diagnostics.borrow_mut();
-        old_parent_shaders.difference(&new_parent_shaders).for_each(|deleted_path| {
-            diagnostics.remove(deleted_path);
-        });
-        *old_parent_shaders = new_parent_shaders;
+            let mut diagnostics = self.diagnostics.borrow_mut();
+            old_parent_shaders.difference(&new_parent_shaders).for_each(|deleted_path| {
+                diagnostics.remove(deleted_path);
+            });
+            *old_parent_shaders = new_parent_shaders;
+        }
 
         if depth < 10 {
             depth += 1;

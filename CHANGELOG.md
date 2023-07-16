@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.3.4]
+
 ### Changed
 
 - Optimized file merging.
@@ -13,6 +15,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed line offset in different GLSL versions. Tested on NVIDIA driver 536.23 and AMD driver 23.7.1, may be different in other driver versions or other platforms.
+- Fixed function `update_shader_list` does not really updates parent_shaders, it only deletes the diagnostics from deleted parent shaders.
 
 ## [0.3.3] - 2023-05-29
 

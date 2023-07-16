@@ -6,7 +6,7 @@ use std::{
 };
 
 use hashbrown::{HashMap, HashSet};
-use itoa::{Buffer, Integer};
+use itoa::Buffer;
 use logging::error;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
@@ -60,7 +60,7 @@ fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Re
     Ok(PathBuf::from(resource))
 }
 
-fn push_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str, file_name: &str) {
+fn push_line_macro(content: &mut String, line: usize, file_id: &str, file_name: &str) {
     content.push_str("#line ");
     content.push_str(Buffer::new().format(line));
     content.push(' ');
@@ -70,8 +70,7 @@ fn push_line_macro<I: Integer>(content: &mut String, line: I, file_id: &str, fil
 }
 
 fn generate_line_mapping(content: &str) -> Vec<usize> {
-    let mut line_mapping = vec![];
-    line_mapping.push(0);
+    let mut line_mapping = vec![0];
     content.match_indices('\n').for_each(|(line, _content)| {
         line_mapping.push(line + 1);
     });

@@ -12,7 +12,7 @@ impl ServerCapabilitiesFactroy {
                 references_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
                 execute_command_provider: Some(ExecuteCommandOptions {
-                    commands: vec!["virtualMerge".to_owned(); 1],
+                    commands: vec!["virtualMerge".to_owned()],
                     ..Default::default()
                 }),
                 workspace: Some(WorkspaceServerCapabilities {

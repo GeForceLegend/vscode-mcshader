@@ -57,11 +57,12 @@ impl MinecraftLanguageServer {
             if file_path.exists() {
                 if let Some(workspace_file) = workspace_files.get(&file_path) {
                     workspace_file.update_from_disc(&mut parser, &file_path);
-                    let mut file_type = workspace_file.file_type().borrow_mut();
-                    if *file_type == gl::INVALID_ENUM {
-                        *file_type = gl::NONE;
+                    {
+                        let mut file_type = workspace_file.file_type().borrow_mut();
+                        if *file_type == gl::INVALID_ENUM {
+                            *file_type = gl::NONE;
+                        }
                     }
-                    drop(file_type);
                     // Clone the content so they can be used alone.
                     let pack_path = workspace_file.pack_path().clone();
                     let content = workspace_file.content().borrow().clone();

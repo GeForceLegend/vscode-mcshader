@@ -41,7 +41,7 @@ const SYMBOLS_QUERY_STR: &str = r#"
 "#;
 
 lazy_static! {
-    pub static ref SYMBOLS_QUERY: Query = Query::new(tree_sitter_glsl::language(), SYMBOLS_QUERY_STR).unwrap();
+    static ref SYMBOLS_QUERY: Query = Query::new(tree_sitter_glsl::language(), SYMBOLS_QUERY_STR).unwrap();
 }
 
 // This does not need unsafe code to create another reference
@@ -57,7 +57,6 @@ fn insert_child_symbol(parent_list: &mut Vec<DocumentSymbol>, symbol: DocumentSy
 }
 
 impl TreeParser {
-    #[allow(deprecated)]
     pub fn list_symbols(tree: &Tree, content: &str, line_mapping: &[usize]) -> Vec<DocumentSymbol> {
         let content_bytes = content.as_bytes();
         let mut query_cursor = QueryCursor::new();
@@ -89,6 +88,7 @@ impl TreeParser {
                 _ => node.parent().unwrap().to_range(content, line_mapping),
             };
 
+            #[allow(deprecated)]
             let current_symbol = DocumentSymbol {
                 name: node.utf8_text(content_bytes).unwrap().to_string(),
                 detail: None,
