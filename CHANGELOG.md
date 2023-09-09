@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+
+- Optimized initial scanning.
+
 ### Fixed
 
 - Fixed delete a file cleans its related shader list, but it will not filled with proper data when file comes back.

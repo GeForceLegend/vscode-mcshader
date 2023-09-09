@@ -16,23 +16,23 @@ lazy_static! {
         ])
     };
     pub static ref RE_BASIC_SHADER: Regex = Regex::new(
-        r#"^(shadow|gbuffers_(armor_glint|basic|beaconbeam|block|clouds|damagedblock|entities|entities_glowing|hand|hand_water|line|skybasic|skytextured|spidereyes|terrain|textured|textured_lit|water|weather)).(vsh|gsh|fsh)|(final|(shadowcomp|prepare|deferred|composite)\d{0,2})(.vsh|.gsh|.fsh|(_[a-z])?.csh)$"#
+        r"^(shadow|gbuffers_(armor_glint|basic|beaconbeam|block|clouds|damagedblock|entities|entities_glowing|hand|hand_water|line|skybasic|skytextured|spidereyes|terrain|textured|textured_lit|water|weather)).(vsh|gsh|fsh)|(final|(shadowcomp|prepare|deferred|composite)\d{0,2})(.vsh|.gsh|.fsh|(_[a-z])?.csh)$"
     ).unwrap();
     pub static ref COMMAND_LIST: HashMap<&'static str, Box<dyn Command + Sync + Send>> =
         HashMap::from([("virtualMerge", Box::new(VirtualMerge {}) as Box<dyn Command + Sync + Send>)])
     ;
-    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r#"^world-?\d+$"#).unwrap();
-    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#(include|line).*$"#).unwrap();
+    pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r"^world-?\d+$").unwrap();
+    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r"(?m)^[ \f\t\v]*#(include|line).*$").unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_INCLUDE_TEMP: Regex = Regex::new(r#"^\s*#(include|moj_import)\s+[<"](.+)[>"]"#).unwrap();
-    pub static ref RE_MACRO_LINE: Regex = Regex::new(r#"^\s*#line"#).unwrap();
-    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#version[ ]+(\d+).*$"#).unwrap();
-    pub static ref RE_MACRO_LINE_MULTILINE: Regex = Regex::new(r#"(?m)^[ \f\t\v]*#line.*$"#).unwrap();
+    pub static ref RE_MACRO_LINE: Regex = Regex::new(r"^\s*#line").unwrap();
+    pub static ref RE_MACRO_VERSION: Regex = Regex::new(r"(?m)^[ \f\t\v]*#version[ ]+(\d+).*$").unwrap();
+    pub static ref RE_MACRO_LINE_MULTILINE: Regex = Regex::new(r"(?m)^[ \f\t\v]*#line.*$").unwrap();
     pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
     pub static ref DIAGNOSTICS_REGEX: Regex = {
         match OPENGL_CONTEXT.vendor().as_str() {
             "NVIDIA Corporation" => {
-                Regex::new(r#"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)"#).unwrap()
+                Regex::new(r"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)").unwrap()
             }
             _ => Regex::new(
                 r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,

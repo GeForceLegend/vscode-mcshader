@@ -33,8 +33,8 @@ impl MinecraftLanguageServer {
     pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: &Path) {
         curr_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
             let file_path = file.path();
-            if file_path.is_dir() {
-                if file.file_name() == "shaders" {
+            if file.file_type().unwrap().is_dir() {
+                if file_path.file_name().unwrap() == "shaders" {
                     info!("Find shader pack {}", file_path.to_str().unwrap());
                     shader_packs.push(file_path);
                 } else {
@@ -48,7 +48,7 @@ impl MinecraftLanguageServer {
         &self, parser: &mut Parser, shader_packs: &mut HashSet<PathBuf>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
         temp_files: &mut HashMap<PathBuf, TempFile>, root: PathBuf,
     ) {
-        info!("Generating file framework on current root"; "root" => root.to_str().unwrap());
+        info!("Generating file framework on workspace \"{}\"", root.to_str().unwrap());
 
         let mut sub_shader_packs: Vec<PathBuf> = vec![];
         if root.file_name().unwrap() == "shaders" {
@@ -60,15 +60,17 @@ impl MinecraftLanguageServer {
         for pack_path in &sub_shader_packs {
             pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
                 let file_path = file.path();
-                if file_path.is_file() {
+                if file.file_type().unwrap().is_file() {
                     if RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                     }
                 } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                     file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
-                        let file_path = dim_file.path();
-                        if file_path.is_file() && RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
-                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
+                        let dim_file_path = dim_file.path();
+                        if dim_file.file_type().unwrap().is_file()
+                            && RE_BASIC_SHADER.is_match(dim_file_path.file_name().unwrap().to_str().unwrap())
+                        {
+                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &dim_file_path);
                         }
                     })
                 }
