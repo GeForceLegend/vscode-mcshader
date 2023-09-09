@@ -30,18 +30,19 @@ impl MinecraftLanguageServer {
         false
     }
 
-    pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: &Path) {
-        curr_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
-            let file_path = file.path();
-            if file.file_type().unwrap().is_dir() {
-                if file_path.file_name().unwrap() == "shaders" {
-                    info!("Find shader pack {}", file_path.to_str().unwrap());
-                    shader_packs.push(file_path);
-                } else {
-                    Self::find_shader_packs(shader_packs, &file_path);
-                }
-            }
-        })
+    pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: PathBuf) {
+        if curr_path.file_name().unwrap() == "shaders" {
+            shader_packs.push(curr_path);
+        } else {
+            curr_path
+                .read_dir()
+                .unwrap()
+                .filter_map(|file| file.ok())
+                .filter(|file| file.file_type().unwrap().is_dir())
+                .for_each(|file| {
+                    Self::find_shader_packs(shader_packs, file.path());
+                })
+        }
     }
 
     pub(super) fn scan_files_in_root(
@@ -51,11 +52,7 @@ impl MinecraftLanguageServer {
         info!("Generating file framework on workspace \"{}\"", root.to_str().unwrap());
 
         let mut sub_shader_packs: Vec<PathBuf> = vec![];
-        if root.file_name().unwrap() == "shaders" {
-            sub_shader_packs.push(root);
-        } else {
-            Self::find_shader_packs(&mut sub_shader_packs, &root);
-        }
+        Self::find_shader_packs(&mut sub_shader_packs, root);
 
         for pack_path in &sub_shader_packs {
             pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {

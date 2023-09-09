@@ -51,7 +51,6 @@ export class Extension {
     public activate = async (context: vscode.ExtensionContext) => {
         this.extensionContext = context
 
-        this.extensionContext.subscriptions.push(...commands.commandList(this))
         log.info('starting language server...')
 
         const serverPath = process.env['MCSHADER_DEBUG'] ?
@@ -60,7 +59,7 @@ export class Extension {
 
         const server: lc.Executable = {
             command: serverPath,
-            options: { env: { 'RUST_BACKTRACE': 'true', ...process.env } }
+            options: { env: { 'RUST_BACKTRACE': 'full', ...process.env } }
         }
         const serverOption = {
             run: server,
@@ -82,6 +81,7 @@ export class Extension {
         this.updateStatus('$(loading~spin)', 'Starting...')
         await this.languageClient.start()
 
+        this.extensionContext.subscriptions.push(...commands.commandList(this))
         this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.StatusUpdateNoticationMethod, this.onStatusChange))
 
         log.info('language server started!')
