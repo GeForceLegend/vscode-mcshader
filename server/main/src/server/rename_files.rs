@@ -40,6 +40,7 @@ fn rename_file(
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
+            let include_length = include_path.chars().count();
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
                     let url = Url::from_file_path(parent_path).unwrap();
@@ -62,7 +63,7 @@ fn rename_file(
                                 },
                                 new_text: include_path.clone(),
                             };
-                            *end = *start + include_path.chars().count();
+                            *end = *start + include_length;
                             *prev_include_path = after_path.to_path_buf();
                             edit
                         })

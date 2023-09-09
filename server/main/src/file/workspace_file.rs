@@ -14,7 +14,7 @@ impl WorkspaceFile {
     }
 
     fn extend_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parent_shaders: &HashSet<PathBuf>, mut depth: i32) {
-        self.parent_shaders.borrow_mut().extend(parent_shaders.clone());
+        self.parent_shaders.borrow_mut().extend(parent_shaders.iter().cloned());
 
         if depth < 10 {
             depth += 1;
@@ -32,13 +32,12 @@ impl WorkspaceFile {
     fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, mut depth: i32) {
         {
             let mut old_parent_shaders = self.parent_shaders.borrow_mut();
-            let new_parent_shaders = self
-                .included_files
+            let mut new_parent_shaders = HashSet::new();
+            self.included_files
                 .borrow()
                 .iter()
                 .filter_map(|included_path| workspace_files.get(included_path))
-                .flat_map(|workspace_file| workspace_file.parent_shaders.borrow().iter().cloned().collect::<Vec<_>>())
-                .collect::<HashSet<_>>();
+                .for_each(|workspace_file| new_parent_shaders.extend(workspace_file.parent_shaders.borrow().iter().cloned()));
 
             let mut diagnostics = self.diagnostics.borrow_mut();
             old_parent_shaders.difference(&new_parent_shaders).for_each(|deleted_path| {
@@ -221,7 +220,7 @@ impl WorkspaceFile {
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
         };
-        if file_path.exists() {
+        if file_path.is_file() {
             include_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
             let content = include_file.content.borrow().clone();

@@ -37,7 +37,7 @@ fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Re
             Component::ParentDir => {
                 if let Some(Component::Normal(_)) = buffer.pop() {
                 } else {
-                    return Err("Unable to find parent while creating include path");
+                    return Err("Unable to find parent folder while creating include path");
                 }
             }
             Component::Normal(_) => buffer.push(component),
@@ -110,15 +110,17 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         }
 
         // Since Mojang added #version in include files, we must remove them so there will only one #version macro.
-        let shader_content_copy = unsafe { shader_content.get_unchecked(start..).to_owned() };
         RE_MACRO_VERSION
-            .captures_iter(&shader_content_copy)
-            .collect::<Vec<_>>()
-            .iter()
-            .rev()
-            .for_each(|capture| {
+            .captures_iter(unsafe { shader_content.get_unchecked(start..) })
+            .map(|capture| {
                 let version = capture.get(0).unwrap();
-                shader_content.replace_range((start + version.start())..(start + version.end()), "");
+                (start + version.start())..(start + version.end())
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .for_each(|range| {
+                shader_content.replace_range(range, "");
             });
 
         *shader_content = version_content + shader_content;

@@ -96,7 +96,7 @@ impl TempFile {
                     },
                     _ => {
                         // If marco name is not include, it must be moj_import
-                        let additional_path = "include/".to_owned() + path;
+                        let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
                         let include_path = pack_path.join(additional_path);
 
                         including_files.push((line, start, end, include_path));
