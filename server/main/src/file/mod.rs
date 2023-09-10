@@ -89,8 +89,12 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
 
 pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
     let line_start = line_mapping.get(position.line as usize).unwrap();
-    let rest_content = unsafe { content.get_unchecked(*line_start..) };
-    let line_offset = rest_content.char_indices().nth(position.character as usize).unwrap().0;
+    let line_offset = if position.character == 0 {
+        0
+    } else {
+        let rest_content = unsafe { content.get_unchecked(*line_start..) };
+        rest_content.char_indices().nth(position.character as usize).map(|(offset, _)| offset).unwrap()
+    };
     line_start + line_offset
 }
 
