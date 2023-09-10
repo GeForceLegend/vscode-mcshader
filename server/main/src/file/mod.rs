@@ -140,13 +140,15 @@ pub trait File {
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn including_files(&self) -> &RefCell<Vec<IncludeInformation>>;
 
-    fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) {
+    fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) -> bool {
         if let Ok(content) = read_to_string(file_path) {
             *self.tree().borrow_mut() = parser.parse(&content, None).unwrap();
             *self.line_mapping().borrow_mut() = generate_line_mapping(&content);
             *self.content().borrow_mut() = content;
+            true
         } else {
             error!("Unable to read file {}", file_path.to_str().unwrap());
+            false
         }
     }
 

@@ -220,8 +220,7 @@ impl WorkspaceFile {
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
         };
-        if file_path.is_file() {
-            include_file.update_from_disc(parser, file_path);
+        if include_file.update_from_disc(parser, file_path) {
             // Clone the content so they can be used alone.
             let content = include_file.content.borrow().clone();
 
