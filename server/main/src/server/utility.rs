@@ -32,6 +32,7 @@ impl MinecraftLanguageServer {
 
     pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: PathBuf) {
         if curr_path.file_name().unwrap() == "shaders" {
+            info!("Find shader pack {}", curr_path.to_str().unwrap());
             shader_packs.push(curr_path);
         } else {
             curr_path

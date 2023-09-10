@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 - Fixed delete a file cleans its related shader list, but it will not filled with proper data when file comes back.
 - Fixed including file might created from a folder but not a file.
+- Fixed possible crash while saving a file without extension.
 
 ## [0.3.4] - 2023-07-16
 

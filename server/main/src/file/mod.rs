@@ -71,8 +71,8 @@ fn push_line_macro(content: &mut String, line: usize, file_id: &str, file_name: 
 
 fn generate_line_mapping(content: &str) -> Vec<usize> {
     let mut line_mapping = vec![0];
-    content.match_indices('\n').for_each(|(line, _content)| {
-        line_mapping.push(line + 1);
+    content.match_indices('\n').for_each(|(index, _)| {
+        line_mapping.push(index + 1);
     });
     line_mapping.push(content.len() + 1);
     line_mapping
@@ -89,8 +89,8 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
 
 pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
     let line_start = line_mapping.get(position.line as usize).unwrap();
-    let mut rest_content = unsafe { content.get_unchecked(*line_start..) }.chars();
-    let line_offset = (0..position.character).fold(0, |offset, _| offset + rest_content.next().unwrap().len_utf8());
+    let rest_content = unsafe { content.get_unchecked(*line_start..) };
+    let line_offset = rest_content.char_indices().nth(position.character as usize).unwrap().0;
     line_start + line_offset
 }
 
@@ -100,30 +100,28 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         let version_num = capture.get(1).unwrap().as_str().parse::<u32>().unwrap();
         let mut version_content = version.as_str().to_owned() + "\n";
 
-        let start = version.start();
-        shader_content.replace_range(start..version.end(), "");
         // If we are not in the debug folder, add Optifine's macros
         let mut components = pack_path.components();
         components.next_back();
         if components.next_back().unwrap().as_os_str() != "debug" {
             version_content += OPTIFINE_MACROS;
         }
+        version_content += unsafe { shader_content.get_unchecked(..version.start()) };
+        let start = version.end();
 
-        // Since Mojang added #version in include files, we must remove them so there will only one #version macro.
+        // Since Mojang added #version in moj_import files, we must remove them so there will only one #version macro.
+        let mut start_index = start;
         RE_MACRO_VERSION
             .captures_iter(unsafe { shader_content.get_unchecked(start..) })
-            .map(|capture| {
+            .for_each(|capture| {
                 let version = capture.get(0).unwrap();
-                (start + version.start())..(start + version.end())
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .for_each(|range| {
-                shader_content.replace_range(range, "");
+                let version_start = start + version.start();
+                version_content += unsafe { shader_content.get_unchecked(start_index..version_start) };
+                start_index = start + version.end();
             });
+        version_content += unsafe { shader_content.get_unchecked(start_index..) };
 
-        *shader_content = version_content + shader_content;
+        *shader_content = version_content;
         if version_num > 150 {
             1
         } else {
