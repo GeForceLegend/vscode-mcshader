@@ -16,38 +16,36 @@ impl MinecraftLanguageServer {
 
         for change in &changes {
             let file_path = change.uri.to_file_path().unwrap();
-            if change.typ == FileChangeType::CHANGED {
-                if let Some(workspace_file) = workspace_files.get(&file_path) {
-                    workspace_file.update_from_disc(&mut parser, &file_path);
-                    // Clone the content so they can be used alone.
-                    let pack_path = workspace_file.pack_path().clone();
-                    let content = workspace_file.content().borrow().clone();
-                    let mut old_including_files = workspace_file.including_pathes();
-                    let parent_shaders = workspace_file.parent_shaders().borrow().clone();
-
-                    let new_including_files = WorkspaceFile::update_include(
-                        &mut workspace_files,
-                        &mut temp_files,
-                        &mut parser,
-                        &mut old_including_files,
-                        &parent_shaders,
-                        &content,
-                        &pack_path,
-                        &file_path,
-                        0,
-                    )
-                    .unwrap();
-                    let workspace_file = workspace_files.get(&file_path).unwrap();
-                    *workspace_file.including_files().borrow_mut() = new_including_files;
-
-                    update_list.extend(old_including_files);
-                    updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                }
-            } else {
+            if change.typ != FileChangeType::CHANGED {
                 // Insert them to a hashset and handle later
                 // This will prevent from multiple handling
                 // when a file is deleted and created at the same time (eg.switch git branch)
                 change_list.insert(file_path);
+            } else if let Some(workspace_file) = workspace_files.get(&file_path) {
+                workspace_file.update_from_disc(&mut parser, &file_path);
+                // Clone the content so they can be used alone.
+                let pack_path = workspace_file.pack_path().clone();
+                let content = workspace_file.content().borrow().clone();
+                let mut old_including_files = workspace_file.including_pathes();
+                let parent_shaders = workspace_file.parent_shaders().borrow().clone();
+
+                let new_including_files = WorkspaceFile::update_include(
+                    &mut workspace_files,
+                    &mut temp_files,
+                    &mut parser,
+                    &mut old_including_files,
+                    &parent_shaders,
+                    &content,
+                    &pack_path,
+                    &file_path,
+                    0,
+                )
+                .unwrap();
+                let workspace_file = workspace_files.get(&file_path).unwrap();
+                *workspace_file.including_files().borrow_mut() = new_including_files;
+
+                update_list.extend(old_including_files);
+                updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
             }
         }
 
@@ -92,10 +90,9 @@ impl MinecraftLanguageServer {
                 }
             } else {
                 // If a path is not watched through extension, it might be a folder
-                let is_watched_file = match file_path.extension() {
-                    Some(ext) => extensions.contains(ext.to_str().unwrap()),
-                    None => false,
-                };
+                let is_watched_file = file_path
+                    .extension()
+                    .map_or(false, |ext| extensions.contains(ext.to_str().unwrap()));
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {

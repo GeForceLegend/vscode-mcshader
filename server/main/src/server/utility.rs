@@ -119,14 +119,13 @@ impl MinecraftLanguageServer {
 
                         let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
 
-                        let severity = match captures.name("severity") {
-                            Some(c) => match c.as_str().to_lowercase().as_str() {
+                        let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
+                            match c.as_str().to_lowercase().as_str() {
                                 "error" => DiagnosticSeverity::ERROR,
                                 "warning" => DiagnosticSeverity::WARNING,
                                 _ => DiagnosticSeverity::INFORMATION,
-                            },
-                            _ => DiagnosticSeverity::INFORMATION,
-                        };
+                            }
+                        });
 
                         let diagnostic = Diagnostic {
                             range: Range {
@@ -182,14 +181,13 @@ impl MinecraftLanguageServer {
 
                             let line = captures.name("linenum").map_or(0, |c| c.as_str().parse::<u32>().unwrap_or(0)) - offset;
 
-                            let severity = match captures.name("severity") {
-                                Some(c) => match c.as_str().to_lowercase().as_str() {
+                            let severity = captures.name("severity").map_or(DiagnosticSeverity::INFORMATION, |c| {
+                                match c.as_str().to_lowercase().as_str() {
                                     "error" => DiagnosticSeverity::ERROR,
                                     "warning" => DiagnosticSeverity::WARNING,
                                     _ => DiagnosticSeverity::INFORMATION,
-                                },
-                                _ => DiagnosticSeverity::INFORMATION,
-                            };
+                                }
+                            });
 
                             Diagnostic {
                                 range: Range {

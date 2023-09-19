@@ -228,26 +228,17 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn goto_definition(&self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
-        match self.find_definitions(params) {
-            Some(locatons) => Ok(Some(GotoDefinitionResponse::Array(locatons))),
-            None => Ok(None),
-        }
+        Ok(self.find_definitions(params).map(GotoDefinitionResponse::Array))
     }
 
     #[logging::with_trace_id]
     async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
-        match self.find_references(params) {
-            Some(locatons) => Ok(Some(locatons)),
-            None => Ok(None),
-        }
+        Ok(self.find_references(params))
     }
 
     #[logging::with_trace_id]
     async fn document_symbol(&self, params: DocumentSymbolParams) -> Result<Option<DocumentSymbolResponse>> {
-        match self.list_symbols(params) {
-            Some(symbols) => Ok(Some(symbols)),
-            None => Ok(None),
-        }
+        Ok(self.list_symbols(params))
     }
 
     #[logging::with_trace_id]

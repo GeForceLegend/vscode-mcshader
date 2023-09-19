@@ -99,14 +99,11 @@ impl MinecraftLanguageServer {
                 }
             } else {
                 rename_list.extend(workspace_files.iter().filter_map(|(file_path, workspace_file)| {
-                    match file_path.strip_prefix(&before_path) {
-                        Ok(stripped_path) => {
-                            let after_path = after_path.join(stripped_path);
-                            rename_file(&workspace_files, workspace_file, file_path, &after_path, &mut changes);
-                            Some((after_path, file_path.clone()))
-                        }
-                        Err(_) => None,
-                    }
+                    file_path.strip_prefix(&before_path).ok().map(|stripped_path| {
+                        let after_path = after_path.join(stripped_path);
+                        rename_file(&workspace_files, workspace_file, file_path, &after_path, &mut changes);
+                        (after_path, file_path.clone())
+                    })
                 }));
             }
         }
