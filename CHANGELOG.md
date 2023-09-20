@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed wrong linting result that may occured if a temp file's incluide file exists but unable to read.
+
 ## [0.3.6] - 2023-09-10
 
 ### Fixed

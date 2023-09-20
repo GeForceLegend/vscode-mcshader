@@ -9,7 +9,6 @@ impl MinecraftLanguageServer {
         let shader_packs = server_data.shader_packs.borrow();
         let extensions = server_data.extensions.borrow();
 
-        let mut diagnostics: Diagnostics = HashMap::new();
         let mut updated_shaders = HashSet::new();
         let mut change_list = HashSet::new();
         let mut update_list = HashSet::new();
@@ -96,8 +95,6 @@ impl MinecraftLanguageServer {
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {
-                    diagnostics.insert(Url::from_file_path(&file_path).unwrap(), vec![]);
-
                     if let Some(workspace_file) = workspace_files.get(&file_path) {
                         updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
                         workspace_file.clear(&mut parser);
@@ -108,20 +105,20 @@ impl MinecraftLanguageServer {
                     });
 
                     updated_shaders.remove(&file_path);
+                    update_list.insert(file_path);
                 } else {
-                    diagnostics.extend(
+                    update_list.extend(
                         workspace_files
                             .iter()
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
                                 updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
                                 workspace_file.clear(&mut parser);
-
                                 workspace_files.values().for_each(|workspace_file| {
                                     workspace_file.included_files().borrow_mut().remove(file_path);
                                     workspace_file.parent_shaders().borrow_mut().remove(file_path);
                                 });
-                                (Url::from_file_path(file_path).unwrap(), vec![])
+                                file_path.clone()
                             }),
                     );
                     // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
@@ -135,7 +132,7 @@ impl MinecraftLanguageServer {
                 None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
             }
         }
-        diagnostics.extend(self.collect_diagnostics(&workspace_files, &update_list));
+        let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
 
         self.collect_memory(&mut workspace_files);
         diagnostics
