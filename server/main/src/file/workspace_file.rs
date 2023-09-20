@@ -257,12 +257,12 @@ impl WorkspaceFile {
         shader_content.push('\n');
 
         let content = self.content.borrow();
-        let line_mapping = self.line_mapping.borrow();
-        let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
         if depth < 10 {
             depth += 1;
+            let line_mapping = self.line_mapping.borrow();
+            let including_files = self.including_files.borrow();
             including_files
                 .iter()
                 .filter_map(|(line, _, _, include_path)| {

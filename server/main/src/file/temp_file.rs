@@ -143,16 +143,16 @@ impl TempFile {
     }
 
     fn merge_temp(pack_path: &Path, file_path: &Path, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {
-        if depth > 10 || !file_path.exists() {
+        if depth > 10 {
             return false;
         }
-        *file_id += 1;
-        let curr_file_id = Buffer::new().format(*file_id).to_owned();
-        let file_name = file_path.to_str().unwrap();
-        push_line_macro(temp_content, 1, &curr_file_id, file_name);
-        temp_content.push('\n');
-
         if let Ok(content) = read_to_string(file_path) {
+            *file_id += 1;
+            let curr_file_id = Buffer::new().format(*file_id).to_owned();
+            let file_name = file_path.to_str().unwrap();
+            push_line_macro(temp_content, 1, &curr_file_id, file_name);
+            temp_content.push('\n');
+
             let mut start_index = 0;
             let mut lines = 2;
 
