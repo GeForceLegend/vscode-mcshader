@@ -87,14 +87,14 @@ impl WorkspaceFile {
                                     workspace_file.extend_shader_list(workspace_files, parent_shaders, depth);
                                     workspace_file.included_files.borrow_mut().insert(file_path.to_path_buf());
                                 }
-                            } else if let Some(temp_file) = temp_files.remove(&include_path) {
+                            } else if let Some((temp_path, temp_file)) = temp_files.remove_entry(&include_path) {
                                 temp_file.into_workspace_file(
                                     workspace_files,
                                     temp_files,
                                     parser,
                                     parent_shaders,
                                     pack_path,
-                                    &include_path,
+                                    (&include_path, temp_path),
                                     file_path,
                                     depth,
                                 );
