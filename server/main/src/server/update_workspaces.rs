@@ -16,6 +16,7 @@ impl MinecraftLanguageServer {
                     .drain_filter(|_, workspace_file| workspace_file.pack_path().starts_with(&removed_path))
                     .map(|(file_path, _)| (Url::from_file_path(file_path).unwrap(), vec![])),
             );
+            shader_packs.retain(|pack_path| !pack_path.starts_with(&removed_path));
         }
 
         for added_workspace in events.added {

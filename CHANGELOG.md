@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed wrong linting result that may occured if a temp file's incluide file exists but unable to read.
+- Fixed shader pack path not removed when deleting workspace.
 
 ## [0.3.6] - 2023-09-10
 
