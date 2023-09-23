@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+
+- Ignore folder starts with `.` on initializing, excepting `.minecraft`. This intends to ignore developing environment content like git.
+
 ### Fixed
 
 - Fixed wrong linting result that may occured if a temp file's incluide file exists but unable to read.

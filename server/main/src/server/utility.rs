@@ -31,10 +31,11 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: PathBuf) {
-        if curr_path.file_name().unwrap() == "shaders" {
+        let file_name = curr_path.file_name().unwrap();
+        if file_name == "shaders" {
             info!("Find shader pack {}", curr_path.to_str().unwrap());
             shader_packs.push(curr_path);
-        } else {
+        } else if file_name.to_str().map_or(true, |name| !name.starts_with('.') || name == ".minecraft"){
             curr_path
                 .read_dir()
                 .unwrap()
@@ -59,14 +60,14 @@ impl MinecraftLanguageServer {
             pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
                 let file_path = file.path();
                 if file.file_type().unwrap().is_file() {
-                    if RE_BASIC_SHADER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
+                    if RE_BASIC_SHADER.is_match(file.file_name().to_str().unwrap()) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                     }
                 } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                     file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
                         let dim_file_path = dim_file.path();
                         if dim_file.file_type().unwrap().is_file()
-                            && RE_BASIC_SHADER.is_match(dim_file_path.file_name().unwrap().to_str().unwrap())
+                            && RE_BASIC_SHADER.is_match(dim_file.file_name().to_str().unwrap())
                         {
                             WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &dim_file_path);
                         }
