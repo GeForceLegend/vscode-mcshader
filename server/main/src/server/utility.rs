@@ -35,7 +35,10 @@ impl MinecraftLanguageServer {
         if file_name == "shaders" {
             info!("Find shader pack {}", curr_path.to_str().unwrap());
             shader_packs.push(curr_path);
-        } else if file_name.to_str().map_or(true, |name| !name.starts_with('.') || name == ".minecraft"){
+        } else if file_name
+            .to_str()
+            .map_or(true, |name| !name.starts_with('.') || name == ".minecraft")
+        {
             curr_path
                 .read_dir()
                 .unwrap()
@@ -66,9 +69,7 @@ impl MinecraftLanguageServer {
                 } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                     file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
                         let dim_file_path = dim_file.path();
-                        if dim_file.file_type().unwrap().is_file()
-                            && RE_BASIC_SHADER.is_match(dim_file.file_name().to_str().unwrap())
-                        {
+                        if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADER.is_match(dim_file.file_name().to_str().unwrap()) {
                             WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &dim_file_path);
                         }
                     })
