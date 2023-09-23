@@ -99,16 +99,23 @@ impl MinecraftLanguageServer {
                     shader_path, compile_log
                 );
 
-                // After get the raw pointer, there are only opreations directly to the pointer pointed Vec
+                // Safety: After get the raw pointer, there are only opreations directly to the pointer pointed Vec
                 // So the pointer of Vec itself should not get moved. This operation should be safe.
                 let mut diagnostic_pointers = file_list
                     .into_iter()
                     .map(|(index, path)| {
                         let workspace_file = workspace_files.get(&path).unwrap();
                         let mut diagnostics = workspace_file.diagnostics().borrow_mut();
-                        diagnostics.insert(file_path.to_path_buf(), vec![]);
+                        let pointer = match diagnostics.get_mut(file_path) {
+                            Some(diagnostics) => {
+                                diagnostics.clear();
+                                diagnostics
+                            }
+                            // Safety: We just ensured diagnostics does not contain file_path
+                            None => diagnostics.insert_unique_unchecked(file_path.to_path_buf(), vec![]).1,
+                        };
                         update_list.insert(path);
-                        (index, diagnostics.get_mut(file_path).unwrap() as *mut Vec<Diagnostic>)
+                        (index, pointer as *mut Vec<Diagnostic>)
                     })
                     .collect::<HashMap<_, _>>();
 
