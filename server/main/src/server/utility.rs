@@ -99,23 +99,27 @@ impl MinecraftLanguageServer {
                     shader_path, compile_log
                 );
 
-                // Safety: After get the raw pointer, there are only opreations directly to the pointer pointed Vec
-                // So the pointer of Vec itself should not get moved. This operation should be safe.
-                let mut diagnostic_pointers = file_list
+                let mut diagnostics = file_list
                     .into_iter()
                     .map(|(index, path)| {
                         let workspace_file = workspace_files.get(&path).unwrap();
                         let mut diagnostics = workspace_file.diagnostics().borrow_mut();
-                        let pointer = match diagnostics.get_mut(file_path) {
-                            Some(diagnostics) => {
-                                diagnostics.clear();
-                                diagnostics
-                            }
+                        match diagnostics.get_mut(file_path) {
+                            Some(diagnostics) => diagnostics.clear(),
                             // Safety: We just ensured diagnostics does not contain file_path
-                            None => diagnostics.insert_unique_unchecked(file_path.to_path_buf(), vec![]).1,
+                            None => {
+                                diagnostics.insert_unique_unchecked(file_path.to_path_buf(), vec![]);
+                            }
                         };
                         update_list.insert(path);
-                        (index, pointer as *mut Vec<Diagnostic>)
+                        (index, diagnostics)
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut diagnostic_pointers = diagnostics
+                    .iter_mut()
+                    .map(|(index, diagnostics)| {
+                        (core::mem::take(index), diagnostics.get_mut(file_path).unwrap())
                     })
                     .collect::<HashMap<_, _>>();
 
@@ -149,7 +153,7 @@ impl MinecraftLanguageServer {
 
                         let index = captures.name("filepath").unwrap();
                         if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
-                            unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
+                            diagnostics.push(diagnostic);
                         }
                     });
             }

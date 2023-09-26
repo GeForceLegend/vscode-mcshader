@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a possible issue that makes some pointer point to unexpected memory.
+
 ## [0.4.0] 2023-09-24
 
 ### Changed
