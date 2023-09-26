@@ -112,14 +112,14 @@ impl MinecraftLanguageServer {
                             }
                         };
                         update_list.insert(path);
-                        (index, diagnostics)
+                        (Some(index), diagnostics)
                     })
                     .collect::<Vec<_>>();
 
                 let mut diagnostic_pointers = diagnostics
                     .iter_mut()
                     .map(|(index, diagnostics)| {
-                        (core::mem::take(index), diagnostics.get_mut(file_path).unwrap())
+                        (index.take().unwrap(), diagnostics.get_mut(file_path).unwrap())
                     })
                     .collect::<HashMap<_, _>>();
 
