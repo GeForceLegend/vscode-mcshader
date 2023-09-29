@@ -36,7 +36,6 @@ use crate::tree_parser::TreeParser;
 pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 
 /// Everything mutable in this struct.
-///
 /// By sending the Mutex of server data to snyc functions, we can handle it like single thread
 pub struct ServerData {
     temp_lint: RefCell<bool>,

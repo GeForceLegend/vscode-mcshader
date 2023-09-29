@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed possible issue with document symbles without a name.
+
 ## [0.4.1] 2023-09-26
 
 ### Fixed
@@ -103,7 +107,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed crash while searching shader pack path for temp files failed;
-- Fixed file path with `../` or `./` in #include;
+- Fixed file path with `../` or `./` in `#include`;
 - Fixed issues of deleting a folder;
 - Fixed linting if `#version` is not in the top line;
 - Fixed a issue about linting errors across multiple files.

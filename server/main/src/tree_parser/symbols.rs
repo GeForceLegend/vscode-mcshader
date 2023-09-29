@@ -87,10 +87,14 @@ impl TreeParser {
                 "func_ident" => node.parent().unwrap().parent().unwrap().to_range(content, line_mapping),
                 _ => node.parent().unwrap().to_range(content, line_mapping),
             };
+            let name = node.utf8_text(content_bytes).unwrap().to_string();
+            if name.is_empty() {
+                continue;
+            }
 
             #[allow(deprecated)]
             let current_symbol = DocumentSymbol {
-                name: node.utf8_text(content_bytes).unwrap().to_string(),
+                name,
                 detail: None,
                 kind,
                 tags: None,
