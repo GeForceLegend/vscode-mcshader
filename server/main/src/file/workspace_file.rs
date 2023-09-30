@@ -73,8 +73,8 @@ impl WorkspaceFile {
             content
                 .split_terminator('\n')
                 .enumerate()
-                .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, captures)))
-                .for_each(|(line, captures)| {
+                .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, content, captures)))
+                .for_each(|(line, content, captures)| {
                     let include_content = captures.get(1).unwrap();
                     let path = include_content.as_str();
                     match include_path_join(pack_path, file_path, path) {
@@ -110,11 +110,9 @@ impl WorkspaceFile {
                                     depth,
                                 );
                             }
-                            let line_content = captures.get(0).unwrap().as_str();
                             let start_byte = include_content.start();
-                            let end_byte = include_content.end();
-                            let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
-                            let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+                            let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
+                            let end = start + path.chars().count();
                             including_files.push((line, start, end, include_path));
                         }
                         Err(error) => error!("Unable to parse include link {}, error: {}", path, error),

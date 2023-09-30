@@ -104,13 +104,10 @@ impl MinecraftLanguageServer {
                     .map(|(index, path)| {
                         let workspace_file = workspace_files.get(&path).unwrap();
                         let mut diagnostics = workspace_file.diagnostics().borrow_mut();
-                        match diagnostics.get_mut(file_path) {
-                            Some(diagnostics) => diagnostics.clear(),
-                            // Safety: We just ensured diagnostics does not contain file_path
-                            None => {
-                                diagnostics.insert_unique_unchecked(file_path.to_path_buf(), vec![]);
-                            }
-                        };
+                        diagnostics
+                            .entry(file_path.to_path_buf())
+                            .and_modify(|diagnostics| diagnostics.clear())
+                            .or_default();
                         update_list.insert(path);
                         (Some(index), diagnostics)
                     })
@@ -118,9 +115,7 @@ impl MinecraftLanguageServer {
 
                 let mut diagnostic_pointers = diagnostics
                     .iter_mut()
-                    .map(|(index, diagnostics)| {
-                        (index.take().unwrap(), diagnostics.get_mut(file_path).unwrap())
-                    })
+                    .map(|(index, diagnostics)| (index.take().unwrap(), diagnostics.get_mut(file_path).unwrap()))
                     .collect::<HashMap<_, _>>();
 
                 compile_log

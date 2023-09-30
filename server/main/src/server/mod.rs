@@ -156,7 +156,7 @@ impl LanguageServer for MinecraftLanguageServer {
         }
     }
 
-    #[logging_macro::with_trace_id]
+    #[logging::with_trace_id]
     async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
         info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
@@ -250,7 +250,7 @@ impl LanguageServer for MinecraftLanguageServer {
         self.set_status_ready().await;
     }
 
-    #[logging_macro::with_trace_id]
+    #[logging::with_trace_id]
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading("Applying changes into file system...".to_owned()).await;
 
