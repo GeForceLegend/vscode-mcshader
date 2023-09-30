@@ -131,9 +131,12 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.79"
+version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
+checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "cfg-if"
@@ -1825,9 +1828,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-glsl"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4741090d286612f5f7d27dcbb489bf176dfabb60a1ca7453ab007fe25c60e8bb"
+checksum = "76a14bc03bb221deffe47a04ac4aeee4db3f6b9730a5c66c2556391f56d31be1"
 dependencies = [
  "cc",
  "tree-sitter",

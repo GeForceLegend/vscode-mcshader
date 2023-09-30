@@ -157,12 +157,12 @@ impl WorkspaceFile {
 
             let mut parent_shader_list = workspace_file.parent_shaders.borrow_mut();
             parent_shader_list.insert(file_path.to_path_buf());
-            if *existing_file_type != gl::INVALID_ENUM {
+            let scanned = *existing_file_type != gl::INVALID_ENUM;
+            *existing_file_type = file_type;
+            if scanned {
                 // File already scanned. Just change its type to shaders.
-                *existing_file_type = file_type;
                 return;
             }
-            *existing_file_type = file_type;
             workspace_file.update_from_disc(parser, file_path);
             // Clone the content so they can be used alone.
             (workspace_file.content.borrow().clone(), parent_shader_list.clone())

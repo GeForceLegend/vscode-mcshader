@@ -65,7 +65,7 @@ fn push_line_macro(content: &mut String, line: usize, file_id: &str, file_name: 
     content.push_str(Buffer::new().format(line));
     content.push(' ');
     content.push_str(file_id);
-    content.push_str("\t//");
+    content.push_str("\t// ");
     content.push_str(file_name);
 }
 

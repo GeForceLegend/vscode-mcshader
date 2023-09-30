@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+
+- Updated `tree-sitter-glsl` to 0.1.5
+
 ### Fixed
 
 - Fixed possible issue with document symbles without a name.
