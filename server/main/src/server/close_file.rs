@@ -27,9 +27,8 @@ impl MinecraftLanguageServer {
                 &content,
                 &pack_path,
                 &file_path,
-                0,
-            )
-            .unwrap();
+                1,
+            );
             let workspace_file = workspace_files.get(&file_path).unwrap();
             *workspace_file.including_files().borrow_mut() = new_including_files;
 

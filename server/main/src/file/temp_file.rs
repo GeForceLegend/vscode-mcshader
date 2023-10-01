@@ -214,17 +214,18 @@ impl TempFile {
         };
         workspace_files.insert(file_path.1, workspace_file);
 
-        if let Some(including_files) = WorkspaceFile::update_include(
-            workspace_files,
-            temp_files,
-            parser,
-            &mut HashSet::new(),
-            parent_shaders,
-            &content,
-            pack_path,
-            file_path.0,
-            depth,
-        ) {
+        if depth < 10 {
+            let including_files = WorkspaceFile::update_include(
+                workspace_files,
+                temp_files,
+                parser,
+                &mut HashSet::new(),
+                parent_shaders,
+                &content,
+                pack_path,
+                file_path.0,
+                depth + 1,
+            );
             *workspace_files.get(file_path.0).unwrap().including_files.borrow_mut() = including_files;
         }
     }
