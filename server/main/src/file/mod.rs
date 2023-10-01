@@ -163,40 +163,48 @@ pub trait File {
         let mut tree = self.tree().borrow_mut();
         let mut line_mapping = self.line_mapping().borrow_mut();
 
-        for change in &changes {
-            let range = change.range.unwrap();
+        let mut start_index = 0;
+        let mut new_content = String::new();
 
-            let start_byte = byte_index(&content, range.start, &line_mapping);
-            let end_byte = byte_index(&content, range.end, &line_mapping);
+        unsafe {
+            changes.iter().rev().for_each(|change| {
+                let range = change.range.unwrap();
 
-            let last_line = change.text.split('\n').enumerate().last().unwrap();
-            let new_end_position = match last_line.0 {
-                0 => Point {
-                    row: range.start.line as usize,
-                    column: start_byte.1 + change.text.len(),
-                },
-                lines => Point {
-                    row: range.start.line as usize + lines,
-                    column: last_line.1.len(),
-                },
-            };
-            tree.edit(&InputEdit {
-                start_byte: start_byte.0,
-                old_end_byte: end_byte.0,
-                new_end_byte: start_byte.0 + change.text.len(),
-                start_position: Point {
-                    row: range.start.line as usize,
-                    column: start_byte.1,
-                },
-                old_end_position: Point {
-                    row: range.end.line as usize,
-                    column: end_byte.1,
-                },
-                new_end_position,
+                let start_byte = byte_index(&content, range.start, &line_mapping);
+                let end_byte = byte_index(&content, range.end, &line_mapping);
+
+                let last_line = change.text.split('\n').enumerate().last().unwrap();
+                let new_end_position = match last_line.0 {
+                    0 => Point {
+                        row: range.start.line as usize,
+                        column: start_byte.1 + change.text.len(),
+                    },
+                    lines => Point {
+                        row: range.start.line as usize + lines,
+                        column: last_line.1.len(),
+                    },
+                };
+                tree.edit(&InputEdit {
+                    start_byte: start_byte.0,
+                    old_end_byte: end_byte.0,
+                    new_end_byte: start_byte.0 + change.text.len(),
+                    start_position: Point {
+                        row: range.start.line as usize,
+                        column: start_byte.1,
+                    },
+                    old_end_position: Point {
+                        row: range.end.line as usize,
+                        column: end_byte.1,
+                    },
+                    new_end_position,
+                });
+                new_content += content.get_unchecked(start_index..start_byte.0);
+                new_content += &change.text;
+                start_index = end_byte.0;
             });
-
-            content.replace_range(start_byte.0..end_byte.0, &change.text);
         }
+
+        *content = new_content;
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
         *line_mapping = generate_line_mapping(&content);
     }
