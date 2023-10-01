@@ -38,18 +38,16 @@ impl MinecraftLanguageServer {
             temp_file.parse_includes(&file_path);
             let file_type = *temp_file.file_type().borrow();
             if file_type == gl::INVALID_ENUM || file_type == gl::NONE {
-                if *temp_lint {
-                    HashMap::from([(
-                        url,
-                        TreeParser::simple_lint(
-                            &temp_file.tree().borrow(),
-                            &temp_file.content().borrow(),
-                            &temp_file.line_mapping().borrow(),
-                        ),
-                    )])
+                let diagnostics = if *temp_lint {
+                    TreeParser::simple_lint(
+                        &temp_file.tree().borrow(),
+                        &temp_file.content().borrow(),
+                        &temp_file.line_mapping().borrow(),
+                    )
                 } else {
-                    HashMap::from([(url, vec![])])
-                }
+                    vec![]
+                };
+                HashMap::from([(url, diagnostics)])
             } else {
                 return None;
             }

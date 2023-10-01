@@ -1,35 +1,34 @@
 use super::*;
 
 fn function_def_pattern(name: &str) -> String {
-    let mut pattern = r#"[
-            (function_declarator
-                (identifier) @function)
+    r#"[
+        (function_declarator
+            (identifier) @function)
 
-            (preproc_function_def name:
-                (identifier) @function)
+        (preproc_function_def name:
+            (identifier) @function)
 
-            (#match? @function "^"#
-        .to_owned();
-    pattern += name;
-    pattern += r#"$")]"#;
-    pattern
+        (#match? @function "^"#
+        .to_owned()
+        + name
+        + r#"$")]"#
 }
 
 fn variable_def_pattern(name: &str) -> String {
     let mut pattern = r#"[
-            (init_declarator
-                declarator: (identifier) @variable)
+        (init_declarator
+            declarator: (identifier) @variable)
 
-            (parameter_declaration
-                declarator: (identifier) @variable)
+        (parameter_declaration
+            declarator: (identifier) @variable)
 
-            (declaration
-                declarator: (identifier) @variable)
+        (declaration
+            declarator: (identifier) @variable)
 
-            (preproc_def
-                name: (identifier) @variable)
+        (preproc_def
+            name: (identifier) @variable)
 
-            (#match? @variable "^"#
+        (#match? @variable "^"#
         .to_owned();
     pattern += name;
     pattern += r#"$")]"#;

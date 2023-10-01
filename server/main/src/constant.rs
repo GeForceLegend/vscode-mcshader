@@ -22,7 +22,7 @@ lazy_static! {
         HashMap::from([("virtualMerge", Box::new(VirtualMerge {}) as Box<dyn Command + Sync + Send>)])
     ;
     pub static ref RE_DIMENSION_FOLDER: Regex = Regex::new(r"^world-?\d+$").unwrap();
-    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r"(?m)^[ \f\t\v]*#(include|line).*$").unwrap();
+    pub static ref RE_MACRO_CATCH: Regex = Regex::new(r"(?m)^[ \f\t\v]*#(include|line)\s+.*$").unwrap();
     pub static ref RE_MACRO_INCLUDE: Regex = Regex::new(r#"^\s*#include\s+"(.+)""#).unwrap();
     pub static ref RE_MACRO_INCLUDE_TEMP: Regex = Regex::new(r#"^\s*#(include|moj_import)\s+[<"](.+)[>"]"#).unwrap();
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r"^\s*#line").unwrap();

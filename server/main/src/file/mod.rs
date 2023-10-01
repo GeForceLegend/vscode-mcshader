@@ -118,9 +118,8 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         // Since Mojang added #version in moj_import files, we must remove them so there will only one #version macro.
         let mut start_index = start;
         RE_MACRO_VERSION
-            .captures_iter(unsafe { shader_content.get_unchecked(start..) })
-            .for_each(|capture| {
-                let version = capture.get(0).unwrap();
+            .find_iter(unsafe { shader_content.get_unchecked(start..) })
+            .for_each(|version| {
                 let version_start = start + version.start();
                 version_content += unsafe { shader_content.get_unchecked(start_index..version_start) };
                 start_index = start + version.end();

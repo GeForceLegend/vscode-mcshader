@@ -1,15 +1,7 @@
 use super::*;
 
 fn function_ref_pattern(name: &str) -> String {
-    let mut pattern = r#"(
-            (call_expression
-                (identifier) @call)
-
-            (#match? @call "^"#
-        .to_owned();
-    pattern += name;
-    pattern += r#"$"))"#;
-    pattern
+    r#"((call_expression(identifier) @call)(#match? @call "^"#.to_owned() + name + r#"$"))"#
 }
 
 impl TreeParser {
