@@ -173,7 +173,7 @@ pub trait File {
             let new_end_position = match last_line.0 {
                 0 => Point {
                     row: range.start.line as usize,
-                    column: range.start.character as usize + change.text.len(),
+                    column: start_byte.1 + change.text.len(),
                 },
                 lines => Point {
                     row: range.start.line as usize + lines,
@@ -186,11 +186,11 @@ pub trait File {
                 new_end_byte: start_byte.0 + change.text.len(),
                 start_position: Point {
                     row: range.start.line as usize,
-                    column: range.start.character as usize,
+                    column: start_byte.1,
                 },
                 old_end_position: Point {
                     row: range.end.line as usize,
-                    column: range.end.character as usize,
+                    column: end_byte.1,
                 },
                 new_end_position,
             });
