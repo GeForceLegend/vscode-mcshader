@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed possible issue with document symbles without a name.
+- Fixed possible crash when a file is included multiple times in one shader.
 
 ## [0.4.1] 2023-09-26
 

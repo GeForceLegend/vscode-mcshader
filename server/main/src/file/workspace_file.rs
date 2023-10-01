@@ -245,11 +245,13 @@ impl WorkspaceFile {
     }
 
     pub fn merge_file(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<String, PathBuf>, shader_content: &mut String,
+        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<PathBuf, String>, shader_content: &mut String,
         file_path: &Path, file_id: &mut i32, mut depth: u8,
     ) {
         *file_id += 1;
-        let curr_file_id = Buffer::new().format(*file_id).to_owned();
+        let contained = file_list.get(file_path);
+        let curr_file_id = contained.map_or(Buffer::new().format(*file_id).to_owned(), |file_id| file_id.to_owned());
+        let contained = contained.is_none();
         let file_name = file_path.to_str().unwrap();
         push_line_macro(shader_content, 1, &curr_file_id, file_name);
         shader_content.push('\n');
@@ -283,7 +285,9 @@ impl WorkspaceFile {
         }
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
-        file_list.insert(curr_file_id, file_path.to_path_buf());
+        if contained {
+            file_list.insert_unique_unchecked(file_path.to_path_buf(), curr_file_id);
+        }
     }
 
     pub fn clear(&self, parser: &mut Parser) {

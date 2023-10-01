@@ -84,7 +84,7 @@ impl MinecraftLanguageServer {
         &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, shader_file: &WorkspaceFile, file_path: &Path,
         update_list: &mut HashSet<PathBuf>,
     ) {
-        let mut file_list: HashMap<String, PathBuf> = HashMap::new();
+        let mut file_list: HashMap<PathBuf, String> = HashMap::new();
         let mut shader_content = String::new();
         shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
         let offset = preprocess_shader(&mut shader_content, shader_file.pack_path());
@@ -101,7 +101,7 @@ impl MinecraftLanguageServer {
 
                 let mut diagnostics = file_list
                     .into_iter()
-                    .map(|(index, path)| {
+                    .map(|(path, index)| {
                         let workspace_file = workspace_files.get(&path).unwrap();
                         let mut diagnostics = workspace_file.diagnostics().borrow_mut();
                         diagnostics
@@ -156,7 +156,7 @@ impl MinecraftLanguageServer {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
                 file_list
                     .into_iter()
-                    .filter_map(|(_, file_path)| {
+                    .filter_map(|(file_path, _)| {
                         let workspace_file = workspace_files.get(&file_path);
                         update_list.insert(file_path);
                         workspace_file

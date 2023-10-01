@@ -53,7 +53,7 @@ pub struct TreeParser;
 
 impl TreeParser {
     fn current_node_fetch<'a>(position: Position, tree: &'a Tree, content: &str, line_mapping: &[usize]) -> Option<Node<'a>> {
-        let position_offset = byte_index(content, position, line_mapping);
+        let position_offset = byte_index(content, position, line_mapping).0;
 
         let (start, end) = match content.as_bytes()[position_offset] {
             b'0'..=b'9' | b'A'..=b'Z' | b'a'..=b'z' | b'_' => (position_offset, position_offset + 1),

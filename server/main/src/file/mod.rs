@@ -87,15 +87,17 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
     shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
 }
 
-pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> usize {
+fn byte_offset(content: &str, chars: usize) -> usize {
+    content.char_indices().nth(chars).map(|(offset, _)| offset).unwrap_or(0)
+}
+
+/// Byte index generated from char index
+/// Returns (total_index, line_index)
+pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> (usize, usize) {
     let line_start = line_mapping.get(position.line as usize).unwrap();
     let rest_content = unsafe { content.get_unchecked(*line_start..) };
-    let line_offset = rest_content
-        .char_indices()
-        .nth(position.character as usize)
-        .map(|(offset, _)| offset)
-        .unwrap_or(0);
-    line_start + line_offset
+    let line_offset = byte_offset(rest_content, position.character as usize);
+    (line_start + line_offset, line_offset)
 }
 
 pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
@@ -107,7 +109,7 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
         // If we are not in the debug folder, add Optifine's macros
         let mut components = pack_path.components();
         components.next_back();
-        if components.next_back().unwrap().as_os_str() != "debug" {
+        if components.next_back().map_or(true, |name| name.as_os_str() != "debug") {
             version_content += OPTIFINE_MACROS;
         }
         version_content += unsafe { shader_content.get_unchecked(..version.start()) };
@@ -179,9 +181,9 @@ pub trait File {
                 },
             };
             tree.edit(&InputEdit {
-                start_byte,
-                old_end_byte: end_byte,
-                new_end_byte: start_byte + change.text.len(),
+                start_byte: start_byte.0,
+                old_end_byte: end_byte.0,
+                new_end_byte: start_byte.0 + change.text.len(),
                 start_position: Point {
                     row: range.start.line as usize,
                     column: range.start.character as usize,
@@ -193,7 +195,7 @@ pub trait File {
                 new_end_position,
             });
 
-            content.replace_range(start_byte..end_byte, &change.text);
+            content.replace_range(start_byte.0..end_byte.0, &change.text);
         }
         *tree = parser.parse(content.as_bytes(), Some(&tree)).unwrap();
         *line_mapping = generate_line_mapping(&content);
