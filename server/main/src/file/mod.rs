@@ -201,6 +201,7 @@ pub trait File {
                 new_content += &change.text;
                 start_index = end_byte.0;
             });
+            new_content += content.get_unchecked(start_index..);
         }
 
         *content = new_content;

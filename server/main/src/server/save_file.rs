@@ -9,13 +9,12 @@ impl MinecraftLanguageServer {
         let mut workspace_files = server_data.workspace_files.borrow_mut();
         let mut temp_files = server_data.temp_files.borrow_mut();
         let temp_lint = server_data.temp_lint.borrow();
+        let extensions = server_data.extensions.borrow();
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             // If this file is ended with watched extension, it should get updated through update_watched_files
-            if let Some(extension) = file_path.extension() {
-                if server_data.extensions.borrow().contains(extension.to_str().unwrap()) {
-                    return None;
-                }
+            if file_path.extension().map_or(true, |ext| extensions.contains(ext.to_str().unwrap())) {
+                return None;
             }
             workspace_file.update_from_disc(&mut parser, &file_path);
             // Clone the content so they can be used alone.
