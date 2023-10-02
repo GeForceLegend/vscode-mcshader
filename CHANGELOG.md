@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.4.2] 2023-10-02
+
 ### Changed
 
 - Updated `tree-sitter-glsl` to 0.1.5
