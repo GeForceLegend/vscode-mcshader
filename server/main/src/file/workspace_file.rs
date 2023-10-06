@@ -246,7 +246,7 @@ impl WorkspaceFile {
         *file_id += 1;
         let contained = file_list.get(file_path);
         let curr_file_id = contained.map_or(Buffer::new().format(*file_id).to_owned(), |file_id| file_id.to_owned());
-        let contained = contained.is_none();
+        let not_contained = contained.is_none();
         let file_name = file_path.to_str().unwrap();
         push_line_macro(shader_content, 1, &curr_file_id, file_name);
         shader_content.push('\n');
@@ -280,7 +280,7 @@ impl WorkspaceFile {
         }
         push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
         shader_content.push('\n');
-        if contained {
+        if not_contained {
             file_list.insert_unique_unchecked(file_path.to_path_buf(), curr_file_id);
         }
     }
