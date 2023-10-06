@@ -36,36 +36,30 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
 
 fn rename_file(
     workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path,
-    changes: &mut HashMap<Url, Vec<TextEdit>>,
+    changes: &mut std::collections::HashMap<Url, Vec<TextEdit>>,
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
-            let include_length = include_path.chars().count();
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
                     let url = Url::from_file_path(parent_path).unwrap();
                     let change_list = parent_file
                         .including_files()
-                        .borrow_mut()
-                        .iter_mut()
+                        .borrow()
+                        .iter()
                         .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
-                        .map(|(line, start, end, prev_include_path)| {
-                            let edit: TextEdit = TextEdit {
-                                range: Range {
-                                    start: Position {
-                                        line: *line as u32,
-                                        character: *start as u32,
-                                    },
-                                    end: Position {
-                                        line: *line as u32,
-                                        character: *end as u32,
-                                    },
+                        .map(|(line, start, end, _)| TextEdit {
+                            range: Range {
+                                start: Position {
+                                    line: *line as u32,
+                                    character: *start as u32,
                                 },
-                                new_text: include_path.clone(),
-                            };
-                            *end = *start + include_length;
-                            *prev_include_path = after_path.to_path_buf();
-                            edit
+                                end: Position {
+                                    line: *line as u32,
+                                    character: *end as u32,
+                                },
+                            },
+                            new_text: include_path.clone(),
                         })
                         .collect();
                     if let Some(change) = changes.get_mut(&url) {
@@ -83,10 +77,9 @@ fn rename_file(
 impl MinecraftLanguageServer {
     pub fn rename_files(&self, params: RenameFilesParams) -> Option<WorkspaceEdit> {
         let server_data = self.server_data.lock().unwrap();
-        let mut workspace_files = server_data.workspace_files.borrow_mut();
+        let workspace_files = server_data.workspace_files.borrow_mut();
 
-        let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-        let mut rename_list: HashMap<PathBuf, PathBuf> = HashMap::new();
+        let mut changes = std::collections::HashMap::new();
 
         for renamed_file in &params.files {
             let before_path = Url::parse(&renamed_file.old_uri).unwrap().to_file_path().unwrap();
@@ -95,61 +88,19 @@ impl MinecraftLanguageServer {
             if before_path.is_file() {
                 if let Some(workspace_file) = workspace_files.get(&before_path) {
                     rename_file(&workspace_files, workspace_file, &before_path, &after_path, &mut changes);
-                    rename_list.insert(after_path, before_path);
                 }
             } else {
-                rename_list.extend(workspace_files.iter().filter_map(|(file_path, workspace_file)| {
-                    file_path.strip_prefix(&before_path).ok().map(|stripped_path| {
+                workspace_files.iter().for_each(|(file_path, workspace_file)| {
+                    file_path.strip_prefix(&before_path).map_or((), |stripped_path| {
                         let after_path = after_path.join(stripped_path);
                         rename_file(&workspace_files, workspace_file, file_path, &after_path, &mut changes);
-                        (after_path, file_path.clone())
-                    })
-                }));
+                    });
+                });
             }
-        }
-        // Only modify parents when all changes are pushed to list
-        // Or modification may targets to modified url when an renamed file includes another renamed one
-        for (after_path, before_path) in &rename_list {
-            let workspace_file = workspace_files.get(before_path).unwrap();
-            workspace_file
-                .including_files()
-                .borrow()
-                .iter()
-                .for_each(|(_, _, _, include_path)| {
-                    if let Some(include_file) = workspace_files.get(include_path) {
-                        let mut parent_list = include_file.included_files().borrow_mut();
-                        parent_list.remove(before_path);
-                        parent_list.insert(after_path.clone());
-                    } else if let Some(path) = rename_list.get(include_path) {
-                        // Since generating change list modifies including list, this may targets to a path after rename
-                        let mut parent_list = workspace_files.get(path).unwrap().included_files().borrow_mut();
-                        parent_list.remove(before_path);
-                        parent_list.insert(after_path.clone());
-                    }
-                });
-        }
-
-        // Modify parent shaders. Since we dont know how many files are included in this shader, iterating all files is needed.
-        workspace_files
-            .values()
-            .map(|workspace_file| workspace_file.parent_shaders().borrow_mut())
-            .for_each(|mut parent_shaders| {
-                rename_list.iter().for_each(|(after_path, before_path)| {
-                    if parent_shaders.remove(before_path) {
-                        parent_shaders.insert(after_path.clone());
-                    }
-                });
-            });
-
-        // Move them after all modifications on including and included lists are applied
-        // This will avoid targeting modified path, causing applying edits or updating parents failed
-        for (after_path, before_path) in rename_list {
-            let workspace_file = workspace_files.remove(&before_path).unwrap();
-            workspace_files.insert(after_path, workspace_file);
         }
 
         Some(WorkspaceEdit {
-            changes: Some(std::collections::HashMap::from_iter(changes)),
+            changes: Some(changes),
             document_changes: None,
             change_annotations: None,
         })
