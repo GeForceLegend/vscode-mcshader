@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 - Delete file property edit in renaming files. Renaming file function will just return the workspace edits, and renamed files will be handled in `update_watched_files()`.
 
+### Fixed
+
+- Fixed possible crash when a file is included in its including tree.
+
 ## [0.4.2] 2023-10-02
 
 ### Changed
