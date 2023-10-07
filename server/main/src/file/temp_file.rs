@@ -105,7 +105,7 @@ impl TempFile {
             });
     }
 
-    pub fn merge_self(&self, file_path: &Path) -> Option<(u32, String)> {
+    pub fn merge_self(&self, file_path: &Path) -> Option<String> {
         let file_type = *self.file_type.borrow();
         if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
             return None;
@@ -139,7 +139,7 @@ impl TempFile {
         }
         push_str_without_line(&mut temp_content, unsafe { content.get_unchecked(start_index..) });
 
-        Some((*self.file_type.borrow(), temp_content))
+        Some(temp_content)
     }
 
     fn merge_temp(pack_path: &Path, file_path: &Path, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {

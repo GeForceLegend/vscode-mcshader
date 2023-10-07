@@ -169,7 +169,8 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
-        let diagnostics = if let Some((file_type, mut source)) = temp_file.merge_self(file_path) {
+        let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
+            let file_type = *temp_file.file_type().borrow();
             let offset = preprocess_shader(&mut source, temp_file.pack_path());
             let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 

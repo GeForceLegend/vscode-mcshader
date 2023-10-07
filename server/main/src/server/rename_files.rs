@@ -43,30 +43,27 @@ fn rename_file(
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
                     let url = Url::from_file_path(parent_path).unwrap();
-                    let change_list = parent_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
-                        .map(|(line, start, end, _)| TextEdit {
-                            range: Range {
-                                start: Position {
-                                    line: *line as u32,
-                                    character: *start as u32,
+                    let change_list = changes.entry(url).or_insert(vec![]);
+                    change_list.extend(
+                        parent_file
+                            .including_files()
+                            .borrow()
+                            .iter()
+                            .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
+                            .map(|(line, start, end, _)| TextEdit {
+                                range: Range {
+                                    start: Position {
+                                        line: *line as u32,
+                                        character: *start as u32,
+                                    },
+                                    end: Position {
+                                        line: *line as u32,
+                                        character: *end as u32,
+                                    },
                                 },
-                                end: Position {
-                                    line: *line as u32,
-                                    character: *end as u32,
-                                },
-                            },
-                            new_text: include_path.clone(),
-                        })
-                        .collect();
-                    if let Some(change) = changes.get_mut(&url) {
-                        change.extend(change_list);
-                    } else {
-                        changes.insert(url, change_list);
-                    }
+                                new_text: include_path.clone(),
+                            }),
+                    );
                 }
             });
         }
