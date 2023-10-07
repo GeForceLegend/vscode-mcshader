@@ -6,9 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.4.3] 2023-10-07
+
 ### Changed
 
-- Delete file property edit in renaming files. Renaming file function will just return the workspace edits, and renamed files will be handled in `update_watched_files()`.
+- Deleted file property edits in renaming files. Renaming file function will just return the workspace edits, and renamed files will be handled in `update_watched_files()`.
 
 ### Fixed
 
