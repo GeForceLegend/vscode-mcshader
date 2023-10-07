@@ -101,15 +101,18 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
 }
 
 pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
+    let mut components = pack_path.components();
+    components.next_back();
+    let is_debug = components.next_back().map_or(false, |name| name.as_os_str() == "debug");
+
+    let mut offset = 2;
     if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
         let version = capture.get(0).unwrap();
         let version_num = capture.get(1).unwrap().as_str().parse::<u32>().unwrap();
         let mut version_content = version.as_str().to_owned() + "\n";
 
         // If we are not in the debug folder, add Optifine's macros
-        let mut components = pack_path.components();
-        components.next_back();
-        if components.next_back().map_or(true, |name| name.as_os_str() != "debug") {
+        if !is_debug {
             version_content += OPTIFINE_MACROS;
         }
         version_content += unsafe { shader_content.get_unchecked(..version.start()) };
@@ -128,13 +131,12 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
 
         *shader_content = version_content;
         if version_num > 150 {
-            1
-        } else {
-            2
+            offset = 1;
         }
-    } else {
-        2
+    } else if !is_debug {
+        shader_content.insert_str(0, OPTIFINE_MACROS);
     }
+    offset
 }
 
 pub trait File {
