@@ -29,10 +29,10 @@ impl WorkspaceFile {
         }
     }
 
-    fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, mut depth: i32) {
+    fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, may_removed: &HashSet<PathBuf>, mut depth: i32) {
         {
-            let mut old_parent_shaders = self.parent_shaders.borrow_mut();
-            let mut new_parent_shaders = HashSet::new();
+            let mut new_parent_shaders = self.parent_shaders.borrow_mut();
+            new_parent_shaders.clear();
             self.included_files
                 .borrow()
                 .iter()
@@ -40,10 +40,9 @@ impl WorkspaceFile {
                 .for_each(|workspace_file| new_parent_shaders.extend(workspace_file.parent_shaders.borrow().iter().cloned()));
 
             let mut diagnostics = self.diagnostics.borrow_mut();
-            old_parent_shaders.difference(&new_parent_shaders).for_each(|deleted_path| {
+            may_removed.difference(&new_parent_shaders).for_each(|deleted_path| {
                 diagnostics.remove(deleted_path);
             });
-            *old_parent_shaders = new_parent_shaders;
         }
 
         if depth < 10 {
@@ -55,7 +54,7 @@ impl WorkspaceFile {
                 .collect::<HashSet<_>>()
                 .into_iter()
                 .filter_map(|including_path| workspace_files.get(including_path))
-                .for_each(|including_file| including_file.update_shader_list(workspace_files, depth));
+                .for_each(|including_file| including_file.update_shader_list(workspace_files, may_removed, depth));
         }
     }
 
@@ -122,7 +121,7 @@ impl WorkspaceFile {
             .filter_map(|including_path| workspace_files.get(including_path))
             .for_each(|including_file| {
                 including_file.included_files.borrow_mut().remove(file_path);
-                including_file.update_shader_list(workspace_files, depth);
+                including_file.update_shader_list(workspace_files, parent_shaders, depth);
             });
         including_files
     }
@@ -131,20 +130,13 @@ impl WorkspaceFile {
         workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         pack_path: &Path, file_path: &Path,
     ) {
-        let extension = file_path.extension().unwrap();
-        let file_type = {
-            if extension == "fsh" {
-                gl::FRAGMENT_SHADER
-            } else if extension == "vsh" {
-                gl::VERTEX_SHADER
-            } else if extension == "gsh" {
-                gl::GEOMETRY_SHADER
-            } else if extension == "csh" {
-                gl::COMPUTE_SHADER
-            } else {
-                // This will never be used since we have ensured the extension through basic shaders regex.
-                gl::NONE
-            }
+        let file_type = match file_path.extension() {
+            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
+            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
+            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
+            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
+            // This will never be used since we have ensured the extension through basic shaders regex.
+            _ => gl::NONE,
         };
         let workspace_file = if let Some(workspace_file) = workspace_files.get(file_path) {
             // Existing as some file's include

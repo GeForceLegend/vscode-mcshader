@@ -6,20 +6,11 @@ impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
-            Some(extension) => {
-                if extension == "fsh" {
-                    gl::FRAGMENT_SHADER
-                } else if extension == "vsh" {
-                    gl::VERTEX_SHADER
-                } else if extension == "gsh" {
-                    gl::GEOMETRY_SHADER
-                } else if extension == "csh" {
-                    gl::COMPUTE_SHADER
-                } else {
-                    gl::NONE
-                }
-            }
-            None => gl::NONE,
+            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
+            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
+            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
+            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
+            _ => gl::NONE,
         };
 
         let mut buffer = file_path.components();
@@ -148,9 +139,10 @@ impl TempFile {
         }
         if let Ok(content) = read_to_string(file_path) {
             *file_id += 1;
-            let curr_file_id = Buffer::new().format(*file_id).to_owned();
+            let mut buffer = Buffer::new();
+            let curr_file_id = buffer.format(*file_id);
             let file_name = file_path.to_str().unwrap();
-            push_line_macro(temp_content, 1, &curr_file_id, file_name);
+            push_line_macro(temp_content, 1, curr_file_id, file_name);
             temp_content.push('\n');
 
             let mut start_index = 0;
@@ -177,7 +169,7 @@ impl TempFile {
                     lines += before_content.matches('\n').count();
 
                     if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
-                        push_line_macro(temp_content, lines, &curr_file_id, file_name);
+                        push_line_macro(temp_content, lines, curr_file_id, file_name);
                     } else {
                         temp_content.push_str(capture_content);
                     }
