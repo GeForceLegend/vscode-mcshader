@@ -95,12 +95,8 @@ impl MinecraftLanguageServer {
                 if is_watched_file {
                     if let Some(workspace_file) = workspace_files.get(&file_path) {
                         updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                        workspace_file.clear(&mut parser);
+                        workspace_file.clear(&workspace_files, &mut parser);
                     }
-                    workspace_files.values().for_each(|workspace_file| {
-                        workspace_file.included_files().borrow_mut().remove(&file_path);
-                        workspace_file.parent_shaders().borrow_mut().remove(&file_path);
-                    });
 
                     updated_shaders.remove(&file_path);
                     update_list.insert(file_path);
@@ -111,11 +107,7 @@ impl MinecraftLanguageServer {
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
                                 updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                                workspace_file.clear(&mut parser);
-                                workspace_files.values().for_each(|workspace_file| {
-                                    workspace_file.included_files().borrow_mut().remove(file_path);
-                                    workspace_file.parent_shaders().borrow_mut().remove(file_path);
-                                });
+                                workspace_file.clear(&workspace_files, &mut parser);
                                 file_path.clone()
                             }),
                     );

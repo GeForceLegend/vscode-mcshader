@@ -141,11 +141,11 @@ impl WorkspaceFile {
         let workspace_file = if let Some(workspace_file) = workspace_files.get(file_path) {
             // Existing as some file's include
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
+            let scanned = *existing_file_type != gl::INVALID_ENUM;
+            *existing_file_type = file_type;
 
             let mut parent_shader_list = workspace_file.parent_shaders.borrow_mut();
             parent_shader_list.insert(file_path.to_path_buf());
-            let scanned = *existing_file_type != gl::INVALID_ENUM;
-            *existing_file_type = file_type;
             if scanned {
                 // File already scanned. Just change its type to shaders.
                 return;
@@ -273,13 +273,29 @@ impl WorkspaceFile {
         shader_content.push('\n');
     }
 
-    pub fn clear(&self, parser: &mut Parser) {
+    pub fn clear(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser) {
         *self.file_type.borrow_mut() = gl::INVALID_ENUM;
         self.content.borrow_mut().clear();
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
         self.line_mapping.borrow_mut().clear();
-        self.including_files.borrow_mut().clear();
         self.diagnostics.borrow_mut().clear();
+
+        let parent_shaders = self.parent_shaders.borrow();
+        self.including_files
+            .take()
+            .into_iter()
+            .map(|(_, _, _, include_path)| include_path)
+            .collect::<HashSet<_>>()
+            .iter()
+            .filter_map(|include_path| {
+                workspace_files
+                    .get(include_path)
+                    .map(|workspace_file| (include_path, workspace_file))
+            })
+            .for_each(|(include_path, workspace_file)| {
+                workspace_file.included_files.borrow_mut().remove(include_path);
+                workspace_file.update_shader_list(workspace_files, &parent_shaders, 0);
+            });
     }
 
     pub fn including_pathes(&self) -> HashSet<PathBuf> {
