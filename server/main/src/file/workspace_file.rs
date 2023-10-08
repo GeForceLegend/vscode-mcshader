@@ -273,7 +273,7 @@ impl WorkspaceFile {
         shader_content.push('\n');
     }
 
-    pub fn clear(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser) {
+    pub fn clear(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, file_path: &Path) {
         *self.file_type.borrow_mut() = gl::INVALID_ENUM;
         self.content.borrow_mut().clear();
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
@@ -292,8 +292,8 @@ impl WorkspaceFile {
                     .get(include_path)
                     .map(|workspace_file| (include_path, workspace_file))
             })
-            .for_each(|(include_path, workspace_file)| {
-                workspace_file.included_files.borrow_mut().remove(include_path);
+            .for_each(|(_, workspace_file)| {
+                workspace_file.included_files.borrow_mut().remove(file_path);
                 workspace_file.update_shader_list(workspace_files, &parent_shaders, 0);
             });
     }

@@ -59,7 +59,7 @@ export class Extension {
 
         const server: lc.Executable = {
             command: serverPath,
-            options: { env: { 'RUST_BACKTRACE': 'full', ...process.env } }
+            options: { env: { 'RUST_BACKTRACE': '1', ...process.env } }
         }
         const serverOption = {
             run: server,

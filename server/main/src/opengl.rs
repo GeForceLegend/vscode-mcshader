@@ -35,7 +35,11 @@ impl OpenGlContext {
                 gl::GetShaderInfoLog(shader, info_len, ptr::null_mut(), info.as_mut_ptr() as *mut gl::types::GLchar);
 
                 // ignore null for str::from_utf8
-                info.set_len((info_len - 1) as usize);
+                let info_len = match info_len {
+                    0 => 0,
+                    _ => (info_len - 1) as usize,
+                };
+                info.set_len(info_len);
                 Some(String::from_utf8_unchecked(info))
             } else {
                 None

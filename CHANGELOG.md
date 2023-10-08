@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Fixed
 
 - Fixed Optifine builtin macro is not inserted if there is no `#version` macro.
+- Fixed some issues about file deleting.
+- Fixed possible vec capacity overflow when parsing compile log.
 
 ## [0.4.3] 2023-10-07
 
