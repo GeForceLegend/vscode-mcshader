@@ -105,7 +105,7 @@ impl TempFile {
         let mut temp_content = String::new();
         let mut file_id = 0;
         let file_name = file_path.to_str().unwrap();
-        temp_content += "#line 1 0\t//";
+        temp_content += "#line 1 0\t// ";
         temp_content += file_name;
         temp_content.push('\n');
 
