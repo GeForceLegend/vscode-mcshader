@@ -23,12 +23,12 @@ fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Re
     let additional = match additional.strip_prefix('/') {
         Some(path) => {
             buffer = root_path.components().collect();
-            PathBuf::from(path)
+            Path::new(path)
         }
         None => {
             buffer = curr_path.components().collect();
             buffer.pop();
-            PathBuf::from(additional)
+            Path::new(additional)
         }
     };
 

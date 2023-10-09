@@ -146,8 +146,8 @@ impl WorkspaceFile {
 
             let mut parent_shader_list = workspace_file.parent_shaders.borrow_mut();
             parent_shader_list.insert(file_path.to_path_buf());
+            // File already scanned. Just change its type to shaders.
             if scanned {
-                // File already scanned. Just change its type to shaders.
                 return;
             }
             workspace_file.update_from_disc(parser, file_path);
@@ -208,8 +208,8 @@ impl WorkspaceFile {
         let include_file = workspace_files.insert_unique_unchecked(file_path.to_path_buf(), include_file).1;
         if include_file.update_from_disc(parser, file_path) {
             // Clone the content so they can be used alone.
-            let content = include_file.content.borrow().clone();
             if depth < 10 {
+                let content = include_file.content.borrow().clone();
                 let including_files = Self::update_include(
                     workspace_files,
                     temp_files,

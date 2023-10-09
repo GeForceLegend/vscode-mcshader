@@ -45,7 +45,7 @@ impl MinecraftLanguageServer {
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
                                 updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                                workspace_file.clear(&workspace_files, &mut parser, &file_path);
+                                workspace_file.clear(&workspace_files, &mut parser, file_path);
                                 // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
                                 updated_shaders.remove(file_path);
                                 file_path.clone()

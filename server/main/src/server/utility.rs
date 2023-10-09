@@ -18,7 +18,7 @@ impl MinecraftLanguageServer {
                 if RE_BASIC_SHADER.is_match(relative_path) {
                     WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                     return true;
-                } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR_STR) {
+                } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR) {
                     if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                         return true;
