@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.4.5] 2023-10-12
+
+### Fixed
+
+- Fixed wrong text sync when editing end of the file.
+
 ## [0.4.4] 2023-10-09
 
 ### Fixed
