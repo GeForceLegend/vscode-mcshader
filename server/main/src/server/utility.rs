@@ -15,11 +15,11 @@ impl MinecraftLanguageServer {
         for shader_pack in shader_packs {
             if let Ok(relative_path) = file_path.strip_prefix(shader_pack) {
                 let relative_path = relative_path.to_str().unwrap();
-                if RE_BASIC_SHADER.is_match(relative_path) {
+                if RE_BASIC_SHADERS.is_match(relative_path) {
                     WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                     return true;
                 } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR) {
-                    if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADER.is_match(result.1) {
+                    if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADERS.is_match(result.1) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                         return true;
                     }
@@ -63,13 +63,13 @@ impl MinecraftLanguageServer {
             pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
                 let file_path = file.path();
                 if file.file_type().unwrap().is_file() {
-                    if RE_BASIC_SHADER.is_match(file.file_name().to_str().unwrap()) {
+                    if RE_BASIC_SHADERS.is_match(file.file_name().to_str().unwrap()) {
                         WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &file_path);
                     }
                 } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                     file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
                         let dim_file_path = dim_file.path();
-                        if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADER.is_match(dim_file.file_name().to_str().unwrap()) {
+                        if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADERS.is_match(dim_file.file_name().to_str().unwrap()) {
                             WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, &dim_file_path);
                         }
                     })

@@ -89,18 +89,17 @@ fn push_str_without_line(shader_content: &mut String, str: &str) {
 
 fn byte_offset(content: &str, chars: usize) -> usize {
     let mut iter = content.as_bytes().iter();
-    let mut index = 0;
+    let mut index = chars;
     for _ in 0..chars {
         let x = match iter.next() {
             Some(x) => *x,
             None => break,
         };
         if x < 128 {
-            index += 1;
             continue;
         }
         iter.next();
-        index += 2;
+        index += 1;
         if x >= 0xE0 {
             iter.next();
             index += 1;
