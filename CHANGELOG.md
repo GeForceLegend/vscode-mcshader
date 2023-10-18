@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed some invalid shader name like `composite0` and `composite0X` will considered as shader files.
+- Fixed [vscode-languageserver-node/#1215](https://github.com/microsoft/vscode-languageserver-node/issues/1215) in previous versions by updating `vscode-languageclient`.
+
 ## [0.4.5] 2023-10-12
 
 ### Fixed

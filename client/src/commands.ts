@@ -41,7 +41,8 @@ function virtualMergedDocument(e: Extension): Command {
     onDidChange = this.onDidChangeEmitter.event
 
     provideTextDocumentContent(uri: vscode.Uri, __: vscode.CancellationToken): vscode.ProviderResult<string> {
-      return getVirtualDocument(uri.path.replace('.flattened' + path.extname(uri.path), path.extname(uri.path)))
+      let extName = path.extname(uri.path)
+      return getVirtualDocument(uri.path.replace('.flattened' + extName, extName))
     }
   }
 
@@ -50,11 +51,12 @@ function virtualMergedDocument(e: Extension): Command {
   return async () => {
     if (vscode.window.activeTextEditor.document.languageId != 'glsl') return
 
+    const extIndex = vscode.window.activeTextEditor.document.uri.path.lastIndexOf('.')
     const uri = vscode.window.activeTextEditor.document.uri.path
-      .substring(0, vscode.window.activeTextEditor.document.uri.path.lastIndexOf('.'))
-      + '.flattened.'
+      .substring(0, extIndex)
+      + '.flattened'
       + vscode.window.activeTextEditor.document.uri.path
-        .slice(vscode.window.activeTextEditor.document.uri.path.lastIndexOf('.') + 1)
+        .slice(extIndex)
     const path = vscode.Uri.parse(`mcshader:${uri}`)
 
     const doc = await vscode.workspace.openTextDocument(path)
