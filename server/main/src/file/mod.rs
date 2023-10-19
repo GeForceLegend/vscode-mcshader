@@ -180,7 +180,7 @@ pub trait File {
         }
     }
 
-    fn apply_edit(&self, changes: Vec<TextDocumentContentChangeEvent>, parser: &mut Parser) {
+    fn apply_edit(&self, changes: &[TextDocumentContentChangeEvent], parser: &mut Parser) {
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
         let mut line_mapping = self.line_mapping().borrow_mut();

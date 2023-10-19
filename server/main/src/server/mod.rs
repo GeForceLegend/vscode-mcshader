@@ -160,9 +160,9 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
         info!("Got updated configuration"; "config" => params.settings.as_object().unwrap().get("mcshader").unwrap().to_string());
 
-        let mut config: Configuration = Configuration::new(&params.settings);
+        let mut config = Configuration::new(&params.settings);
 
-        let registrations: Vec<Registration> = config.generate_file_watch_registration();
+        let registrations = config.generate_file_watch_registration();
         if let Err(err) = self.client.register_capability(registrations).await {
             warn!("Unable to registe file watch capability, error:{}", err);
         }
@@ -188,7 +188,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        if let Some(diagnostics) = self.change_file(params.text_document.uri, params.content_changes) {
+        if let Some(diagnostics) = self.change_file(params.text_document.uri, &params.content_changes) {
             self.publish_diagnostic(diagnostics).await;
         }
     }
@@ -254,7 +254,7 @@ impl LanguageServer for MinecraftLanguageServer {
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
         self.set_status_loading("Applying changes into file system...".to_owned()).await;
 
-        let diagnostics = self.update_watched_files(params.changes);
+        let diagnostics = self.update_watched_files(&params.changes);
 
         self.publish_diagnostic(diagnostics).await;
         self.set_status_ready().await;

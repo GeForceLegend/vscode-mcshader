@@ -1,7 +1,7 @@
 use super::*;
 
 impl MinecraftLanguageServer {
-    pub fn update_watched_files(&self, changes: Vec<FileEvent>) -> Diagnostics {
+    pub fn update_watched_files(&self, changes: &[FileEvent]) -> Diagnostics {
         let server_data = self.server_data.lock().unwrap();
         let mut parser = server_data.tree_sitter_parser.borrow_mut();
         let mut workspace_files = server_data.workspace_files.borrow_mut();
@@ -13,7 +13,7 @@ impl MinecraftLanguageServer {
         let mut update_list = HashSet::new();
         let mut change_list = HashMap::new();
 
-        for change in &changes {
+        for change in changes {
             let file_path = change.uri.to_file_path().unwrap();
             // A file at most appears twice (deleted and created). If it appears twice, then it should be considered as changed.
             change_list
