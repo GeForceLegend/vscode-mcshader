@@ -10,9 +10,10 @@ impl MinecraftLanguageServer {
         let mut temp_files = server_data.temp_files.borrow_mut();
         let temp_lint = server_data.temp_lint.borrow();
 
-        let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let diagnostics = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             workspace_file.apply_edit(changes, &mut parser);
             // Clone the content so they can be used alone.
+            let file_path = file_path.clone();
             let pack_path = workspace_file.pack_path().clone();
             let content = workspace_file.content().borrow().clone();
             let mut old_including_files = workspace_file.including_pathes();

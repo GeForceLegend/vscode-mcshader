@@ -1,23 +1,19 @@
 use super::*;
 
 impl WorkspaceFile {
-    pub fn pack_path(&self) -> &Rc<PathBuf> {
-        &self.pack_path
-    }
-
-    pub fn included_files(&self) -> &RefCell<HashSet<PathBuf>> {
+    pub fn included_files(&self) -> &RefCell<HashSet<Rc<PathBuf>>> {
         &self.included_files
     }
 
-    pub fn parent_shaders(&self) -> &RefCell<HashSet<PathBuf>> {
+    pub fn parent_shaders(&self) -> &RefCell<HashSet<Rc<PathBuf>>> {
         &self.parent_shaders
     }
 
-    pub fn diagnostics(&self) -> &RefCell<HashMap<PathBuf, Vec<Diagnostic>>> {
+    pub fn diagnostics(&self) -> &RefCell<HashMap<Rc<PathBuf>, Vec<Diagnostic>>> {
         &self.diagnostics
     }
 
-    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<PathBuf>, parent_shaders: HashSet<PathBuf>) -> Self {
+    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<PathBuf>, parent_shaders: HashSet<Rc<PathBuf>>) -> Self {
         Self {
             file_type: RefCell::new(file_type),
             pack_path: pack_path.clone(),
@@ -31,7 +27,9 @@ impl WorkspaceFile {
         }
     }
 
-    fn extend_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parent_shaders: &HashSet<PathBuf>, mut depth: i32) {
+    fn extend_shader_list(
+        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, parent_shaders: &HashSet<Rc<PathBuf>>, mut depth: i32,
+    ) {
         self.parent_shaders.borrow_mut().extend(parent_shaders.iter().cloned());
 
         if depth < 10 {
@@ -47,7 +45,9 @@ impl WorkspaceFile {
         }
     }
 
-    fn update_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, may_removed: &HashSet<PathBuf>, mut depth: i32) {
+    fn update_shader_list(
+        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, may_removed: &HashSet<Rc<PathBuf>>, mut depth: i32,
+    ) {
         {
             let mut new_parent_shaders = self.parent_shaders.borrow_mut();
             new_parent_shaders.clear();
@@ -79,9 +79,9 @@ impl WorkspaceFile {
     /// Sending the standalone clone data of a shader file to update its include.
     /// Since workspace_files may get amortized, using reference to workspace file inside it is not allowed.
     pub fn update_include(
-        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        old_including_files: &mut HashSet<PathBuf>, parent_shaders: &HashSet<PathBuf>, content: &str, pack_path: &Rc<PathBuf>,
-        file_path: &Path, depth: i32,
+        workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
+        old_including_files: &mut HashSet<Rc<PathBuf>>, parent_shaders: &HashSet<Rc<PathBuf>>, content: &str, pack_path: &Rc<PathBuf>,
+        file_path: &Rc<PathBuf>, depth: i32,
     ) -> Vec<IncludeInformation> {
         let mut including_files = vec![];
 
@@ -96,12 +96,13 @@ impl WorkspaceFile {
                     Ok(include_path) => {
                         let already_includes = old_including_files.remove(&include_path);
 
-                        if let Some(workspace_file) = workspace_files.get(&include_path) {
+                        let include_path = if let Some((include_path, workspace_file)) = workspace_files.get_key_value(&include_path) {
                             // File exists in workspace_files. If this is already included before modification, no need to update its includes.
                             if !already_includes {
                                 workspace_file.extend_shader_list(workspace_files, parent_shaders, depth);
-                                workspace_file.included_files.borrow_mut().insert(file_path.to_path_buf());
+                                workspace_file.included_files.borrow_mut().insert(file_path.clone());
                             }
+                            include_path.clone()
                         } else if let Some((temp_path, temp_file)) = temp_files.remove_entry(&include_path) {
                             temp_file.into_workspace_file(
                                 workspace_files,
@@ -109,10 +110,10 @@ impl WorkspaceFile {
                                 parser,
                                 parent_shaders,
                                 pack_path,
-                                (&include_path, temp_path),
+                                temp_path,
                                 file_path,
                                 depth,
-                            );
+                            )
                         } else {
                             Self::new_include(
                                 workspace_files,
@@ -123,8 +124,8 @@ impl WorkspaceFile {
                                 &include_path,
                                 file_path,
                                 depth,
-                            );
-                        }
+                            )
+                        };
                         let start_byte = include_content.start();
                         let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
                         let end = start + path.chars().count();
@@ -145,8 +146,8 @@ impl WorkspaceFile {
     }
 
     pub fn new_shader(
-        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &Rc<PathBuf>, file_path: &Path,
+        workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
+        pack_path: &Rc<PathBuf>, file_path: PathBuf,
     ) {
         let file_type = match file_path.extension() {
             Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
@@ -156,22 +157,23 @@ impl WorkspaceFile {
             // This will never be used since we have ensured the extension through basic shaders regex.
             _ => gl::NONE,
         };
-        let workspace_file = if let Some(workspace_file) = workspace_files.get(file_path) {
+        let (file_path, workspace_file) = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             // Existing as some file's include
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
             let scanned = *existing_file_type != gl::INVALID_ENUM;
             *existing_file_type = file_type;
 
             let mut parent_shader_list = workspace_file.parent_shaders.borrow_mut();
-            parent_shader_list.insert(file_path.to_path_buf());
+            parent_shader_list.insert(file_path.clone());
             // File already scanned. Just change its type to shaders.
             if scanned {
                 return;
             }
             workspace_file.update_from_disc(parser, file_path);
-            workspace_file
+            (file_path.clone(), workspace_file)
         } else {
-            let parent_shaders = HashSet::from([file_path.to_path_buf()]);
+            let shader_path = Rc::new(file_path);
+            let parent_shaders = HashSet::from([shader_path.clone()]);
             let shader_file = WorkspaceFile {
                 file_type: RefCell::new(file_type),
                 pack_path: pack_path.clone(),
@@ -183,10 +185,11 @@ impl WorkspaceFile {
                 parent_shaders: RefCell::new(parent_shaders),
                 diagnostics: RefCell::new(HashMap::new()),
             };
-            shader_file.update_from_disc(parser, file_path);
+            shader_file.update_from_disc(parser, &shader_path);
             // Insert the shader file into workspace file list and takes the place.
             // Recursions in after call will only modify its included_files.
-            workspace_files.insert_unique_unchecked(file_path.to_path_buf(), shader_file).1
+            let (file_path, workspace_file) = workspace_files.insert_unique_unchecked(shader_path, Rc::new(shader_file));
+            (file_path.clone(), workspace_file as &Rc<WorkspaceFile>)
         };
 
         // Clone the content so they can be used alone.
@@ -201,30 +204,31 @@ impl WorkspaceFile {
             &parent_shaders,
             &content,
             pack_path,
-            file_path,
+            &file_path,
             1,
         );
-        *workspace_files.get(file_path).unwrap().including_files.borrow_mut() = including_files;
+        *workspace_files.get(&file_path).unwrap().including_files.borrow_mut() = including_files;
     }
 
     pub fn new_include(
-        workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashSet<PathBuf>, pack_path: &Rc<PathBuf>, file_path: &Path, parent_path: &Path, depth: i32,
-    ) {
+        workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
+        parent_shaders: &HashSet<Rc<PathBuf>>, pack_path: &Rc<PathBuf>, file_path: &Path, parent_path: &Rc<PathBuf>, depth: i32,
+    ) -> Rc<PathBuf> {
         let include_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
             pack_path: pack_path.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
-            included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
+            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
         };
         // Safety: the only call of new_include() already make sure that workspace_files does not contain file_path.
-        let include_file = workspace_files.insert_unique_unchecked(file_path.to_path_buf(), include_file).1;
-        if include_file.update_from_disc(parser, file_path) {
+        let (file_path, include_file) = workspace_files.insert_unique_unchecked(Rc::new(file_path.to_path_buf()), Rc::new(include_file));
+        let file_path = file_path.clone();
+        if include_file.update_from_disc(parser, &file_path) {
             // Clone the content so they can be used alone.
             if depth < 10 {
                 let content = include_file.content.borrow().clone();
@@ -236,24 +240,25 @@ impl WorkspaceFile {
                     parent_shaders,
                     &content,
                     pack_path,
-                    file_path,
+                    &file_path,
                     depth + 1,
                 );
-                *workspace_files.get(file_path).unwrap().including_files.borrow_mut() = including_files;
+                *workspace_files.get(&file_path).unwrap().including_files.borrow_mut() = including_files;
             }
         } else {
             *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
         }
+        file_path
     }
 
     pub fn merge_file(
-        &self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, file_list: &mut HashMap<PathBuf, String>, shader_content: &mut String,
-        file_path: &Path, file_id: &mut i32, mut depth: u8,
+        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_list: &mut HashMap<Rc<PathBuf>, String>,
+        shader_content: &mut String, file_path: &Rc<PathBuf>, file_id: &mut i32, mut depth: u8,
     ) {
         *file_id += 1;
         let curr_file_id = file_list
-            .entry(file_path.to_path_buf())
+            .entry(file_path.clone())
             .or_insert(Buffer::new().format(*file_id).to_owned())
             .clone();
         let file_name = file_path.to_str().unwrap();
@@ -291,7 +296,7 @@ impl WorkspaceFile {
         shader_content.push('\n');
     }
 
-    pub fn clear(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parser: &mut Parser, file_path: &Path) {
+    pub fn clear(&self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, parser: &mut Parser, file_path: &PathBuf) {
         *self.file_type.borrow_mut() = gl::INVALID_ENUM;
         self.content.borrow_mut().clear();
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
@@ -316,7 +321,7 @@ impl WorkspaceFile {
             });
     }
 
-    pub fn including_pathes(&self) -> HashSet<PathBuf> {
+    pub fn including_pathes(&self) -> HashSet<Rc<PathBuf>> {
         self.including_files()
             .borrow()
             .iter()
@@ -328,6 +333,10 @@ impl WorkspaceFile {
 impl File for WorkspaceFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
+    }
+
+    fn pack_path(&self) -> &Rc<PathBuf> {
+        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

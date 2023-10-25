@@ -35,21 +35,21 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
 }
 
 fn rename_file(
-    workspace_files: &HashMap<PathBuf, WorkspaceFile>, workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path,
+    workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path,
     changes: &mut std::collections::HashMap<Url, Vec<TextEdit>>,
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
             workspace_file.included_files().borrow().iter().for_each(|parent_path| {
                 if let Some(parent_file) = workspace_files.get(parent_path) {
-                    let url = Url::from_file_path(parent_path).unwrap();
+                    let url = Url::from_file_path(parent_path as &Path).unwrap();
                     let change_list = changes.entry(url).or_insert(vec![]);
                     change_list.extend(
                         parent_file
                             .including_files()
                             .borrow()
                             .iter()
-                            .filter(|(_, _, _, prev_include_path)| *before_path == *prev_include_path)
+                            .filter(|(_, _, _, prev_include_path)| *before_path == *(prev_include_path as &Path))
                             .map(|(line, start, end, _)| TextEdit {
                                 range: Range {
                                     start: Position {

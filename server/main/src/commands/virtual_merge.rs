@@ -26,12 +26,12 @@ impl Command for VirtualMerge {
         let workspace_files = server_data.workspace_files().borrow();
         let temp_files = server_data.temp_files().borrow();
 
-        let content = if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let content = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             match *workspace_file.file_type().borrow() {
                 gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
                 _ => {
                     let mut content = String::new();
-                    workspace_file.merge_file(&workspace_files, &mut HashMap::new(), &mut content, &file_path, &mut -1, 0);
+                    workspace_file.merge_file(&workspace_files, &mut HashMap::new(), &mut content, file_path, &mut -1, 0);
                     preprocess_shader(&mut content, workspace_file.pack_path());
                     content
                 }

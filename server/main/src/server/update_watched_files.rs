@@ -31,13 +31,14 @@ impl MinecraftLanguageServer {
                 // Folder handling is much more expensive than file handling
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {
-                    if let Some(workspace_file) = workspace_files.get(&file_path) {
+                    if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
                         updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                        workspace_file.clear(&workspace_files, &mut parser, &file_path);
+                        workspace_file.clear(&workspace_files, &mut parser, file_path);
+                        update_list.insert(file_path.clone());
+                        updated_shaders.remove(file_path);
+                    } else {
+                        update_list.insert(Rc::new(file_path));
                     }
-
-                    updated_shaders.remove(&file_path);
-                    update_list.insert(file_path);
                 } else {
                     update_list.extend(
                         workspace_files
@@ -64,8 +65,8 @@ impl MinecraftLanguageServer {
                     };
                     (pack_path, shader_type)
                 });
-                let workspace_file = match workspace_files.get(&file_path) {
-                    Some(changed_file) => {
+                let (file_path, workspace_file) = match workspace_files.get_key_value(&file_path) {
+                    Some((file_path, changed_file)) => {
                         let mut file_type = changed_file.file_type().borrow_mut();
                         if *file_type == gl::INVALID_ENUM {
                             if let Some((_, shader_type)) = is_valid_shader {
@@ -75,14 +76,16 @@ impl MinecraftLanguageServer {
                                 *file_type = gl::NONE;
                             }
                         }
-                        changed_file
+                        (file_path.clone(), changed_file)
                     }
                     None if change_type == FileChangeType::CREATED => {
                         if let Some((pack_path, file_type)) = is_valid_shader {
-                            let parent_shaders = HashSet::from([file_path.to_path_buf()]);
+                            let file_path = Rc::new(file_path);
+                            let parent_shaders = HashSet::from([file_path.clone()]);
                             let new_shader = WorkspaceFile::new(&mut parser, file_type, pack_path, parent_shaders);
                             // We have ensured this file does not exists.
-                            workspace_files.insert_unique_unchecked(file_path.clone(), new_shader).1
+                            let (file_path, new_file) = workspace_files.insert_unique_unchecked(file_path, Rc::new(new_shader));
+                            (file_path.clone(), new_file as &Rc<WorkspaceFile>)
                         } else {
                             continue;
                         }

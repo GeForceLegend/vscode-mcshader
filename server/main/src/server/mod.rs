@@ -42,7 +42,7 @@ pub struct ServerData {
     temp_lint: RefCell<bool>,
     extensions: RefCell<HashSet<String>>,
     shader_packs: RefCell<HashSet<Rc<PathBuf>>>,
-    workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
+    workspace_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,
 }
@@ -61,7 +61,7 @@ impl ServerData {
         }
     }
 
-    pub fn workspace_files(&self) -> &RefCell<HashMap<PathBuf, WorkspaceFile>> {
+    pub fn workspace_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.workspace_files
     }
 

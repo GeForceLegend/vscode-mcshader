@@ -17,7 +17,7 @@ impl MinecraftLanguageServer {
             diagnostics.extend(
                 workspace_files
                     .drain_filter(|_, workspace_file| removed_shader_packs.contains(workspace_file.pack_path()))
-                    .map(|(file_path, _)| (Url::from_file_path(file_path).unwrap(), vec![])),
+                    .map(|(file_path, _)| (Url::from_file_path(&file_path as &Path).unwrap(), vec![])),
             );
         }
 

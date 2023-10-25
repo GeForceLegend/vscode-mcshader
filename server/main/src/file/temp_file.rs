@@ -3,10 +3,6 @@ use logging::warn;
 use super::*;
 
 impl TempFile {
-    pub fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
-    }
-
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
@@ -49,7 +45,7 @@ impl TempFile {
 
         let temp_file = TempFile {
             file_type: RefCell::new(file_type),
-            pack_path: PathBuf::from(resource),
+            pack_path: Rc::new(PathBuf::from(resource)),
             content: RefCell::new(content),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
@@ -86,7 +82,7 @@ impl TempFile {
 
                 match captures.get(1).unwrap().as_str() {
                     "include" => match include_path_join(pack_path, file_path, path) {
-                        Ok(include_path) => including_files.push((line, start, end, include_path)),
+                        Ok(include_path) => including_files.push((line, start, end, Rc::new(include_path))),
                         Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                     },
                     _ => {
@@ -94,7 +90,7 @@ impl TempFile {
                         let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
                         let include_path = pack_path.join(additional_path);
 
-                        including_files.push((line, start, end, include_path));
+                        including_files.push((line, start, end, Rc::new(include_path)));
                     }
                 }
             });
@@ -193,9 +189,10 @@ impl TempFile {
     }
 
     pub fn into_workspace_file(
-        self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashSet<PathBuf>, pack_path: &Rc<PathBuf>, file_path: (&Path, PathBuf), parent_path: &Path, depth: i32,
-    ) {
+        self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>,
+        parser: &mut Parser, parent_shaders: &HashSet<Rc<PathBuf>>, pack_path: &Rc<PathBuf>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
+        depth: i32,
+    ) -> Rc<PathBuf> {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
@@ -203,12 +200,15 @@ impl TempFile {
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
-            included_files: RefCell::new(HashSet::from([parent_path.to_path_buf()])),
+            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
         };
-        workspace_files.insert(file_path.1, workspace_file);
+        let file_path = workspace_files
+            .insert_unique_unchecked(Rc::new(file_path), Rc::new(workspace_file))
+            .0
+            .clone();
 
         if depth < 10 {
             let including_files = WorkspaceFile::update_include(
@@ -219,17 +219,22 @@ impl TempFile {
                 parent_shaders,
                 &content,
                 pack_path,
-                file_path.0,
+                &file_path,
                 depth + 1,
             );
-            *workspace_files.get(file_path.0).unwrap().including_files.borrow_mut() = including_files;
+            *workspace_files.get(&file_path).unwrap().including_files.borrow_mut() = including_files;
         }
+        file_path
     }
 }
 
 impl File for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
+    }
+
+    fn pack_path(&self) -> &Rc<PathBuf> {
+        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

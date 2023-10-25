@@ -17,7 +17,7 @@ use crate::constant::*;
 mod temp_file;
 mod workspace_file;
 
-pub type IncludeInformation = (usize, usize, usize, PathBuf);
+pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>);
 
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
@@ -163,6 +163,7 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
 
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
+    fn pack_path(&self) -> &Rc<PathBuf>;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
@@ -246,13 +247,13 @@ pub struct WorkspaceFile {
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
     /// Files that directly include this file
-    included_files: RefCell<HashSet<PathBuf>>,
+    included_files: RefCell<HashSet<Rc<PathBuf>>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
     /// Shaders Files that include this file
-    parent_shaders: RefCell<HashSet<PathBuf>>,
+    parent_shaders: RefCell<HashSet<Rc<PathBuf>>>,
     /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<HashMap<PathBuf, Vec<Diagnostic>>>,
+    diagnostics: RefCell<HashMap<Rc<PathBuf>, Vec<Diagnostic>>>,
 }
 
 #[derive(Clone)]
@@ -260,7 +261,7 @@ pub struct TempFile {
     /// Type of the shader
     file_type: RefCell<u32>,
     /// The shader pack path that this file in
-    pack_path: PathBuf,
+    pack_path: Rc<PathBuf>,
     /// Live content for this file
     content: RefCell<String>,
     /// Live syntax tree for this file

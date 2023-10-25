@@ -9,7 +9,7 @@ impl MinecraftLanguageServer {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let file: &dyn File = if let Some(workspace_file) = workspace_files.get(&file_path) {
-            workspace_file
+            workspace_file as &WorkspaceFile
         } else {
             temp_files.get(&file_path)?
         };

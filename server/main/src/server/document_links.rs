@@ -33,7 +33,7 @@ impl MinecraftLanguageServer {
         let include_links = including_files
             .iter()
             .map(|(line, start, end, include_path)| {
-                let url = Url::from_file_path(include_path).unwrap();
+                let url = Url::from_file_path(include_path as &Path).unwrap();
                 DocumentLink {
                     range: Range {
                         start: Position {
