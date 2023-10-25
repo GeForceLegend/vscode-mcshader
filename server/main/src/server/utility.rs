@@ -8,26 +8,21 @@ impl MinecraftLanguageServer {
         });
     }
 
-    pub(super) fn scan_new_file(
-        &self, parser: &mut Parser, shader_packs: &HashSet<Rc<PathBuf>>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
-        temp_files: &mut HashMap<PathBuf, TempFile>, file_path: &Path,
-    ) -> bool {
+    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<PathBuf>>, file_path: &Path) -> Option<&Rc<PathBuf>> {
         for shader_pack in shader_packs {
             if let Ok(relative_path) = file_path.strip_prefix(shader_pack as &Path) {
                 let relative_path = relative_path.to_str().unwrap();
                 if RE_BASIC_SHADERS.is_match(relative_path) {
-                    WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
-                    return true;
+                    return Some(shader_pack);
                 } else if let Some(result) = relative_path.split_once(MAIN_SEPARATOR) {
                     if RE_DIMENSION_FOLDER.is_match(result.0) && RE_BASIC_SHADERS.is_match(result.1) {
-                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
-                        return true;
+                        return Some(shader_pack);
                     }
                 }
-                return false;
+                return None;
             }
         }
-        false
+        None
     }
 
     pub(super) fn find_shader_packs(shader_packs: &mut Vec<Rc<PathBuf>>, curr_path: PathBuf) {

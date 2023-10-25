@@ -17,6 +17,20 @@ impl WorkspaceFile {
         &self.diagnostics
     }
 
+    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<PathBuf>, parent_shaders: HashSet<PathBuf>) -> Self {
+        Self {
+            file_type: RefCell::new(file_type),
+            pack_path: pack_path.clone(),
+            content: RefCell::new(String::new()),
+            tree: RefCell::new(parser.parse("", None).unwrap()),
+            line_mapping: RefCell::new(vec![]),
+            included_files: RefCell::new(HashSet::new()),
+            including_files: RefCell::new(vec![]),
+            parent_shaders: RefCell::new(parent_shaders),
+            diagnostics: RefCell::new(HashMap::new()),
+        }
+    }
+
     fn extend_shader_list(&self, workspace_files: &HashMap<PathBuf, WorkspaceFile>, parent_shaders: &HashSet<PathBuf>, mut depth: i32) {
         self.parent_shaders.borrow_mut().extend(parent_shaders.iter().cloned());
 

@@ -53,25 +53,44 @@ impl MinecraftLanguageServer {
                     );
                 }
             } else {
+                let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
+                    let shader_type = match file_path.extension() {
+                        Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
+                        Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
+                        Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
+                        Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
+                        // This will never be used since we have ensured the extension through basic shaders regex.
+                        _ => gl::NONE,
+                    };
+                    (pack_path, shader_type)
+                });
                 let workspace_file = match workspace_files.get(&file_path) {
                     Some(changed_file) => {
-                        changed_file.update_from_disc(&mut parser, &file_path);
                         let mut file_type = changed_file.file_type().borrow_mut();
                         if *file_type == gl::INVALID_ENUM {
-                            *file_type = gl::NONE;
+                            if let Some((_, shader_type)) = is_valid_shader {
+                                changed_file.parent_shaders().borrow_mut().insert(file_path.clone());
+                                *file_type = shader_type;
+                            } else {
+                                *file_type = gl::NONE;
+                            }
                         }
                         changed_file
                     }
                     None if change_type == FileChangeType::CREATED => {
-                        if self.scan_new_file(&mut parser, &shader_packs, &mut workspace_files, &mut temp_files, &file_path) {
-                            let new_file = workspace_files.get(&file_path).unwrap();
-                            new_file
+                        if let Some((pack_path, file_type)) = is_valid_shader {
+                            let parent_shaders = HashSet::from([file_path.to_path_buf()]);
+                            let new_shader = WorkspaceFile::new(&mut parser, file_type, pack_path, parent_shaders);
+                            // We have ensured this file does not exists.
+                            workspace_files.insert_unique_unchecked(file_path.clone(), new_shader).1
                         } else {
                             continue;
                         }
                     }
                     _ => continue,
                 };
+                workspace_file.update_from_disc(&mut parser, &file_path);
+
                 // Clone the content so they can be used alone.
                 let pack_path = workspace_file.pack_path().clone();
                 let content = workspace_file.content().borrow().clone();
