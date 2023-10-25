@@ -193,8 +193,7 @@ impl TempFile {
         parser: &mut Parser, parent_shaders: &HashSet<Rc<PathBuf>>, pack_path: &Rc<PathBuf>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
         depth: i32,
     ) -> Rc<PathBuf> {
-        let content = self.content.borrow().clone();
-        let workspace_file = WorkspaceFile {
+        let workspace_file = Rc::new(WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
             pack_path: pack_path.clone(),
             content: self.content,
@@ -204,9 +203,9 @@ impl TempFile {
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
-        };
+        });
         let file_path = workspace_files
-            .insert_unique_unchecked(Rc::new(file_path), Rc::new(workspace_file))
+            .insert_unique_unchecked(Rc::new(file_path), workspace_file.clone())
             .0
             .clone();
 
@@ -215,14 +214,13 @@ impl TempFile {
                 workspace_files,
                 temp_files,
                 parser,
+                &workspace_file,
                 &mut HashSet::new(),
                 parent_shaders,
-                &content,
-                pack_path,
                 &file_path,
                 depth + 1,
             );
-            *workspace_files.get(&file_path).unwrap().including_files.borrow_mut() = including_files;
+            *workspace_file.including_files.borrow_mut() = including_files;
         }
         file_path
     }

@@ -14,23 +14,21 @@ impl MinecraftLanguageServer {
             workspace_file.apply_edit(changes, &mut parser);
             // Clone the content so they can be used alone.
             let file_path = file_path.clone();
-            let pack_path = workspace_file.pack_path().clone();
-            let content = workspace_file.content().borrow().clone();
             let mut old_including_files = workspace_file.including_pathes();
             let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
+            let workspace_file = workspace_file.clone();
             let new_including_files = WorkspaceFile::update_include(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,
+                &workspace_file,
                 &mut old_including_files,
                 &parent_shaders,
-                &content,
-                &pack_path,
                 &file_path,
                 1,
             );
-            *workspace_files.get(&file_path).unwrap().including_files().borrow_mut() = new_including_files;
+            *workspace_file.including_files().borrow_mut() = new_including_files;
 
             self.collect_diagnostics(&workspace_files, &old_including_files)
         } else {

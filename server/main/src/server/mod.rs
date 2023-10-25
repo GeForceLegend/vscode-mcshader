@@ -137,7 +137,10 @@ impl LanguageServer for MinecraftLanguageServer {
             vec![]
         };
 
+        let now = std::time::Instant::now();
         self.initial_scan(roots);
+        let passed = now.elapsed().as_secs_f64();
+        info!("Initial scan took {}s", passed);
 
         Ok(initialize_result)
     }
