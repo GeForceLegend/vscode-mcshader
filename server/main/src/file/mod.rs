@@ -3,6 +3,7 @@ use std::{
     ffi::OsString,
     fs::read_to_string,
     path::{Component, Path, PathBuf, MAIN_SEPARATOR_STR},
+    rc::Rc,
 };
 
 use hashbrown::{HashMap, HashSet};
@@ -162,7 +163,6 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
 
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
-    fn pack_path(&self) -> &PathBuf;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
@@ -238,7 +238,7 @@ pub struct WorkspaceFile {
     /// Type of the shader
     file_type: RefCell<u32>,
     /// The shader pack path that this file in
-    pack_path: PathBuf,
+    pack_path: Rc<PathBuf>,
     /// Live content for this file
     content: RefCell<String>,
     /// Live syntax tree for this file

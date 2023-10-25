@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -40,7 +41,7 @@ pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 pub struct ServerData {
     temp_lint: RefCell<bool>,
     extensions: RefCell<HashSet<String>>,
-    shader_packs: RefCell<HashSet<PathBuf>>,
+    shader_packs: RefCell<HashSet<Rc<PathBuf>>>,
     workspace_files: RefCell<HashMap<PathBuf, WorkspaceFile>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,
@@ -68,6 +69,9 @@ impl ServerData {
         &self.temp_files
     }
 }
+
+// We will not send cloned Rc data to solution outside the mutex lock
+unsafe impl Send for ServerData {}
 
 /// Other things that do not need to be mutable
 pub struct MinecraftLanguageServer {

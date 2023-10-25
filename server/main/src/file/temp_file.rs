@@ -3,6 +3,10 @@ use logging::warn;
 use super::*;
 
 impl TempFile {
+    pub fn pack_path(&self) -> &PathBuf {
+        &self.pack_path
+    }
+
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
@@ -190,12 +194,12 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashSet<PathBuf>, pack_path: &Path, file_path: (&Path, PathBuf), parent_path: &Path, depth: i32,
+        parent_shaders: &HashSet<PathBuf>, pack_path: &Rc<PathBuf>, file_path: (&Path, PathBuf), parent_path: &Path, depth: i32,
     ) {
         let content = self.content.borrow().clone();
         let workspace_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
-            pack_path: pack_path.to_path_buf(),
+            pack_path: pack_path.clone(),
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
@@ -226,10 +230,6 @@ impl TempFile {
 impl File for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
-    }
-
-    fn pack_path(&self) -> &PathBuf {
-        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

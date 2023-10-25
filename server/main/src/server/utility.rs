@@ -9,11 +9,11 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn scan_new_file(
-        &self, parser: &mut Parser, shader_packs: &HashSet<PathBuf>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
+        &self, parser: &mut Parser, shader_packs: &HashSet<Rc<PathBuf>>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
         temp_files: &mut HashMap<PathBuf, TempFile>, file_path: &Path,
     ) -> bool {
         for shader_pack in shader_packs {
-            if let Ok(relative_path) = file_path.strip_prefix(shader_pack) {
+            if let Ok(relative_path) = file_path.strip_prefix(shader_pack as &Path) {
                 let relative_path = relative_path.to_str().unwrap();
                 if RE_BASIC_SHADERS.is_match(relative_path) {
                     WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
@@ -30,11 +30,11 @@ impl MinecraftLanguageServer {
         false
     }
 
-    pub(super) fn find_shader_packs(shader_packs: &mut Vec<PathBuf>, curr_path: PathBuf) {
+    pub(super) fn find_shader_packs(shader_packs: &mut Vec<Rc<PathBuf>>, curr_path: PathBuf) {
         let file_name = curr_path.file_name().unwrap();
         if file_name == "shaders" {
             info!("Find shader pack {}", curr_path.to_str().unwrap());
-            shader_packs.push(curr_path);
+            shader_packs.push(Rc::new(curr_path));
         } else if file_name
             .to_str()
             .map_or(true, |name| !name.starts_with('.') || name == ".minecraft")
@@ -51,12 +51,12 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn scan_files_in_root(
-        &self, parser: &mut Parser, shader_packs: &mut HashSet<PathBuf>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
+        &self, parser: &mut Parser, shader_packs: &mut HashSet<Rc<PathBuf>>, workspace_files: &mut HashMap<PathBuf, WorkspaceFile>,
         temp_files: &mut HashMap<PathBuf, TempFile>, root: PathBuf,
     ) {
         info!("Generating file framework on workspace \"{}\"", root.to_str().unwrap());
 
-        let mut sub_shader_packs: Vec<PathBuf> = vec![];
+        let mut sub_shader_packs: Vec<Rc<PathBuf>> = vec![];
         Self::find_shader_packs(&mut sub_shader_packs, root);
 
         for pack_path in &sub_shader_packs {
