@@ -76,8 +76,7 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_workspace_shader(
-        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, shader_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>,
-        update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
+        &self, shader_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
     ) {
         let mut file_list = HashMap::new();
         let mut shader_content = String::new();
@@ -94,24 +93,21 @@ impl MinecraftLanguageServer {
                     shader_path, compile_log
                 );
 
-                let mut diagnostics = file_list
+                // We have ensured files in file lists are unique
+                // Adn they are `Rc<_>`, so their pointer will never get changed. This should be safe.
+                let mut diagnostic_pointers = file_list
                     .into_iter()
-                    .map(|(path, index)| {
-                        let workspace_file = workspace_files.get(&path).unwrap();
-                        let mut diagnostics = workspace_file.diagnostics().borrow_mut();
-                        diagnostics
+                    .map(|(path, (index, file))| {
+                        let pointer = file
+                            .diagnostics()
+                            .borrow_mut()
                             .entry(file_path.clone())
                             .and_modify(|diagnostics| diagnostics.clear())
-                            .or_default();
-                        update_list.insert(path, index.1);
-                        (Some(index.0), diagnostics)
+                            .or_default() as *mut Vec<Diagnostic>;
+                        update_list.insert(path, file);
+                        (index, pointer)
                     })
-                    .collect::<Vec<_>>();
-
-                let mut diagnostic_pointers = diagnostics
-                    .iter_mut()
-                    .map(|(index, diagnostics)| (index.take().unwrap(), diagnostics.get_mut(file_path).unwrap()))
-                    .collect::<HashMap<_, _>>();
+                    .collect::<HashMap<_,_>>();
 
                 compile_log
                     .split_terminator('\n')
@@ -143,7 +139,7 @@ impl MinecraftLanguageServer {
 
                         let index = captures.name("filepath").unwrap();
                         if let Some(diagnostics) = diagnostic_pointers.get_mut(index.as_str()) {
-                            diagnostics.push(diagnostic);
+                            unsafe { diagnostics.as_mut().unwrap().push(diagnostic) };
                         }
                     });
             }

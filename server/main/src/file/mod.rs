@@ -6,7 +6,7 @@ use std::{
     rc::Rc,
 };
 
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
 use itoa::Buffer;
 use logging::error;
 use tower_lsp::lsp_types::*;
@@ -251,7 +251,7 @@ pub struct WorkspaceFile {
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
     /// Shaders Files that include this file
-    parent_shaders: RefCell<HashSet<Rc<PathBuf>>>,
+    parent_shaders: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     /// Diagnostics parsed by compiler but not tree-sitter
     diagnostics: RefCell<HashMap<Rc<PathBuf>, Vec<Diagnostic>>>,
 }

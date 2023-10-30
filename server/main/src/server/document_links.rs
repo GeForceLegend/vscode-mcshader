@@ -14,9 +14,8 @@ impl MinecraftLanguageServer {
             let mut update_list = HashMap::new();
             shader_files
                 .iter()
-                .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
                 .for_each(|(shader_path, shader_file)| {
-                    self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
+                    self.lint_workspace_shader(shader_file, shader_path, &mut update_list);
                 });
 
             (
