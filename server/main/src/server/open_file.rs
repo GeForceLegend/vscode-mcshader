@@ -12,7 +12,7 @@ impl MinecraftLanguageServer {
 
         let diagnostics = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let shader_files = workspace_file.parent_shaders().borrow();
-            let mut update_list = HashSet::new();
+            let mut update_list = HashMap::new();
             shader_files
                 .iter()
                 .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
@@ -20,7 +20,7 @@ impl MinecraftLanguageServer {
                     self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                 });
 
-            self.collect_diagnostics(&workspace_files, &update_list)
+            self.collect_diagnostics(&update_list)
         } else {
             let temp_file = TempFile::new(&mut parser, &file_path, params.text_document.text);
             let diagnostics = self.lint_temp_file(&temp_file, &file_path, params.text_document.uri, *temp_lint);

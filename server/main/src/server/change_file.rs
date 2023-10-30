@@ -30,7 +30,7 @@ impl MinecraftLanguageServer {
             );
             *workspace_file.including_files().borrow_mut() = new_including_files;
 
-            self.collect_diagnostics(&workspace_files, &old_including_files)
+            self.collect_diagnostics(&old_including_files)
         } else {
             let temp_file = temp_files.get(&file_path)?;
             temp_file.apply_edit(changes, &mut parser);

@@ -9,9 +9,9 @@ impl MinecraftLanguageServer {
         let temp_files = server_data.temp_files.borrow();
         let temp_lint = server_data.temp_lint.borrow();
 
-        let (including_files, diagnostics) = if let Some(workspace_file) = workspace_files.get(&file_path) {
+        let (include_links, diagnostics) = if let Some(workspace_file) = workspace_files.get(&file_path) {
             let shader_files = workspace_file.parent_shaders().borrow();
-            let mut update_list = HashSet::new();
+            let mut update_list = HashMap::new();
             shader_files
                 .iter()
                 .filter_map(|shader_path| workspace_files.get(shader_path).map(|shader_file| (shader_path, shader_file)))
@@ -20,37 +20,16 @@ impl MinecraftLanguageServer {
                 });
 
             (
-                workspace_file.including_files().borrow(),
-                self.collect_diagnostics(&workspace_files, &update_list),
+                workspace_file.include_links(),
+                self.collect_diagnostics(&update_list),
             )
         } else {
             let temp_file = temp_files.get(&file_path)?;
             (
-                temp_file.including_files().borrow(),
+                temp_file.include_links(),
                 self.lint_temp_file(temp_file, &file_path, url, *temp_lint),
             )
         };
-        let include_links = including_files
-            .iter()
-            .map(|(line, start, end, include_path)| {
-                let url = Url::from_file_path(include_path as &Path).unwrap();
-                DocumentLink {
-                    range: Range {
-                        start: Position {
-                            line: *line as u32,
-                            character: *start as u32,
-                        },
-                        end: Position {
-                            line: *line as u32,
-                            character: *end as u32,
-                        },
-                    },
-                    tooltip: Some(include_path.to_str().unwrap().to_owned()),
-                    target: Some(url),
-                    data: None,
-                }
-            })
-            .collect::<Vec<_>>();
 
         Some((include_links, diagnostics))
     }

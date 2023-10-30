@@ -44,7 +44,7 @@ impl MinecraftLanguageServer {
                 .for_each(|(shader_path, shader_file)| {
                     self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                 });
-            self.collect_diagnostics(&workspace_files, &update_list)
+            self.collect_diagnostics(&update_list)
         } else {
             let temp_file = temp_files.get(&file_path)?;
             temp_file.update_from_disc(&mut parser, &file_path);

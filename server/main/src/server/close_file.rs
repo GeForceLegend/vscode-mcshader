@@ -40,7 +40,7 @@ impl MinecraftLanguageServer {
                     self.lint_workspace_shader(&workspace_files, shader_file, shader_path, &mut update_list);
                 });
 
-            let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
+            let diagnostics = self.collect_diagnostics(&update_list);
             Some(diagnostics)
         } else {
             temp_files.remove(&file_path).map(|_| HashMap::from([(file_url, vec![])]))

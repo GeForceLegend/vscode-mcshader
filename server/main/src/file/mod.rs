@@ -17,7 +17,7 @@ use crate::constant::*;
 mod temp_file;
 mod workspace_file;
 
-pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>);
+pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>, Rc<WorkspaceFile>);
 
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
@@ -167,7 +167,7 @@ pub trait File {
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
-    fn including_files(&self) -> &RefCell<Vec<IncludeInformation>>;
+    fn include_links(&self) -> Vec<DocumentLink>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) -> bool {
         if let Ok(content) = read_to_string(file_path) {
@@ -247,7 +247,7 @@ pub struct WorkspaceFile {
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
     /// Files that directly include this file
-    included_files: RefCell<HashSet<Rc<PathBuf>>>,
+    included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
     /// Shaders Files that include this file
@@ -269,5 +269,5 @@ pub struct TempFile {
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
     /// Lines and paths for include files
-    including_files: RefCell<Vec<IncludeInformation>>,
+    including_files: RefCell<Vec<(usize, usize, usize, Rc<PathBuf>)>>,
 }

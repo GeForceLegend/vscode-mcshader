@@ -10,7 +10,7 @@ impl MinecraftLanguageServer {
         let extensions = server_data.extensions.borrow();
 
         let mut updated_shaders = HashSet::new();
-        let mut update_list = HashSet::new();
+        let mut update_list = HashMap::new();
         let mut change_list = HashMap::new();
 
         for change in changes {
@@ -33,11 +33,9 @@ impl MinecraftLanguageServer {
                 if is_watched_file {
                     if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
                         updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                        workspace_file.clear(&workspace_files, &mut parser, file_path);
-                        update_list.insert(file_path.clone());
+                        workspace_file.clear(&mut parser, file_path);
+                        update_list.insert(file_path.clone(), workspace_file.clone());
                         updated_shaders.remove(file_path);
-                    } else {
-                        update_list.insert(Rc::new(file_path));
                     }
                 } else {
                     update_list.extend(
@@ -46,10 +44,10 @@ impl MinecraftLanguageServer {
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
                                 updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().cloned());
-                                workspace_file.clear(&workspace_files, &mut parser, file_path);
+                                workspace_file.clear(&mut parser, file_path);
                                 // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
                                 updated_shaders.remove(file_path);
-                                file_path.clone()
+                                (file_path.clone(), workspace_file.clone())
                             }),
                     );
                 }
@@ -122,7 +120,7 @@ impl MinecraftLanguageServer {
                 None => warn!("Missing shader: {}", file_path.to_str().unwrap()),
             }
         }
-        let diagnostics = self.collect_diagnostics(&workspace_files, &update_list);
+        let diagnostics = self.collect_diagnostics(&update_list);
 
         self.collect_memory(&mut workspace_files);
         diagnostics

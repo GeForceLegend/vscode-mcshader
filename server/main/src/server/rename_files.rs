@@ -35,36 +35,33 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
 }
 
 fn rename_file(
-    workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path,
-    changes: &mut std::collections::HashMap<Url, Vec<TextEdit>>,
+    workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path, changes: &mut std::collections::HashMap<Url, Vec<TextEdit>>,
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
-            workspace_file.included_files().borrow().iter().for_each(|parent_path| {
-                if let Some(parent_file) = workspace_files.get(parent_path) {
-                    let url = Url::from_file_path(parent_path as &Path).unwrap();
-                    let change_list = changes.entry(url).or_insert(vec![]);
-                    change_list.extend(
-                        parent_file
-                            .including_files()
-                            .borrow()
-                            .iter()
-                            .filter(|(_, _, _, prev_include_path)| *before_path == *(prev_include_path as &Path))
-                            .map(|(line, start, end, _)| TextEdit {
-                                range: Range {
-                                    start: Position {
-                                        line: *line as u32,
-                                        character: *start as u32,
-                                    },
-                                    end: Position {
-                                        line: *line as u32,
-                                        character: *end as u32,
-                                    },
+            workspace_file.included_files().borrow().iter().for_each(|(parent_path, parent_file)| {
+                let url = Url::from_file_path(parent_path as &Path).unwrap();
+                let change_list = changes.entry(url).or_insert(vec![]);
+                change_list.extend(
+                    parent_file
+                        .including_files()
+                        .borrow()
+                        .iter()
+                        .filter(|(_, _, _, prev_include_path, _)| *before_path == *(prev_include_path as &Path))
+                        .map(|(line, start, end, _, _)| TextEdit {
+                            range: Range {
+                                start: Position {
+                                    line: *line as u32,
+                                    character: *start as u32,
                                 },
-                                new_text: include_path.clone(),
-                            }),
-                    );
-                }
+                                end: Position {
+                                    line: *line as u32,
+                                    character: *end as u32,
+                                },
+                            },
+                            new_text: include_path.clone(),
+                        }),
+                );
             });
         }
         Err(_) => error!("Cannot generate include path from new path"),
@@ -84,13 +81,13 @@ impl MinecraftLanguageServer {
 
             if before_path.is_file() {
                 if let Some(workspace_file) = workspace_files.get(&before_path) {
-                    rename_file(&workspace_files, workspace_file, &before_path, &after_path, &mut changes);
+                    rename_file(workspace_file, &before_path, &after_path, &mut changes);
                 }
             } else {
                 workspace_files.iter().for_each(|(file_path, workspace_file)| {
                     file_path.strip_prefix(&before_path).map_or((), |stripped_path| {
                         let after_path = after_path.join(stripped_path);
-                        rename_file(&workspace_files, workspace_file, file_path, &after_path, &mut changes);
+                        rename_file(workspace_file, file_path, &after_path, &mut changes);
                     });
                 });
             }

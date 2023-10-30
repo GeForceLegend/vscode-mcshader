@@ -76,12 +76,12 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_workspace_shader(
-        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, shader_file: &WorkspaceFile, file_path: &Rc<PathBuf>,
-        update_list: &mut HashSet<Rc<PathBuf>>,
+        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, shader_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>,
+        update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
     ) {
         let mut file_list = HashMap::new();
         let mut shader_content = String::new();
-        shader_file.merge_file(workspace_files, &mut file_list, &mut shader_content, file_path, &mut -1, 0);
+        shader_file.merge_file(&mut file_list, shader_file, &mut shader_content, file_path, &mut -1, 0);
         let offset = preprocess_shader(&mut shader_content, shader_file.pack_path());
 
         let shader_path = file_path.to_str().unwrap();
@@ -103,8 +103,8 @@ impl MinecraftLanguageServer {
                             .entry(file_path.clone())
                             .and_modify(|diagnostics| diagnostics.clear())
                             .or_default();
-                        update_list.insert(path);
-                        (Some(index), diagnostics)
+                        update_list.insert(path, index.1);
+                        (Some(index.0), diagnostics)
                     })
                     .collect::<Vec<_>>();
 
@@ -151,13 +151,9 @@ impl MinecraftLanguageServer {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
                 file_list
                     .into_iter()
-                    .filter_map(|(file_path, _)| {
-                        let workspace_file = workspace_files.get(&file_path);
-                        update_list.insert(file_path);
-                        workspace_file
-                    })
-                    .for_each(|workspace_file| {
+                    .for_each(|(file_path, (_, workspace_file))| {
                         workspace_file.diagnostics().borrow_mut().insert(file_path.clone(), vec![]);
+                        update_list.insert(file_path, workspace_file);
                     });
             }
         };
@@ -225,12 +221,9 @@ impl MinecraftLanguageServer {
         HashMap::from([(url, diagnostics)])
     }
 
-    pub(super) fn collect_diagnostics(
-        &self, workspace_files: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, update_list: &HashSet<Rc<PathBuf>>,
-    ) -> Diagnostics {
+    pub(super) fn collect_diagnostics(&self, update_list: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) -> Diagnostics {
         update_list
             .into_iter()
-            .filter_map(|file_path| workspace_files.get(file_path).map(|workspace_file| (file_path, workspace_file)))
             .map(|(file_path, workspace_file)| {
                 let file_url = Url::from_file_path(file_path as &Path).unwrap();
                 let diagnostics = workspace_file

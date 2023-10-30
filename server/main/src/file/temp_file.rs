@@ -190,16 +190,16 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>,
-        parser: &mut Parser, parent_shaders: &HashSet<Rc<PathBuf>>, pack_path: &Rc<PathBuf>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
-        depth: i32,
-    ) -> Rc<PathBuf> {
+        parser: &mut Parser, parent_shaders: &HashSet<Rc<PathBuf>>, pack_path: &Rc<PathBuf>, file_path: PathBuf,
+        parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
+    ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let workspace_file = Rc::new(WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
             pack_path: pack_path.clone(),
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
-            included_files: RefCell::new(HashSet::from([parent_path.clone()])),
+            included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(parent_shaders.clone()),
             diagnostics: RefCell::new(HashMap::new()),
@@ -215,14 +215,14 @@ impl TempFile {
                 temp_files,
                 parser,
                 &workspace_file,
-                &mut HashSet::new(),
+                &mut HashMap::new(),
                 parent_shaders,
                 &file_path,
                 depth + 1,
             );
             *workspace_file.including_files.borrow_mut() = including_files;
         }
-        file_path
+        (file_path, workspace_file)
     }
 }
 
@@ -247,7 +247,28 @@ impl File for TempFile {
         &self.line_mapping
     }
 
-    fn including_files(&self) -> &RefCell<Vec<IncludeInformation>> {
-        &self.including_files
+    fn include_links(&self) -> Vec<DocumentLink> {
+        self.including_files
+            .borrow()
+            .iter()
+            .map(|(line, start, end, include_path)| {
+                let url = Url::from_file_path(include_path as &Path).unwrap();
+                DocumentLink {
+                    range: Range {
+                        start: Position {
+                            line: *line as u32,
+                            character: *start as u32,
+                        },
+                        end: Position {
+                            line: *line as u32,
+                            character: *end as u32,
+                        },
+                    },
+                    tooltip: Some(include_path.to_str().unwrap().to_owned()),
+                    target: Some(url),
+                    data: None,
+                }
+            })
+            .collect::<Vec<_>>()
     }
 }
