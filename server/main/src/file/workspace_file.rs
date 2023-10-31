@@ -84,7 +84,7 @@ impl WorkspaceFile {
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         workspace_file: &Rc<WorkspaceFile>, old_including_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
         file_path: &Rc<PathBuf>, depth: i32,
-    ) -> Vec<IncludeInformation> {
+    ) {
         let mut including_files = vec![];
 
         let pack_path = workspace_file.pack_path();
@@ -148,7 +148,7 @@ impl WorkspaceFile {
                 including_file.included_files.borrow_mut().remove(file_path);
                 including_file.update_shader_list(parent_shaders, depth);
             });
-        including_files
+        *workspace_file.including_files.borrow_mut() = including_files;
     }
 
     pub fn new_shader(
@@ -201,7 +201,7 @@ impl WorkspaceFile {
             };
 
         let workspace_file = workspace_file.clone();
-        let including_files = Self::update_include(
+        Self::update_include(
             workspace_files,
             temp_files,
             parser,
@@ -211,7 +211,6 @@ impl WorkspaceFile {
             &file_path,
             1,
         );
-        *workspace_file.including_files.borrow_mut() = including_files;
     }
 
     pub fn new_include(
@@ -234,21 +233,18 @@ impl WorkspaceFile {
         let (file_path, include_file) = workspace_files.insert_unique_unchecked(Rc::new(file_path), Rc::new(include_file));
         let file_path = file_path.clone();
         let include_file = include_file.clone();
-        if include_file.update_from_disc(parser, &file_path) {
+        if include_file.update_from_disc(parser, &file_path) && depth < 10 {
             // Clone the content so they can be used alone.
-            if depth < 10 {
-                let including_files = Self::update_include(
-                    workspace_files,
-                    temp_files,
-                    parser,
-                    &include_file,
-                    &mut HashMap::new(),
-                    parent_shaders,
-                    &file_path,
-                    depth + 1,
-                );
-                *include_file.including_files.borrow_mut() = including_files;
-            }
+            Self::update_include(
+                workspace_files,
+                temp_files,
+                parser,
+                &include_file,
+                &mut HashMap::new(),
+                parent_shaders,
+                &file_path,
+                depth + 1,
+            );
         } else {
             *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());

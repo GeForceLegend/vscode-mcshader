@@ -101,7 +101,7 @@ impl MinecraftLanguageServer {
                 let parent_shaders = workspace_file.parent_shaders().borrow().clone();
 
                 let workspace_file = workspace_file.clone();
-                let new_including_files = WorkspaceFile::update_include(
+                WorkspaceFile::update_include(
                     &mut workspace_files,
                     &mut temp_files,
                     &mut parser,
@@ -111,7 +111,6 @@ impl MinecraftLanguageServer {
                     &file_path,
                     0,
                 );
-                *workspace_file.including_files().borrow_mut() = new_including_files;
 
                 update_list.extend(old_including_files);
                 updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().map(|(path, file)| {

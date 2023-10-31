@@ -210,7 +210,7 @@ impl TempFile {
             .clone();
 
         if depth < 10 {
-            let including_files = WorkspaceFile::update_include(
+            WorkspaceFile::update_include(
                 workspace_files,
                 temp_files,
                 parser,
@@ -220,7 +220,6 @@ impl TempFile {
                 &file_path,
                 depth + 1,
             );
-            *workspace_file.including_files.borrow_mut() = including_files;
         }
         (file_path, workspace_file)
     }
