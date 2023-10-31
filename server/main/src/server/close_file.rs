@@ -32,11 +32,9 @@ impl MinecraftLanguageServer {
             let shader_files = workspace_file.parent_shaders().borrow();
 
             let mut update_list = old_including_files;
-            shader_files
-                .iter()
-                .for_each(|(shader_path, shader_file)| {
-                    self.lint_workspace_shader(shader_file, shader_path, &mut update_list);
-                });
+            shader_files.iter().for_each(|(shader_path, shader_file)| {
+                self.lint_workspace_shader(shader_file, shader_path, &mut update_list);
+            });
 
             let diagnostics = self.collect_diagnostics(&update_list);
             Some(diagnostics)

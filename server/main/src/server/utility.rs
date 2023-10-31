@@ -93,8 +93,8 @@ impl MinecraftLanguageServer {
                     shader_path, compile_log
                 );
 
-                // We have ensured files in file lists are unique
-                // Adn they are `Rc<_>`, so their pointer will never get changed. This should be safe.
+                // We have ensured files in file lists are unique, so each file.diagnostics will exist only once
+                // And they are `Rc<_>`, so their pointer will never get changed. This should be safe.
                 let mut diagnostic_pointers = file_list
                     .into_iter()
                     .map(|(path, (index, file))| {
@@ -107,7 +107,7 @@ impl MinecraftLanguageServer {
                         update_list.insert(path, file);
                         (index, pointer)
                     })
-                    .collect::<HashMap<_,_>>();
+                    .collect::<HashMap<_, _>>();
 
                 compile_log
                     .split_terminator('\n')
@@ -145,12 +145,10 @@ impl MinecraftLanguageServer {
             }
             None => {
                 info!("Compilation reported no errors"; "shader file" => shader_path);
-                file_list
-                    .into_iter()
-                    .for_each(|(file_path, (_, workspace_file))| {
-                        workspace_file.diagnostics().borrow_mut().insert(file_path.clone(), vec![]);
-                        update_list.insert(file_path, workspace_file);
-                    });
+                file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
+                    workspace_file.diagnostics().borrow_mut().insert(file_path.clone(), vec![]);
+                    update_list.insert(file_path, workspace_file);
+                });
             }
         };
     }

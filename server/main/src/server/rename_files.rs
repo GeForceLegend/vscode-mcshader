@@ -39,30 +39,34 @@ fn rename_file(
 ) {
     match abstract_include_path(workspace_file.pack_path(), after_path) {
         Ok(include_path) => {
-            workspace_file.included_files().borrow().iter().for_each(|(parent_path, parent_file)| {
-                let url = Url::from_file_path(parent_path as &Path).unwrap();
-                let change_list = changes.entry(url).or_insert(vec![]);
-                change_list.extend(
-                    parent_file
-                        .including_files()
-                        .borrow()
-                        .iter()
-                        .filter(|(_, _, _, prev_include_path, _)| *before_path == *(prev_include_path as &Path))
-                        .map(|(line, start, end, _, _)| TextEdit {
-                            range: Range {
-                                start: Position {
-                                    line: *line as u32,
-                                    character: *start as u32,
+            workspace_file
+                .included_files()
+                .borrow()
+                .iter()
+                .for_each(|(parent_path, parent_file)| {
+                    let url = Url::from_file_path(parent_path as &Path).unwrap();
+                    let change_list = changes.entry(url).or_insert(vec![]);
+                    change_list.extend(
+                        parent_file
+                            .including_files()
+                            .borrow()
+                            .iter()
+                            .filter(|(_, _, _, prev_include_path, _)| *before_path == *(prev_include_path as &Path))
+                            .map(|(line, start, end, _, _)| TextEdit {
+                                range: Range {
+                                    start: Position {
+                                        line: *line as u32,
+                                        character: *start as u32,
+                                    },
+                                    end: Position {
+                                        line: *line as u32,
+                                        character: *end as u32,
+                                    },
                                 },
-                                end: Position {
-                                    line: *line as u32,
-                                    character: *end as u32,
-                                },
-                            },
-                            new_text: include_path.clone(),
-                        }),
-                );
-            });
+                                new_text: include_path.clone(),
+                            }),
+                    );
+                });
         }
         Err(_) => error!("Cannot generate include path from new path"),
     };

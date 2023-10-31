@@ -32,9 +32,13 @@ impl MinecraftLanguageServer {
                 // Almost nobody will name a folder with watched extension, right?
                 if is_watched_file {
                     if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
-                        updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().map(|(path, file)| {
-                            (path.clone(), file.clone())
-                        }));
+                        updated_shaders.extend(
+                            workspace_file
+                                .parent_shaders()
+                                .borrow()
+                                .iter()
+                                .map(|(path, file)| (path.clone(), file.clone())),
+                        );
                         workspace_file.clear(&mut parser, file_path);
                         update_list.insert(file_path.clone(), workspace_file.clone());
                         updated_shaders.remove(file_path);
@@ -45,9 +49,13 @@ impl MinecraftLanguageServer {
                             .iter()
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
                             .map(|(file_path, workspace_file)| {
-                                updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().map(|(path, file)| {
-                                    (path.clone(), file.clone())
-                                }));
+                                updated_shaders.extend(
+                                    workspace_file
+                                        .parent_shaders()
+                                        .borrow()
+                                        .iter()
+                                        .map(|(path, file)| (path.clone(), file.clone())),
+                                );
                                 workspace_file.clear(&mut parser, file_path);
                                 // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
                                 updated_shaders.remove(file_path);
@@ -72,7 +80,10 @@ impl MinecraftLanguageServer {
                         let mut file_type = changed_file.file_type().borrow_mut();
                         if *file_type == gl::INVALID_ENUM {
                             if let Some((_, shader_type)) = is_valid_shader {
-                                changed_file.parent_shaders().borrow_mut().insert(file_path.clone(), changed_file.clone());
+                                changed_file
+                                    .parent_shaders()
+                                    .borrow_mut()
+                                    .insert(file_path.clone(), changed_file.clone());
                                 *file_type = shader_type;
                             } else {
                                 *file_type = gl::NONE;
@@ -84,7 +95,10 @@ impl MinecraftLanguageServer {
                         if let Some((pack_path, file_type)) = is_valid_shader {
                             let file_path = Rc::new(file_path);
                             let new_shader = Rc::new(WorkspaceFile::new(&mut parser, file_type, pack_path));
-                            new_shader.parent_shaders().borrow_mut().insert(file_path.clone(), new_shader.clone());
+                            new_shader
+                                .parent_shaders()
+                                .borrow_mut()
+                                .insert(file_path.clone(), new_shader.clone());
                             // We have ensured this file does not exists.
                             let (file_path, new_file) = workspace_files.insert_unique_unchecked(file_path, new_shader);
                             (file_path.clone(), new_file as &Rc<WorkspaceFile>)
@@ -113,9 +127,13 @@ impl MinecraftLanguageServer {
                 );
 
                 update_list.extend(old_including_files);
-                updated_shaders.extend(workspace_file.parent_shaders().borrow().iter().map(|(path, file)| {
-                    (path.clone(), file.clone())
-                }));
+                updated_shaders.extend(
+                    workspace_file
+                        .parent_shaders()
+                        .borrow()
+                        .iter()
+                        .map(|(path, file)| (path.clone(), file.clone())),
+                );
             }
         }
 
