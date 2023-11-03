@@ -269,5 +269,5 @@ pub struct TempFile {
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
     /// Lines and paths for include files
-    including_files: RefCell<Vec<(usize, usize, usize, Rc<PathBuf>)>>,
+    including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }

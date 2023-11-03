@@ -82,7 +82,7 @@ impl TempFile {
 
                 match captures.get(1).unwrap().as_str() {
                     "include" => match include_path_join(pack_path, file_path, path) {
-                        Ok(include_path) => including_files.push((line, start, end, Rc::new(include_path))),
+                        Ok(include_path) => including_files.push((line, start, end, include_path)),
                         Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                     },
                     _ => {
@@ -90,7 +90,7 @@ impl TempFile {
                         let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
                         let include_path = pack_path.join(additional_path);
 
-                        including_files.push((line, start, end, Rc::new(include_path)));
+                        including_files.push((line, start, end, include_path));
                     }
                 }
             });
@@ -251,7 +251,7 @@ impl File for TempFile {
             .borrow()
             .iter()
             .map(|(line, start, end, include_path)| {
-                let url = Url::from_file_path(include_path as &Path).unwrap();
+                let url = Url::from_file_path(include_path).unwrap();
                 DocumentLink {
                     range: Range {
                         start: Position {
