@@ -3,7 +3,7 @@ use std::sync::MutexGuard;
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;
 
-use crate::server::ServerData;
+use crate::server::{LanguageServerError, ServerData};
 
 mod virtual_merge;
 

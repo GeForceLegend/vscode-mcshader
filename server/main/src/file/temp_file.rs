@@ -1,5 +1,3 @@
-use logging::warn;
-
 use super::*;
 
 impl TempFile {
@@ -183,7 +181,7 @@ impl TempFile {
             temp_content.push('\n');
             true
         } else {
-            warn!("Unable to read file"; "path" => file_path.to_str().unwrap());
+            warn!("Unable to read temp file"; "path" => file_path.to_str().unwrap());
             false
         }
     }

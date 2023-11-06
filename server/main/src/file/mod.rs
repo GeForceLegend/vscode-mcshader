@@ -8,7 +8,7 @@ use std::{
 
 use hashbrown::HashMap;
 use itoa::Buffer;
-use logging::error;
+use logging::{error, warn};
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
 

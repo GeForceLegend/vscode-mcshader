@@ -1,12 +1,8 @@
-use std::{
-    path::{PathBuf, MAIN_SEPARATOR_STR},
-    sync::MutexGuard,
-};
+use std::path::{PathBuf, MAIN_SEPARATOR_STR};
 
 use hashbrown::HashMap;
 
 use crate::file::*;
-use crate::server::{LanguageServerError, ServerData};
 
 use super::*;
 
