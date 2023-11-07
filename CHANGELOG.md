@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ### Fixed
 
-- Fixed some issue may happened when creating new file
+- Fixed some issue may happened when creating new file.
+- Fixed possible crash when a file includes itself.
 
 ## [0.4.6] 2023-10-19
 
