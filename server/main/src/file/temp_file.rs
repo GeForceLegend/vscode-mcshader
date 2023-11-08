@@ -1,6 +1,10 @@
 use super::*;
 
 impl TempFile {
+    pub fn shader_pack(&self) -> &ShaderPack {
+        &self.shader_pack
+    }
+
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
@@ -40,10 +44,15 @@ impl TempFile {
 
         let tree = parser.parse(&content, None).unwrap();
         let line_mapping = generate_line_mapping(&content);
+        let pack_path = PathBuf::from(resource);
+        let debug = pack_path
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .map_or(false, |name| name == "debug");
 
         let temp_file = TempFile {
             file_type: RefCell::new(file_type),
-            pack_path: Rc::new(PathBuf::from(resource)),
+            shader_pack: ShaderPack { path: pack_path, debug },
             content: RefCell::new(content),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
@@ -59,7 +68,7 @@ impl TempFile {
         if *self.file_type.borrow() == gl::INVALID_ENUM {
             return;
         }
-        let pack_path = &self.pack_path;
+        let pack_path = &self.shader_pack.path;
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
 
@@ -120,7 +129,7 @@ impl TempFile {
             push_str_without_line(&mut temp_content, before_content);
             start_index = *end - 1;
 
-            if Self::merge_temp(&self.pack_path, include_path, &mut temp_content, &mut file_id, 1) {
+            if Self::merge_temp(&self.shader_pack.path, include_path, &mut temp_content, &mut file_id, 1) {
                 push_line_macro(&mut temp_content, line + 2, "0", file_name);
             } else {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
@@ -188,12 +197,12 @@ impl TempFile {
 
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>,
-        parser: &mut Parser, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, pack_path: &Rc<PathBuf>, file_path: PathBuf,
+        parser: &mut Parser, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, pack_path: &Rc<ShaderPack>, file_path: PathBuf,
         parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let workspace_file = Rc::new(WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
-            pack_path: pack_path.clone(),
+            shader_pack: pack_path.clone(),
             content: self.content,
             tree: self.tree,
             line_mapping: self.line_mapping,
@@ -226,10 +235,6 @@ impl TempFile {
 impl File for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
-    }
-
-    fn pack_path(&self) -> &Rc<PathBuf> {
-        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

@@ -1,6 +1,10 @@
 use super::*;
 
 impl WorkspaceFile {
+    pub fn shader_pack(&self) -> &Rc<ShaderPack> {
+        &self.shader_pack
+    }
+
     pub fn included_files(&self) -> &RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>> {
         &self.included_files
     }
@@ -17,10 +21,10 @@ impl WorkspaceFile {
         &self.including_files
     }
 
-    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<PathBuf>) -> Self {
+    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<ShaderPack>) -> Self {
         Self {
             file_type: RefCell::new(file_type),
-            pack_path: pack_path.clone(),
+            shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
@@ -93,7 +97,7 @@ impl WorkspaceFile {
     ) {
         let mut including_files = vec![];
 
-        let pack_path = workspace_file.pack_path();
+        let pack_path = &workspace_file.shader_pack;
         let content = workspace_file.content().borrow();
 
         content
@@ -103,7 +107,7 @@ impl WorkspaceFile {
             .for_each(|(line, content, captures)| {
                 let include_content = captures.get(1).unwrap();
                 let path = include_content.as_str();
-                match include_path_join(pack_path, file_path, path) {
+                match include_path_join(&pack_path.path, file_path, path) {
                     Ok(include_path) => {
                         let already_includes = old_including_files.remove(&include_path);
 
@@ -161,7 +165,7 @@ impl WorkspaceFile {
 
     pub fn new_shader(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        pack_path: &Rc<PathBuf>, file_path: PathBuf,
+        pack_path: &Rc<ShaderPack>, file_path: PathBuf,
     ) {
         let file_type = match file_path.extension() {
             Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
@@ -190,7 +194,7 @@ impl WorkspaceFile {
                 let shader_path = Rc::new(file_path);
                 let shader_file = Rc::new(WorkspaceFile {
                     file_type: RefCell::new(file_type),
-                    pack_path: pack_path.clone(),
+                    shader_pack: pack_path.clone(),
                     content: RefCell::new(String::new()),
                     tree: RefCell::new(parser.parse("", None).unwrap()),
                     line_mapping: RefCell::new(vec![]),
@@ -223,12 +227,12 @@ impl WorkspaceFile {
 
     pub fn new_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, pack_path: &Rc<PathBuf>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
-        parent_file: &Rc<WorkspaceFile>, depth: i32,
+        parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, pack_path: &Rc<ShaderPack>, file_path: PathBuf,
+        parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let include_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
-            pack_path: pack_path.clone(),
+            shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
@@ -332,10 +336,6 @@ impl WorkspaceFile {
 impl File for WorkspaceFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
-    }
-
-    fn pack_path(&self) -> &Rc<PathBuf> {
-        &self.pack_path
     }
 
     fn content(&self) -> &RefCell<String> {

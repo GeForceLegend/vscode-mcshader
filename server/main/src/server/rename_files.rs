@@ -37,7 +37,7 @@ fn abstract_include_path(pack_path: &Path, absolute_path: &Path) -> core::result
 fn rename_file(
     workspace_file: &WorkspaceFile, before_path: &Path, after_path: &Path, changes: &mut std::collections::HashMap<Url, Vec<TextEdit>>,
 ) {
-    match abstract_include_path(workspace_file.pack_path(), after_path) {
+    match abstract_include_path(&workspace_file.shader_pack().path, after_path) {
         Ok(include_path) => {
             workspace_file
                 .included_files()

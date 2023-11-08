@@ -8,9 +8,9 @@ impl MinecraftLanguageServer {
         });
     }
 
-    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<PathBuf>>, file_path: &Path) -> Option<&Rc<PathBuf>> {
+    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&Rc<ShaderPack>> {
         for shader_pack in shader_packs {
-            if let Ok(relative_path) = file_path.strip_prefix(shader_pack as &Path) {
+            if let Ok(relative_path) = file_path.strip_prefix(&shader_pack.path as &Path) {
                 let relative_path = relative_path.to_str().unwrap();
                 if RE_BASIC_SHADERS.is_match(relative_path) {
                     return Some(shader_pack);
@@ -25,11 +25,15 @@ impl MinecraftLanguageServer {
         None
     }
 
-    pub(super) fn find_shader_packs(shader_packs: &mut Vec<Rc<PathBuf>>, curr_path: PathBuf) {
+    pub(super) fn find_shader_packs(shader_packs: &mut Vec<Rc<ShaderPack>>, curr_path: PathBuf) {
         let file_name = curr_path.file_name().unwrap();
         if file_name == "shaders" {
             info!("Find shader pack {}", curr_path.to_str().unwrap());
-            shader_packs.push(Rc::new(curr_path));
+            let debug = curr_path
+                .parent()
+                .and_then(|parent| parent.file_name())
+                .map_or(false, |name| name == "debug");
+            shader_packs.push(Rc::new(ShaderPack { path: curr_path, debug }));
         } else if file_name
             .to_str()
             .map_or(true, |name| !name.starts_with('.') || name == ".minecraft")
@@ -46,26 +50,26 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn scan_files_in_root(
-        &self, parser: &mut Parser, shader_packs: &mut HashSet<Rc<PathBuf>>, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
-        temp_files: &mut HashMap<PathBuf, TempFile>, root: PathBuf,
+        &self, parser: &mut Parser, shader_packs: &mut HashSet<Rc<ShaderPack>>,
+        workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, root: PathBuf,
     ) {
         info!("Generating file framework on workspace \"{}\"", root.to_str().unwrap());
 
-        let mut sub_shader_packs: Vec<Rc<PathBuf>> = vec![];
+        let mut sub_shader_packs: Vec<Rc<ShaderPack>> = vec![];
         Self::find_shader_packs(&mut sub_shader_packs, root);
 
-        for pack_path in &sub_shader_packs {
-            pack_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
+        for shader_pack in &sub_shader_packs {
+            shader_pack.path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
                 let file_path = file.path();
                 if file.file_type().unwrap().is_file() {
                     if RE_BASIC_SHADERS.is_match(file.file_name().to_str().unwrap()) {
-                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, file_path);
+                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                     }
                 } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
                     file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
                         let dim_file_path = dim_file.path();
                         if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADERS.is_match(dim_file.file_name().to_str().unwrap()) {
-                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, pack_path, dim_file_path);
+                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, dim_file_path);
                         }
                     })
                 }
@@ -81,7 +85,7 @@ impl MinecraftLanguageServer {
         let mut file_list = HashMap::new();
         let mut shader_content = String::new();
         shader_file.merge_file(&mut file_list, shader_file, &mut shader_content, file_path, &mut -1, 0);
-        let offset = preprocess_shader(&mut shader_content, shader_file.pack_path());
+        let offset = preprocess_shader(&mut shader_content, shader_file.shader_pack().debug);
 
         let shader_path = file_path.to_str().unwrap();
         let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
@@ -156,7 +160,7 @@ impl MinecraftLanguageServer {
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
             let file_type = *temp_file.file_type().borrow();
-            let offset = preprocess_shader(&mut source, temp_file.pack_path());
+            let offset = preprocess_shader(&mut source, temp_file.shader_pack().debug);
             let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
             match validation_result {

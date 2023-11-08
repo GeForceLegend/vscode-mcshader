@@ -41,7 +41,7 @@ pub type Diagnostics = HashMap<Url, Vec<Diagnostic>>;
 pub struct ServerData {
     temp_lint: RefCell<bool>,
     extensions: RefCell<HashSet<String>>,
-    shader_packs: RefCell<HashSet<Rc<PathBuf>>>,
+    shader_packs: RefCell<HashSet<Rc<ShaderPack>>>,
     workspace_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     temp_files: RefCell<HashMap<PathBuf, TempFile>>,
     tree_sitter_parser: RefCell<Parser>,

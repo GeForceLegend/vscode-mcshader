@@ -122,11 +122,7 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
     (line_start + line_offset, line_offset)
 }
 
-pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
-    let mut components = pack_path.components();
-    components.next_back();
-    let is_debug = components.next_back().map_or(false, |name| name.as_os_str() == "debug");
-
+pub fn preprocess_shader(shader_content: &mut String, is_debug: bool) -> u32 {
     let mut offset = 2;
     if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
         let version = capture.get(0).unwrap();
@@ -163,7 +159,6 @@ pub fn preprocess_shader(shader_content: &mut String, pack_path: &Path) -> u32 {
 
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
-    fn pack_path(&self) -> &Rc<PathBuf>;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
@@ -239,7 +234,7 @@ pub struct WorkspaceFile {
     /// Type of the shader
     file_type: RefCell<u32>,
     /// The shader pack path that this file in
-    pack_path: Rc<PathBuf>,
+    shader_pack: Rc<ShaderPack>,
     /// Live content for this file
     content: RefCell<String>,
     /// Live syntax tree for this file
@@ -261,7 +256,7 @@ pub struct TempFile {
     /// Type of the shader
     file_type: RefCell<u32>,
     /// The shader pack path that this file in
-    pack_path: Rc<PathBuf>,
+    shader_pack: ShaderPack,
     /// Live content for this file
     content: RefCell<String>,
     /// Live syntax tree for this file
@@ -270,4 +265,32 @@ pub struct TempFile {
     line_mapping: RefCell<Vec<usize>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
+}
+
+pub struct ShaderPack {
+    pub path: PathBuf,
+    pub debug: bool,
+}
+
+impl core::hash::Hash for ShaderPack {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.path.hash(state);
+    }
+}
+
+impl PartialEq for ShaderPack {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
+}
+
+impl Eq for ShaderPack {}
+
+impl Clone for ShaderPack {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            debug: self.debug,
+        }
+    }
 }

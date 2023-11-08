@@ -12,11 +12,11 @@ impl MinecraftLanguageServer {
         for removed_workspace in &events.removed {
             let removed_path = removed_workspace.uri.to_file_path().unwrap();
             let removed_shader_packs: HashSet<_> = shader_packs
-                .drain_filter(|pack_path| pack_path.starts_with(&removed_path))
+                .drain_filter(|pack_path| pack_path.path.starts_with(&removed_path))
                 .collect();
             diagnostics.extend(
                 workspace_files
-                    .drain_filter(|_, workspace_file| removed_shader_packs.contains(workspace_file.pack_path()))
+                    .drain_filter(|_, workspace_file| removed_shader_packs.contains(workspace_file.shader_pack()))
                     .map(|(file_path, _)| (Url::from_file_path(&file_path as &Path).unwrap(), vec![])),
             );
         }
