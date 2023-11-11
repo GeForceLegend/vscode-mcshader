@@ -229,7 +229,6 @@ pub trait File {
     }
 }
 
-#[derive(Clone)]
 pub struct WorkspaceFile {
     /// Type of the shader
     file_type: RefCell<u32>,
@@ -251,7 +250,6 @@ pub struct WorkspaceFile {
     diagnostics: RefCell<HashMap<Rc<PathBuf>, Vec<Diagnostic>>>,
 }
 
-#[derive(Clone)]
 pub struct TempFile {
     /// Type of the shader
     file_type: RefCell<u32>,
@@ -285,12 +283,3 @@ impl PartialEq for ShaderPack {
 }
 
 impl Eq for ShaderPack {}
-
-impl Clone for ShaderPack {
-    fn clone(&self) -> Self {
-        Self {
-            path: self.path.clone(),
-            debug: self.debug,
-        }
-    }
-}

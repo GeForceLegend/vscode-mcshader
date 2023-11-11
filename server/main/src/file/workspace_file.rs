@@ -112,16 +112,16 @@ impl WorkspaceFile {
                         let already_includes = old_including_files.remove(&include_path);
 
                         let (include_path, include_file) =
-                            if let Some((include_path, workspace_file)) = workspace_files.get_key_value(&include_path) {
+                            if let Some((include_path, include_file)) = workspace_files.get_key_value(&include_path) {
                                 // File exists in workspace_files. If this is already included before modification, no need to update its includes.
                                 if already_includes.is_none() {
-                                    workspace_file.extend_shader_list(parent_shaders, depth);
-                                    workspace_file
+                                    include_file.extend_shader_list(parent_shaders, depth);
+                                    include_file
                                         .included_files
                                         .borrow_mut()
                                         .insert(file_path.clone(), workspace_file.clone());
                                 }
-                                (include_path.clone(), workspace_file.clone())
+                                (include_path.clone(), include_file.clone())
                             } else if let Some(temp_file) = temp_files.remove(&include_path) {
                                 temp_file.into_workspace_file(
                                     workspace_files,
