@@ -170,7 +170,7 @@ impl MinecraftLanguageServer {
                         file_path.to_str().unwrap(),
                         compile_log
                     );
-                    let diagnostics = compile_log
+                    compile_log
                         .split_terminator('\n')
                         .filter_map(|log_line| DIAGNOSTICS_REGEX.captures(log_line))
                         .filter(|captures| captures.name("filepath").unwrap().as_str() == "0")
@@ -198,9 +198,7 @@ impl MinecraftLanguageServer {
                                 ..Default::default()
                             }
                         })
-                        .collect::<Vec<_>>();
-
-                    diagnostics
+                        .collect::<Vec<_>>()
                 }
                 None => {
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());

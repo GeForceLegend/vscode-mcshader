@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.4.7] 2023-11-11
+
 ### Fixed
 
 - Fixed some issue may happened when creating new file.
