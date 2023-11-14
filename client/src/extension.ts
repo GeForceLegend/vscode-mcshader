@@ -79,12 +79,17 @@ export class Extension {
         )
         log.info('running with binary at path:\n\t', serverPath)
         this.updateStatus('$(loading~spin)', 'Starting...')
-        await this.languageClient.start()
+        await this.languageClient.start().then(() => {
+            this.extensionContext.subscriptions.push(...commands.commandList(this))
+            this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.StatusUpdateNoticationMethod, this.onStatusChange))
 
-        this.extensionContext.subscriptions.push(...commands.commandList(this))
-        this.extensionContext.subscriptions.push(this.languageClient.onNotification(notification.StatusUpdateNoticationMethod, this.onStatusChange))
+            log.info('language server started!')
+        }).catch((err) => {
+            log.error('failed to start language server!')
+            log.error(err)
 
-        log.info('language server started!')
+            this.updateStatus('&(error)', 'Start failed')
+        })
     }
 
     deactivate = async () => {
