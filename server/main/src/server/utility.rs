@@ -38,14 +38,13 @@ impl MinecraftLanguageServer {
             .to_str()
             .map_or(true, |name| !name.starts_with('.') || name == ".minecraft")
         {
-            curr_path
-                .read_dir()
-                .unwrap()
-                .filter_map(|file| file.ok())
-                .filter(|file| file.file_type().unwrap().is_dir())
-                .for_each(|file| {
-                    Self::find_shader_packs(shader_packs, file.path());
-                })
+            if let Ok(dir) = curr_path.read_dir() {
+                dir.filter_map(|file| file.ok())
+                    .filter(|file| file.file_type().unwrap().is_dir())
+                    .for_each(|file| {
+                        Self::find_shader_packs(shader_packs, file.path());
+                    })
+            }
         }
     }
 
@@ -59,21 +58,23 @@ impl MinecraftLanguageServer {
         Self::find_shader_packs(&mut sub_shader_packs, root);
 
         for shader_pack in &sub_shader_packs {
-            shader_pack.path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|file| {
-                let file_path = file.path();
-                if file.file_type().unwrap().is_file() {
-                    if RE_BASIC_SHADERS.is_match(file.file_name().to_str().unwrap()) {
-                        WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
-                    }
-                } else if RE_DIMENSION_FOLDER.is_match(file_path.file_name().unwrap().to_str().unwrap()) {
-                    file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
-                        let dim_file_path = dim_file.path();
-                        if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADERS.is_match(dim_file.file_name().to_str().unwrap()) {
-                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, dim_file_path);
+            if let Ok(dir) = shader_pack.path.read_dir() {
+                dir.filter_map(|file| file.ok()).for_each(|file| {
+                    let file_path = file.path();
+                    if file.file_type().unwrap().is_file() {
+                        if RE_BASIC_SHADERS.is_match(file.file_name().to_str().unwrap()) {
+                            WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, file_path);
                         }
-                    })
-                }
-            })
+                    } else if RE_DIMENSION_FOLDER.is_match(file.file_name().to_str().unwrap()) {
+                        file_path.read_dir().unwrap().filter_map(|file| file.ok()).for_each(|dim_file| {
+                            let dim_file_path = dim_file.path();
+                            if dim_file.file_type().unwrap().is_file() && RE_BASIC_SHADERS.is_match(dim_file.file_name().to_str().unwrap()) {
+                                WorkspaceFile::new_shader(workspace_files, temp_files, parser, shader_pack, dim_file_path);
+                            }
+                        })
+                    }
+                })
+            }
         }
 
         shader_packs.extend(sub_shader_packs);
