@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed server crash when workspace contains folder that does not exist.
+
 ## [0.4.7] 2023-11-11
 
 ### Fixed
