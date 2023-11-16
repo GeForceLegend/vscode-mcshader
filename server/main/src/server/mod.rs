@@ -185,9 +185,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        if let Some(diagnostics) = self.open_file(params) {
-            self.publish_diagnostic(diagnostics).await;
-        }
+        self.open_file(params)
     }
 
     #[logging::with_trace_id]
