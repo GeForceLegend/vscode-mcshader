@@ -101,62 +101,71 @@ impl WorkspaceFile {
 
         let pack_path = &workspace_file.shader_pack;
         let content = workspace_file.content().borrow();
+        let line_mapping = workspace_file.line_mapping().borrow();
 
-        content
-            .split_terminator('\n')
-            .enumerate()
-            .filter_map(|(line, content)| RE_MACRO_INCLUDE.captures(content).map(|captures| (line, content, captures)))
-            .for_each(|(line, content, captures)| {
-                let include_content = captures.get(1).unwrap();
-                let path = include_content.as_str();
-                match include_path_join(&pack_path.path, file_path, path) {
-                    Ok(include_path) => {
-                        let already_includes = old_including_files.remove(&include_path);
+        let mut start_index = 0;
+        for i in 1..line_mapping.len() {
+            let end_index = *line_mapping.get(i).unwrap();
+            let content = &content[start_index..(end_index - 1)];
+            start_index = end_index;
+            let captures = match RE_MACRO_INCLUDE.captures(content) {
+                Some(captures) => captures,
+                None => continue,
+            };
 
-                        let (include_path, include_file) =
-                            if let Some((include_path, include_file)) = workspace_files.get_key_value(&include_path) {
-                                // File exists in workspace_files. If this is already included before modification, no need to update its includes.
-                                if already_includes.is_none() {
+            let line = i - 1;
+            let include_content = captures.get(1).unwrap();
+            let path = include_content.as_str();
+            match include_path_join(&pack_path.path, file_path, path) {
+                Ok(include_path) => {
+                    let (include_path, include_file) =
+                        if let Some((include_path, include_file)) = workspace_files.get_key_value(&include_path) {
+                            // File exists in workspace_files. If this is already included before modification, no need to update its includes.
+                            // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
+                            match old_including_files.remove(include_path) {
+                                Some(include_file) => (include_path.clone(), include_file),
+                                None => {
                                     include_file.extend_shader_list(parent_shaders, depth);
                                     include_file
                                         .included_files
                                         .borrow_mut()
                                         .insert(file_path.clone(), workspace_file.clone());
+                                    (include_path.clone(), include_file.clone())
                                 }
-                                (include_path.clone(), include_file.clone())
-                            } else if let Some(temp_file) = temp_files.remove(&include_path) {
-                                temp_file.into_workspace_file(
-                                    workspace_files,
-                                    temp_files,
-                                    parser,
-                                    parent_shaders,
-                                    pack_path,
-                                    include_path,
-                                    file_path,
-                                    workspace_file,
-                                    depth,
-                                )
-                            } else {
-                                Self::new_include(
-                                    workspace_files,
-                                    temp_files,
-                                    parser,
-                                    parent_shaders,
-                                    pack_path,
-                                    include_path,
-                                    file_path,
-                                    workspace_file,
-                                    depth,
-                                )
-                            };
-                        let start_byte = include_content.start();
-                        let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
-                        let end = start + path.chars().count();
-                        including_files.push((line, start, end, include_path, include_file));
-                    }
-                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                            }
+                        } else if let Some(temp_file) = temp_files.remove(&include_path) {
+                            temp_file.into_workspace_file(
+                                workspace_files,
+                                temp_files,
+                                parser,
+                                parent_shaders,
+                                pack_path,
+                                include_path,
+                                file_path,
+                                workspace_file,
+                                depth,
+                            )
+                        } else {
+                            Self::new_include(
+                                workspace_files,
+                                temp_files,
+                                parser,
+                                parent_shaders,
+                                pack_path,
+                                include_path,
+                                file_path,
+                                workspace_file,
+                                depth,
+                            )
+                        };
+                    let start_byte = include_content.start();
+                    let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
+                    let end = start + path.chars().count();
+                    including_files.push((line, start, end, include_path, include_file));
                 }
-            });
+                Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+            }
+        }
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.iter().for_each(|(_, including_file)| {
             including_file.included_files.borrow_mut().remove(file_path);

@@ -72,35 +72,42 @@ impl TempFile {
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
 
-        self.content
-            .borrow()
-            .split_terminator('\n')
-            .enumerate()
-            .filter_map(|(line, content)| RE_MACRO_INCLUDE_TEMP.captures(content).map(|captures| (line, captures)))
-            .for_each(|(line, captures)| {
-                let include_content = captures.get(2).unwrap();
-                let path = include_content.as_str();
+        let content = self.content.borrow();
+        let line_mapping = self.line_mapping.borrow();
+        let mut start_index = 0;
+        for i in 1..line_mapping.len() {
+            let end_index = *line_mapping.get(i).unwrap();
+            let content = &content[start_index..(end_index - 1)];
+            start_index = end_index;
+            let captures = match RE_MACRO_INCLUDE_TEMP.captures(content) {
+                Some(captures) => captures,
+                None => continue,
+            };
 
-                let line_content = captures.get(0).unwrap().as_str();
-                let start_byte = include_content.start();
-                let end_byte = include_content.end();
-                let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
-                let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+            let line = i - 1;
+            let include_content = captures.get(2).unwrap();
+            let path = include_content.as_str();
 
-                match captures.get(1).unwrap().as_str() {
-                    "include" => match include_path_join(pack_path, file_path, path) {
-                        Ok(include_path) => including_files.push((line, start, end, include_path)),
-                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
-                    },
-                    _ => {
-                        // If marco name is not include, it must be moj_import
-                        let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
-                        let include_path = pack_path.join(additional_path);
+            let line_content = captures.get(0).unwrap().as_str();
+            let start_byte = include_content.start();
+            let end_byte = include_content.end();
+            let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
+            let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
 
-                        including_files.push((line, start, end, include_path));
-                    }
+            match captures.get(1).unwrap().as_str() {
+                "include" => match include_path_join(pack_path, file_path, path) {
+                    Ok(include_path) => including_files.push((line, start, end, include_path)),
+                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                },
+                _ => {
+                    // If marco name is not include, it must be moj_import
+                    let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
+                    let include_path = pack_path.join(additional_path);
+
+                    including_files.push((line, start, end, include_path));
                 }
-            });
+            }
+        }
     }
 
     pub fn merge_self(&self, file_path: &Path) -> Option<String> {
