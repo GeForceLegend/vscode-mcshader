@@ -1,7 +1,10 @@
 {
     "mcshader.command.restart": "重启服务器",
     "mcshader.command.virtualMerge": "模拟合并着色器文件",
-    "mcshader.configuration.logLevel": "改变语言服务器的日志等级",
-    "mcshader.configuration.extraExtension": "将额外的后缀添加至语言服务器的文件监视列表",
-    "mcshader.configuration.tempLint": "基于Tree-Sitter的临时文件高亮"
+    "mcshader.configuration.logLevel.title": "日志等级",
+    "mcshader.configuration.logLevel.description": "改变语言服务器的日志等级",
+    "mcshader.configuration.extraExtension.title": "额外后缀",
+    "mcshader.configuration.extraExtension.description": "将额外的后缀添加至语言服务器的文件监视列表",
+    "mcshader.configuration.tempLint.title": "临时文件高亮",
+    "mcshader.configuration.tempLint.description": "基于Tree-Sitter的临时文件高亮"
 }

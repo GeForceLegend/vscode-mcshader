@@ -55,6 +55,8 @@ impl WorkspaceFile {
     fn update_shader_list(&self, may_removed: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, mut depth: i32) {
         {
             let mut new_parent_shaders = HashMap::new();
+            // If we do not clear, self-include will copy all previous shader files.
+            self.parent_shaders().borrow_mut().clear();
             self.included_files.borrow().iter().for_each(|(_, workspace_file)| {
                 new_parent_shaders.extend(
                     workspace_file

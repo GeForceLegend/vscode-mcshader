@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed regex of some macros.
+- Fixed parent shader deleting when a file includes its self.
+
 ## [0.4.8] 2023-11-17
 
 ### Fixed

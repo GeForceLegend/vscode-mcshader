@@ -2,7 +2,7 @@
     "name": "vscode-mcshader",
     "displayName": "Language Server for Minecraft Shaderpacks",
     "description": "A Visual Studio Code extension for linting/etc Minecraft GLSL Shaders",
-    "version": "0.4.8",
+    "version": "0.4.9",
     "publisher": "GeForceLegend",
     "license": "MIT",
     "homepage": "https://github.com/GeForceLegend/vscode-mcshader",
@@ -64,7 +64,7 @@
             "title": "Language Server for Minecraft Shaderpacks",
             "properties": {
                 "mcshader.logLevel": {
-                    "title": "Log level",
+                    "title": "%mcshader.configuration.logLevel.title%",
                     "type": "string",
                     "default": "info",
                     "enum": [
@@ -74,21 +74,21 @@
                         "warn",
                         "error"
                     ],
-                    "description": "%mcshader.configuration.logLevel%"
+                    "description": "%mcshader.configuration.logLevel.description%"
                 },
                 "mcshader.extraExtension": {
-                    "title": "Extra extensions",
+                    "title": "mcshader.configuration.extraExtension.title",
                     "type": "array",
                     "default": [
                         "inc"
                     ],
-                    "description": "%mcshader.configuration.extraExtension%"
+                    "description": "%mcshader.configuration.extraExtension.description%"
                 },
                 "mcshader.tempLint": {
-                    "title": "Temp lint",
+                    "title": "mcshader.configuration.tempLint.title",
                     "type": "boolean",
                     "default": false,
-                    "description": "%mcshader.configuration.tempLint%"
+                    "description": "%mcshader.configuration.tempLint.description%"
                 }
             }
         }
