@@ -64,6 +64,7 @@
             "title": "Language Server for Minecraft Shaderpacks",
             "properties": {
                 "mcshader.logLevel": {
+                    "title": "Log level",
                     "type": "string",
                     "default": "info",
                     "enum": [
@@ -76,6 +77,7 @@
                     "description": "%mcshader.configuration.logLevel%"
                 },
                 "mcshader.extraExtension": {
+                    "title": "Extra extensions",
                     "type": "array",
                     "default": [
                         "inc"
@@ -83,6 +85,7 @@
                     "description": "%mcshader.configuration.extraExtension%"
                 },
                 "mcshader.tempLint": {
+                    "title": "Temp lint",
                     "type": "boolean",
                     "default": false,
                     "description": "%mcshader.configuration.tempLint%"
