@@ -94,9 +94,9 @@ impl WorkspaceFile {
     /// Or it might get a borrow_mut() call while its already immutable borrowed.
     pub fn update_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        workspace_file: &Rc<WorkspaceFile>, old_including_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
-        parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: &Rc<PathBuf>, depth: i32,
-    ) {
+        workspace_file: &Rc<WorkspaceFile>, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: &Rc<PathBuf>, depth: i32,
+    ) -> HashMap<Rc<PathBuf>, Rc<WorkspaceFile>> {
+        let mut old_including_files = workspace_file.including_pathes();
         let mut including_files = vec![];
 
         let pack_path = &workspace_file.shader_pack;
@@ -122,8 +122,8 @@ impl WorkspaceFile {
                         if let Some((include_path, include_file)) = workspace_files.get_key_value(&include_path) {
                             // File exists in workspace_files. If this is already included before modification, no need to update its includes.
                             // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
-                            match old_including_files.remove(include_path) {
-                                Some(include_file) => (include_path.clone(), include_file),
+                            match old_including_files.remove_entry(include_path) {
+                                Some(include) => include,
                                 None => {
                                     include_file.extend_shader_list(parent_shaders, depth);
                                     include_file
@@ -139,7 +139,6 @@ impl WorkspaceFile {
                                 temp_files,
                                 parser,
                                 parent_shaders,
-                                pack_path,
                                 include_path,
                                 file_path,
                                 workspace_file,
@@ -151,7 +150,6 @@ impl WorkspaceFile {
                                 temp_files,
                                 parser,
                                 parent_shaders,
-                                pack_path,
                                 include_path,
                                 file_path,
                                 workspace_file,
@@ -172,6 +170,7 @@ impl WorkspaceFile {
             including_file.update_shader_list(parent_shaders, depth);
         });
         *workspace_file.including_files.borrow_mut() = including_files;
+        old_including_files
     }
 
     pub fn new_shader(
@@ -227,26 +226,17 @@ impl WorkspaceFile {
             };
 
         let workspace_file = workspace_file.clone();
-        Self::update_include(
-            workspace_files,
-            temp_files,
-            parser,
-            &workspace_file,
-            &mut HashMap::new(),
-            &parent_shaders,
-            &file_path,
-            1,
-        );
+        Self::update_include(workspace_files, temp_files, parser, &workspace_file, &parent_shaders, &file_path, 1);
     }
 
     pub fn new_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, pack_path: &Rc<ShaderPack>, file_path: PathBuf,
-        parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
+        parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
+        parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let include_file = WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
-            shader_pack: pack_path.clone(),
+            shader_pack: parent_file.shader_pack.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
@@ -266,7 +256,6 @@ impl WorkspaceFile {
                 temp_files,
                 parser,
                 &include_file,
-                &mut HashMap::new(),
                 parent_shaders,
                 &file_path,
                 depth + 1,
