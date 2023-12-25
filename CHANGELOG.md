@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 - Fixed regex of some macros.
 - Fixed parent shader deleting when a file includes its self.
+- Fixed possible parent shader missing when new include files are added;
 
 ## [0.4.8] 2023-11-17
 

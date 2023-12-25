@@ -111,18 +111,10 @@ impl MinecraftLanguageServer {
                 workspace_file.update_from_disc(&mut parser, &file_path);
 
                 // Clone the content so they can be used alone.
-                let parent_shaders = workspace_file.parent_shaders().borrow().clone();
-
                 let workspace_file = workspace_file.clone();
-                let old_including_files = WorkspaceFile::update_include(
-                    &mut workspace_files,
-                    &mut temp_files,
-                    &mut parser,
-                    &workspace_file,
-                    &parent_shaders,
-                    &file_path,
-                    0,
-                );
+
+                let old_including_files =
+                    WorkspaceFile::update_include(&mut workspace_files, &mut temp_files, &mut parser, &workspace_file, &file_path, 0);
 
                 update_list.extend(old_including_files);
                 updated_shaders.extend(

@@ -205,8 +205,7 @@ impl TempFile {
     #[allow(clippy::too_many_arguments)]
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>,
-        parser: &mut Parser, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
-        parent_file: &Rc<WorkspaceFile>, depth: i32,
+        parser: &mut Parser, file_path: PathBuf, parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let workspace_file = Rc::new(WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
@@ -216,7 +215,7 @@ impl TempFile {
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
-            parent_shaders: RefCell::new(parent_shaders.clone()),
+            parent_shaders: parent_file.parent_shaders.clone(),
             diagnostics: RefCell::new(HashMap::new()),
         });
         let file_path = workspace_files
@@ -225,15 +224,7 @@ impl TempFile {
             .clone();
 
         if depth < 10 {
-            WorkspaceFile::update_include(
-                workspace_files,
-                temp_files,
-                parser,
-                &workspace_file,
-                parent_shaders,
-                &file_path,
-                depth + 1,
-            );
+            WorkspaceFile::update_include(workspace_files, temp_files, parser, &workspace_file, &file_path, depth + 1);
         }
         (file_path, workspace_file)
     }
