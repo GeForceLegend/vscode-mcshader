@@ -202,6 +202,7 @@ impl TempFile {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn into_workspace_file(
         self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>,
         parser: &mut Parser, parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: PathBuf, parent_path: &Rc<PathBuf>,

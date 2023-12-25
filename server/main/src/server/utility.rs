@@ -10,7 +10,7 @@ impl MinecraftLanguageServer {
 
     pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&Rc<ShaderPack>> {
         for shader_pack in shader_packs {
-            if let Ok(relative_path) = file_path.strip_prefix(&shader_pack.path as &Path) {
+            if let Ok(relative_path) = file_path.strip_prefix(&shader_pack.path) {
                 let relative_path = relative_path.to_str().unwrap();
                 if RE_BASIC_SHADERS.is_match(relative_path) {
                     return Some(shader_pack);

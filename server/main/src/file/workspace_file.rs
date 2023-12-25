@@ -229,6 +229,7 @@ impl WorkspaceFile {
         Self::update_include(workspace_files, temp_files, parser, &workspace_file, &parent_shaders, &file_path, 1);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         parent_shaders: &HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, file_path: PathBuf, parent_path: &Rc<PathBuf>,
