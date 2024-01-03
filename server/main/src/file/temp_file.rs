@@ -223,7 +223,15 @@ impl TempFile {
             .clone();
 
         if depth < 10 {
-            WorkspaceFile::update_include(workspace_files, temp_files, parser, &workspace_file, &file_path, depth + 1);
+            WorkspaceFile::update_include(
+                workspace_files,
+                temp_files,
+                parser,
+                &mut HashMap::new(),
+                &workspace_file,
+                &file_path,
+                depth + 1,
+            );
         }
         (file_path, workspace_file)
     }

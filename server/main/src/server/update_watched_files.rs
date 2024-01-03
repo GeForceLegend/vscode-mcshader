@@ -44,22 +44,22 @@ impl MinecraftLanguageServer {
                         updated_shaders.remove(file_path);
                     }
                 } else {
-                        workspace_files
-                            .iter()
-                            .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
-                            .for_each(|(file_path, workspace_file)| {
-                                updated_shaders.extend(
-                                    workspace_file
-                                        .parent_shaders()
-                                        .borrow()
-                                        .iter()
-                                        .map(|(path, file)| (path.clone(), file.clone())),
-                                );
-                                workspace_file.clear(&mut parser, file_path, &mut update_list);
-                                // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
-                                updated_shaders.remove(file_path);
-                                update_list.insert(file_path.clone(), workspace_file.clone());
-                            });
+                    workspace_files
+                        .iter()
+                        .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
+                        .for_each(|(file_path, workspace_file)| {
+                            updated_shaders.extend(
+                                workspace_file
+                                    .parent_shaders()
+                                    .borrow()
+                                    .iter()
+                                    .map(|(path, file)| (path.clone(), file.clone())),
+                            );
+                            workspace_file.clear(&mut parser, file_path, &mut update_list);
+                            // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
+                            updated_shaders.remove(file_path);
+                            update_list.insert(file_path.clone(), workspace_file.clone());
+                        });
                 }
             } else {
                 let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
@@ -110,11 +110,16 @@ impl MinecraftLanguageServer {
 
                 // Clone the content so they can be used alone.
                 let workspace_file = workspace_file.clone();
+                WorkspaceFile::update_include(
+                    &mut workspace_files,
+                    &mut temp_files,
+                    &mut parser,
+                    &mut update_list,
+                    &workspace_file,
+                    &file_path,
+                    0,
+                );
 
-                let old_including_files =
-                    WorkspaceFile::update_include(&mut workspace_files, &mut temp_files, &mut parser, &workspace_file, &file_path, 0);
-
-                update_list.extend(old_including_files);
                 updated_shaders.extend(
                     workspace_file
                         .parent_shaders()

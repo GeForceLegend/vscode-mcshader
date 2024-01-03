@@ -52,7 +52,7 @@ impl WorkspaceFile {
     fn update_shader_list(&self, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, mut depth: i32) {
         {
             let mut new_parent_shaders = HashMap::new();
-            // If we do not clear, self-include will copy all previous shader files.
+            // If we do not take, self-include will copy all previous shader files.
             let mut old_parent_shader = self.parent_shaders().take();
             self.included_files.borrow().iter().for_each(|(_, workspace_file)| {
                 workspace_file.parent_shaders.borrow().iter().for_each(|(path, data)| {
@@ -88,8 +88,8 @@ impl WorkspaceFile {
     /// Or it might get a borrow_mut() call while its already immutable borrowed.
     pub fn update_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
-        workspace_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>, depth: i32,
-    ) -> HashMap<Rc<PathBuf>, Rc<WorkspaceFile>> {
+        update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, workspace_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>, depth: i32,
+    ) {
         let mut old_including_files = workspace_file.including_pathes();
         let mut including_files = vec![];
 
@@ -144,14 +144,14 @@ impl WorkspaceFile {
                 Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
             }
         }
-        let mut update_list = old_including_files.clone();
+        // let mut update_list = old_including_files.clone();
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.iter().for_each(|(_, including_file)| {
             including_file.included_files.borrow_mut().remove(file_path);
-            including_file.update_shader_list(&mut update_list, depth);
+            including_file.update_shader_list(update_list, depth);
         });
+        update_list.extend(old_including_files);
         *workspace_file.including_files.borrow_mut() = including_files;
-        update_list
     }
 
     pub fn new_shader(
@@ -204,7 +204,15 @@ impl WorkspaceFile {
         };
 
         let workspace_file = workspace_file.clone();
-        Self::update_include(workspace_files, temp_files, parser, &workspace_file, &file_path, 1);
+        Self::update_include(
+            workspace_files,
+            temp_files,
+            parser,
+            &mut HashMap::new(),
+            &workspace_file,
+            &file_path,
+            1,
+        );
     }
 
     pub fn new_include(
@@ -227,7 +235,15 @@ impl WorkspaceFile {
         let include_file = include_file.clone();
         if include_file.update_from_disc(parser, &file_path) && depth < 10 {
             // Clone the content so they can be used alone.
-            Self::update_include(workspace_files, temp_files, parser, &include_file, &file_path, depth + 1);
+            Self::update_include(
+                workspace_files,
+                temp_files,
+                parser,
+                &mut HashMap::new(),
+                &include_file,
+                &file_path,
+                depth + 1,
+            );
         } else {
             *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());

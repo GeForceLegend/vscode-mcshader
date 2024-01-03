@@ -20,13 +20,19 @@ impl MinecraftLanguageServer {
             // Clone the content so they can be used alone.
             let file_path = file_path.clone();
             let workspace_file = workspace_file.clone();
+            let mut update_list = HashMap::new();
 
-            let old_including_files =
-                WorkspaceFile::update_include(&mut workspace_files, &mut temp_files, &mut parser, &workspace_file, &file_path, 1);
-
+            WorkspaceFile::update_include(
+                &mut workspace_files,
+                &mut temp_files,
+                &mut parser,
+                &mut update_list,
+                &workspace_file,
+                &file_path,
+                1,
+            );
             let shader_files = workspace_file.parent_shaders().borrow();
 
-            let mut update_list = old_including_files;
             shader_files.iter().for_each(|(shader_path, shader_file)| {
                 self.lint_workspace_shader(shader_file, shader_path, &mut update_list);
             });

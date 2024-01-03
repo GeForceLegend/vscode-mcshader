@@ -15,11 +15,18 @@ impl MinecraftLanguageServer {
             // Clone the content so they can be used alone.
             let file_path = file_path.clone();
             let workspace_file = workspace_file.clone();
+            let mut update_list = HashMap::new();
 
-            let old_including_files =
-                WorkspaceFile::update_include(&mut workspace_files, &mut temp_files, &mut parser, &workspace_file, &file_path, 1);
-
-            self.collect_diagnostics(&old_including_files)
+            WorkspaceFile::update_include(
+                &mut workspace_files,
+                &mut temp_files,
+                &mut parser,
+                &mut update_list,
+                &workspace_file,
+                &file_path,
+                1,
+            );
+            self.collect_diagnostics(&update_list)
         } else {
             let temp_file = temp_files.get(&file_path)?;
             temp_file.apply_edit(changes, &mut parser);
