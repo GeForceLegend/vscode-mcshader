@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ### Fixed
 
+- Fixed possible parent shader missing caused by stupid mistake in last release;
 - Fixed a bug that causes deleting a file will not update diagnostics of files in its include tree;
 - Fixed a bug that may cause undefined behavior when updating diagnostics;
 
