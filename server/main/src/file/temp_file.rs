@@ -217,10 +217,8 @@ impl TempFile {
             including_files: RefCell::new(vec![]),
             parent_shaders: parent_file.parent_shaders.clone(),
         });
-        let file_path = workspace_files
-            .insert_unique_unchecked(Rc::new(file_path), workspace_file.clone())
-            .0
-            .clone();
+        let file_path = Rc::new(file_path);
+        workspace_files.insert_unique_unchecked(file_path.clone(), workspace_file.clone());
 
         if depth < 10 {
             WorkspaceFile::update_include(

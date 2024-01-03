@@ -245,7 +245,7 @@ pub struct WorkspaceFile {
     included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
-    /// Shaders Files that include this file
+    /// Shaders Files that include this file, and diagnostics related to them
     parent_shaders: RefCell<HashMap<Rc<PathBuf>, ShaderData>>,
 }
 
