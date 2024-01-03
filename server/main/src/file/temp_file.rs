@@ -216,7 +216,6 @@ impl TempFile {
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
             parent_shaders: parent_file.parent_shaders.clone(),
-            diagnostics: RefCell::new(HashMap::new()),
         });
         let file_path = workspace_files
             .insert_unique_unchecked(Rc::new(file_path), workspace_file.clone())

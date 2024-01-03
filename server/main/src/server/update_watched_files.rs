@@ -39,16 +39,15 @@ impl MinecraftLanguageServer {
                                 .iter()
                                 .map(|(path, file)| (path.clone(), file.clone())),
                         );
-                        workspace_file.clear(&mut parser, file_path);
+                        workspace_file.clear(&mut parser, file_path, &mut update_list);
                         update_list.insert(file_path.clone(), workspace_file.clone());
                         updated_shaders.remove(file_path);
                     }
                 } else {
-                    update_list.extend(
                         workspace_files
                             .iter()
                             .filter(|workspace_file| workspace_file.0.starts_with(&file_path))
-                            .map(|(file_path, workspace_file)| {
+                            .for_each(|(file_path, workspace_file)| {
                                 updated_shaders.extend(
                                     workspace_file
                                         .parent_shaders()
@@ -56,12 +55,11 @@ impl MinecraftLanguageServer {
                                         .iter()
                                         .map(|(path, file)| (path.clone(), file.clone())),
                                 );
-                                workspace_file.clear(&mut parser, file_path);
+                                workspace_file.clear(&mut parser, file_path, &mut update_list);
                                 // There might be some include files inserting deleted shader into update list before the shaders get deleted in later loop.
                                 updated_shaders.remove(file_path);
-                                (file_path.clone(), workspace_file.clone())
-                            }),
-                    );
+                                update_list.insert(file_path.clone(), workspace_file.clone());
+                            });
                 }
             } else {
                 let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
@@ -83,7 +81,7 @@ impl MinecraftLanguageServer {
                                 changed_file
                                     .parent_shaders()
                                     .borrow_mut()
-                                    .insert(file_path.clone(), changed_file.clone());
+                                    .insert(file_path.clone(), (changed_file.clone(), RefCell::new(vec![])));
                                 *file_type = shader_type;
                             } else {
                                 *file_type = gl::NONE;
@@ -98,7 +96,7 @@ impl MinecraftLanguageServer {
                             new_shader
                                 .parent_shaders()
                                 .borrow_mut()
-                                .insert(file_path.clone(), new_shader.clone());
+                                .insert(file_path.clone(), (new_shader.clone(), RefCell::new(vec![])));
                             // We have ensured this file does not exists.
                             let (file_path, new_file) = workspace_files.insert_unique_unchecked(file_path, new_shader);
                             (file_path.clone(), new_file as &Rc<WorkspaceFile>)

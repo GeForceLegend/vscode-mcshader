@@ -82,15 +82,17 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_workspace_shader(
-        &self, shader_file: &Rc<WorkspaceFile>, shader_path: &Rc<PathBuf>, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
+        &self, shader_file: &ShaderData, shader_path: &Rc<PathBuf>, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>,
     ) {
         let mut file_list = HashMap::new();
         let mut shader_content = String::new();
-        shader_file.merge_file(&mut file_list, shader_file, &mut shader_content, shader_path, &mut -1, 0);
-        let offset = preprocess_shader(&mut shader_content, shader_file.shader_pack().debug);
+        shader_file
+            .0
+            .merge_file(&mut file_list, &shader_file.0, &mut shader_content, shader_path, &mut -1, 0);
+        let offset = preprocess_shader(&mut shader_content, shader_file.0.shader_pack().debug);
 
         let shader_path_str = shader_path.to_str().unwrap();
-        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.file_type().borrow(), shader_content);
+        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.0.file_type().borrow(), shader_content);
 
         match validation_result {
             Some(compile_log) => {
@@ -100,16 +102,17 @@ impl MinecraftLanguageServer {
                 );
 
                 // We have ensured files in file lists are unique, so each file.diagnostics will exist only once
-                // And they are `Rc<_>`, so their pointer will never get changed. This should be safe.
+                // parent_shaders itself will not changed during parsing, this should be safe.
                 let mut diagnostic_pointers = file_list
                     .into_iter()
                     .map(|(file_path, (index, workspace_file))| {
-                        let pointer = workspace_file
-                            .diagnostics()
-                            .borrow_mut()
-                            .entry(shader_path.clone())
-                            .and_modify(|diagnostics| diagnostics.clear())
-                            .or_default() as *mut Vec<Diagnostic>;
+                        let pointer;
+                        {
+                            let parent_shaders = workspace_file.parent_shaders().borrow();
+                            let mut diagnostic = parent_shaders.get(shader_path).unwrap().1.borrow_mut();
+                            diagnostic.clear();
+                            pointer = &mut *diagnostic as *mut Vec<Diagnostic>;
+                        }
                         update_list.insert(file_path, workspace_file);
                         (index, pointer)
                     })
@@ -152,7 +155,14 @@ impl MinecraftLanguageServer {
             None => {
                 info!("Compilation reported no errors"; "shader file" => shader_path_str);
                 file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
-                    workspace_file.diagnostics().borrow_mut().insert(shader_path.clone(), vec![]);
+                    workspace_file
+                        .parent_shaders()
+                        .borrow()
+                        .get(shader_path)
+                        .unwrap()
+                        .1
+                        .borrow_mut()
+                        .clear();
                     update_list.insert(file_path, workspace_file);
                 });
             }
@@ -225,11 +235,10 @@ impl MinecraftLanguageServer {
             .map(|(file_path, workspace_file)| {
                 let file_url = Url::from_file_path(file_path as &Path).unwrap();
                 let diagnostics = workspace_file
-                    .diagnostics()
+                    .parent_shaders()
                     .borrow()
                     .values()
-                    .flatten()
-                    .cloned()
+                    .flat_map(|(_, diagnostics)| diagnostics.borrow().clone())
                     .collect::<Vec<_>>();
                 (file_url, diagnostics)
             })

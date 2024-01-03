@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+### Changed
+
+- `parent_shaders` and `diagnostics` have been merged since they have the same key at all situation;
+
+### Fixed
+
+- Fixed a bug that causes deleting a file will not update diagnostics of files in its include tree;
+- Fixed a bug that may cause undefined behavior when updating diagnostics;
+
 ## [0.4.9] 2023-12-25
 
 ### Fixed

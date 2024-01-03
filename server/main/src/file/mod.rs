@@ -18,6 +18,7 @@ mod temp_file;
 mod workspace_file;
 
 pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>, Rc<WorkspaceFile>);
+pub type ShaderData = (Rc<WorkspaceFile>, RefCell<Vec<Diagnostic>>);
 
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
@@ -245,9 +246,7 @@ pub struct WorkspaceFile {
     /// Lines and paths for include files
     including_files: RefCell<Vec<IncludeInformation>>,
     /// Shaders Files that include this file
-    parent_shaders: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
-    /// Diagnostics parsed by compiler but not tree-sitter
-    diagnostics: RefCell<HashMap<Rc<PathBuf>, Vec<Diagnostic>>>,
+    parent_shaders: RefCell<HashMap<Rc<PathBuf>, ShaderData>>,
 }
 
 pub struct TempFile {
