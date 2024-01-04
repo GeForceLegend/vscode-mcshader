@@ -143,11 +143,11 @@ impl WorkspaceFile {
         }
         // let mut update_list = old_including_files.clone();
         // They are removed from including list of this file. Let's remove this file from their parent list.
-        old_including_files.iter().for_each(|(_, including_file)| {
+        old_including_files.into_iter().for_each(|(include_path, including_file)| {
             including_file.included_files.borrow_mut().remove(file_path);
             including_file.update_shader_list(update_list, depth);
+            update_list.insert(include_path, including_file);
         });
-        update_list.extend(old_including_files);
         *workspace_file.including_files.borrow_mut() = including_files;
     }
 
@@ -306,11 +306,11 @@ impl WorkspaceFile {
             .into_iter()
             .map(|(_, _, _, include_path, include_file)| (include_path, include_file))
             .collect::<HashMap<_, _>>()
-            .iter()
+            .into_iter()
             .for_each(|(path, workspace_file)| {
                 workspace_file.included_files.borrow_mut().remove(file_path);
                 workspace_file.update_shader_list(update_list, 0);
-                update_list.insert(path.clone(), workspace_file.clone());
+                update_list.insert(path, workspace_file);
             });
     }
 
