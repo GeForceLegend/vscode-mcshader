@@ -83,9 +83,6 @@ impl WorkspaceFile {
         }
     }
 
-    /// Sending the standalone clone data of a shader file to update its include.
-    /// `parent_shaders` may get modified in child trees, so it should be cloned.
-    /// Or it might get a borrow_mut() call while its already immutable borrowed.
     pub fn update_include(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, workspace_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>, depth: i32,

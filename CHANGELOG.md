@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.5.0] 2024-01-04
+
 ### Changed
 
 - `parent_shaders` and `diagnostics` have been merged since they have the same key at all situation;
