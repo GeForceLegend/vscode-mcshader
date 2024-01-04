@@ -121,7 +121,7 @@ impl WorkspaceFile {
                             Some(include) => include,
                             None => {
                                 // Parent shader of self might get extended in previous include scan.
-                                // So we should clone
+                                // And it might get changed if it includes it self in its include tree, so we should clone here.
                                 let parent_shaders = workspace_file.parent_shaders.borrow().clone();
                                 include_file.extend_shader_list(&parent_shaders, depth);
                                 include_file
@@ -227,7 +227,14 @@ impl WorkspaceFile {
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
-            parent_shaders: parent_file.parent_shaders.clone(),
+            parent_shaders: RefCell::new(
+                parent_file
+                    .parent_shaders
+                    .borrow()
+                    .iter()
+                    .map(|(path, data)| (path.clone(), (data.0.clone(), RefCell::new(vec![]))))
+                    .collect(),
+            ),
         };
         // Safety: the only call of new_include() already make sure that workspace_files does not contain file_path.
         let (file_path, include_file) = workspace_files.insert_unique_unchecked(Rc::new(file_path), Rc::new(include_file));

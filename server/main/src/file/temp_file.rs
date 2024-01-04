@@ -215,7 +215,14 @@ impl TempFile {
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
-            parent_shaders: parent_file.parent_shaders.clone(),
+            parent_shaders: RefCell::new(
+                parent_file
+                    .parent_shaders
+                    .borrow()
+                    .iter()
+                    .map(|(path, data)| (path.clone(), (data.0.clone(), RefCell::new(vec![]))))
+                    .collect(),
+            ),
         });
         let file_path = Rc::new(file_path);
         workspace_files.insert_unique_unchecked(file_path.clone(), workspace_file.clone());
