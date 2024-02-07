@@ -141,7 +141,6 @@ impl WorkspaceFile {
                 Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
             }
         }
-        // let mut update_list = old_including_files.clone();
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.into_iter().for_each(|(include_path, including_file)| {
             including_file.included_files.borrow_mut().remove(file_path);
