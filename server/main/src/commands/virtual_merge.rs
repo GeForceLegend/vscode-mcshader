@@ -24,7 +24,7 @@ impl Command for VirtualMerge {
 
         let content = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             match *workspace_file.file_type().borrow() {
-                gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
+                None | Some(glslang::ShaderStage::Callable) => return Err(LanguageServerError::not_shader_error()),
                 _ => {
                     let mut content = String::new();
                     workspace_file.merge_file(&mut HashMap::new(), workspace_file, &mut content, file_path, &mut -1, 0);

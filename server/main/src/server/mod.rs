@@ -6,6 +6,7 @@ use std::sync::Mutex;
 
 use logging::{error, info, warn};
 
+use glslang::ShaderStage;
 use hashbrown::{HashMap, HashSet};
 use serde_json::Value;
 use tower_lsp::jsonrpc::Result;

@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::commands::*;
-use crate::opengl::OpenGlContext;
+use crate::validator::ShaderCompiler;
 
 lazy_static! {
     pub static ref BASIC_EXTENSIONS: HashSet<String> = {
@@ -28,18 +28,11 @@ lazy_static! {
     pub static ref RE_MACRO_LINE: Regex = Regex::new(r"^\s*#\s*line").unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r"(?m)^[ \f\t\v]*#\s*version[ ]+(\d+).*$").unwrap();
     pub static ref RE_MACRO_LINE_MULTILINE: Regex = Regex::new(r"(?m)^[ \f\t\v]*#\s*line.*$").unwrap();
-    pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
-    pub static ref DIAGNOSTICS_REGEX: Regex = {
-        match OPENGL_CONTEXT.vendor().as_str() {
-            "NVIDIA Corporation" => {
-                Regex::new(r"^(?P<filepath>\d+)\((?P<linenum>\d+)\) : (?P<severity>error|warning) [A-C]\d+: (?P<output>.+)").unwrap()
-            }
-            _ => Regex::new(
-                r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,
-            )
-            .unwrap(),
-        }
-    };
+    pub static ref DIAGNOSTICS_REGEX: Regex = Regex::new(
+        r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,
+    )
+    .unwrap();
+    pub static ref SHADER_COMPILER: ShaderCompiler = ShaderCompiler::new();
 }
 
 pub const OPTIFINE_MACROS: &str = "#define MC_VERSION 11900

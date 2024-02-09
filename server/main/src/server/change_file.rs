@@ -31,8 +31,8 @@ impl MinecraftLanguageServer {
             let temp_file = temp_files.get(&file_path)?;
             temp_file.apply_edit(changes, &mut parser);
             temp_file.parse_includes(&file_path);
-            let file_type = *temp_file.file_type().borrow();
-            if file_type == gl::INVALID_ENUM || file_type == gl::NONE {
+            let file_type = temp_file.file_type().borrow();
+            if file_type.is_none() || *file_type == Some(ShaderStage::Callable) {
                 let diagnostics = if *temp_lint {
                     TreeParser::simple_lint(
                         &temp_file.tree().borrow(),

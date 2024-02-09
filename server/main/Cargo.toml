@@ -5,8 +5,7 @@ authors = ["GeForceLegend"]
 edition = "2021"
 
 [dependencies]
-gl = "0.14"
-glutin = "0.29"
+glslang = "0.3.1"
 hashbrown = { version = "0.12.3", features = ["default", "serde"]}
 itoa = "1.0.6"
 lazy_static = "1.4"

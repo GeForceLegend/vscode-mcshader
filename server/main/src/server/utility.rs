@@ -4,7 +4,7 @@ impl MinecraftLanguageServer {
     pub(super) fn collect_memory(&self, workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) {
         workspace_files.retain(|_file_path, workspace_file| {
             // Only delete file that both do not exist and no file includes it.
-            *workspace_file.file_type().borrow() != gl::INVALID_ENUM || workspace_file.included_files().borrow().len() > 0
+            workspace_file.file_type().borrow().is_some() || workspace_file.included_files().borrow().len() > 0
         });
     }
 
@@ -92,7 +92,7 @@ impl MinecraftLanguageServer {
         let offset = preprocess_shader(&mut shader_content, shader_file.0.shader_pack().debug);
 
         let shader_path_str = shader_path.to_str().unwrap();
-        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.0.file_type().borrow(), shader_content);
+        let validation_result = SHADER_COMPILER.validate(shader_content, shader_file.0.file_type().borrow().unwrap());
 
         match validation_result {
             Some(compile_log) => {
@@ -112,6 +112,7 @@ impl MinecraftLanguageServer {
                             let mut diagnostic = parent_shaders.get(shader_path).unwrap().1.borrow_mut();
                             diagnostic.clear();
                             pointer = &mut *diagnostic as *mut Vec<Diagnostic>;
+                            info!("File {} : {}", index, file_path.to_str().unwrap());
                         }
                         update_list.insert(file_path, workspace_file);
                         (index, pointer)
@@ -171,9 +172,9 @@ impl MinecraftLanguageServer {
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
         let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
-            let file_type = *temp_file.file_type().borrow();
+            let file_type = temp_file.file_type().borrow().unwrap();
             let offset = preprocess_shader(&mut source, temp_file.shader_pack().debug);
-            let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
+            let validation_result = SHADER_COMPILER.validate(source, file_type);
 
             match validation_result {
                 Some(compile_log) => {

@@ -8,11 +8,11 @@ impl TempFile {
     pub fn new(parser: &mut Parser, file_path: &Path, content: String) -> Self {
         warn!("Document not found in file system"; "path" => file_path.to_str().unwrap());
         let mut file_type = match file_path.extension() {
-            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
-            _ => gl::NONE,
+            Some(ext) if ext == "vsh" => Some(ShaderStage::Vertex),
+            Some(ext) if ext == "gsh" => Some(ShaderStage::Geometry),
+            Some(ext) if ext == "fsh" => Some(ShaderStage::Fragment),
+            Some(ext) if ext == "csh" => Some(ShaderStage::Compute),
+            _ => Some(ShaderStage::Callable),
         };
 
         let mut buffer = file_path.components();
@@ -24,14 +24,14 @@ impl TempFile {
                     }
                 }
                 _ => {
-                    file_type = gl::INVALID_ENUM;
+                    file_type = None;
                     break;
                 }
             }
         }
 
         let mut resource = OsString::new();
-        if file_type != gl::INVALID_ENUM {
+        if file_type.is_some() {
             for component in buffer {
                 resource.push(component);
                 match component {
@@ -65,7 +65,7 @@ impl TempFile {
     }
 
     pub fn parse_includes(&self, file_path: &Path) {
-        if *self.file_type.borrow() == gl::INVALID_ENUM {
+        if self.file_type.borrow().is_none() {
             return;
         }
         let pack_path = &self.shader_pack.path;
@@ -111,8 +111,8 @@ impl TempFile {
     }
 
     pub fn merge_self(&self, file_path: &Path) -> Option<String> {
-        let file_type = *self.file_type.borrow();
-        if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
+        let file_type = self.file_type.borrow();
+        if file_type.is_none() || *file_type == Some(ShaderStage::Callable) {
             return None;
         }
 
@@ -208,7 +208,7 @@ impl TempFile {
         parser: &mut Parser, file_path: PathBuf, parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let workspace_file = Rc::new(WorkspaceFile {
-            file_type: RefCell::new(gl::NONE),
+            file_type: RefCell::new(Some(ShaderStage::Callable)),
             shader_pack: parent_file.shader_pack.clone(),
             content: self.content,
             tree: self.tree,
@@ -243,7 +243,7 @@ impl TempFile {
 }
 
 impl File for TempFile {
-    fn file_type(&self) -> &RefCell<u32> {
+    fn file_type(&self) -> &RefCell<Option<ShaderStage>> {
         &self.file_type
     }
 

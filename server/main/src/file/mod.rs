@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use glslang::ShaderStage;
 use hashbrown::HashMap;
 use itoa::Buffer;
 use logging::{error, warn};
@@ -159,7 +160,7 @@ pub fn preprocess_shader(shader_content: &mut String, is_debug: bool) -> u32 {
 }
 
 pub trait File {
-    fn file_type(&self) -> &RefCell<u32>;
+    fn file_type(&self) -> &RefCell<Option<ShaderStage>>;
     fn content(&self) -> &RefCell<String>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
@@ -231,8 +232,12 @@ pub trait File {
 }
 
 pub struct WorkspaceFile {
-    /// Type of the shader
-    file_type: RefCell<u32>,
+    /// Type of the shader.
+    ///
+    /// Callable shader is marked as not a shader file
+    ///
+    /// None is marked as invalid (not exists)
+    file_type: RefCell<Option<ShaderStage>>,
     /// The shader pack path that this file in
     shader_pack: Rc<ShaderPack>,
     /// Live content for this file
@@ -251,7 +256,11 @@ pub struct WorkspaceFile {
 
 pub struct TempFile {
     /// Type of the shader
-    file_type: RefCell<u32>,
+    ///
+    /// Callable shader is marked as not a shader file
+    ///
+    /// None is marked as invalid (not exists)
+    file_type: RefCell<Option<ShaderStage>>,
     /// The shader pack path that this file in
     shader_pack: ShaderPack,
     /// Live content for this file

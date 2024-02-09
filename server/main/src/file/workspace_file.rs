@@ -17,7 +17,7 @@ impl WorkspaceFile {
         &self.including_files
     }
 
-    pub fn new(parser: &mut Parser, file_type: u32, pack_path: &Rc<ShaderPack>) -> Self {
+    pub fn new(parser: &mut Parser, file_type: Option<ShaderStage>, pack_path: &Rc<ShaderPack>) -> Self {
         Self {
             file_type: RefCell::new(file_type),
             shader_pack: pack_path.clone(),
@@ -155,17 +155,17 @@ impl WorkspaceFile {
         pack_path: &Rc<ShaderPack>, file_path: PathBuf,
     ) {
         let file_type = match file_path.extension() {
-            Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-            Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-            Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-            Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
+            Some(ext) if ext == "vsh" => Some(ShaderStage::Vertex),
+            Some(ext) if ext == "gsh" => Some(ShaderStage::Geometry),
+            Some(ext) if ext == "fsh" => Some(ShaderStage::Fragment),
+            Some(ext) if ext == "csh" => Some(ShaderStage::Compute),
             // This will never be used since we have ensured the extension through basic shaders regex.
-            _ => gl::NONE,
+            _ => None,
         };
         let (file_path, workspace_file) = if let Some((file_path, workspace_file)) = workspace_files.get_key_value(&file_path) {
             // Existing as some file's include
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
-            let scanned = *existing_file_type != gl::INVALID_ENUM;
+            let scanned = existing_file_type.is_some();
             *existing_file_type = file_type;
 
             // File already scanned. Just change its type to shaders.
@@ -216,7 +216,7 @@ impl WorkspaceFile {
         file_path: PathBuf, parent_path: &Rc<PathBuf>, parent_file: &Rc<WorkspaceFile>, depth: i32,
     ) -> (Rc<PathBuf>, Rc<WorkspaceFile>) {
         let include_file = WorkspaceFile {
-            file_type: RefCell::new(gl::NONE),
+            file_type: RefCell::new(Some(ShaderStage::Callable)),
             shader_pack: parent_file.shader_pack.clone(),
             content: RefCell::new(String::new()),
             tree: RefCell::new(parser.parse("", None).unwrap()),
@@ -248,7 +248,7 @@ impl WorkspaceFile {
                 depth + 1,
             );
         } else {
-            *include_file.file_type.borrow_mut() = gl::INVALID_ENUM;
+            *include_file.file_type.borrow_mut() = None;
             error!("Include file {} not found in workspace!", file_path.to_str().unwrap());
         }
         (file_path, include_file)
@@ -277,7 +277,7 @@ impl WorkspaceFile {
             let including_files = self.including_files.borrow();
             including_files
                 .iter()
-                .filter(|(_, _, _, _, include_file)| *include_file.file_type.borrow() != gl::INVALID_ENUM)
+                .filter(|(_, _, _, _, include_file)| include_file.file_type.borrow().is_some())
                 .for_each(|(line, _, _, include_path, include_file)| {
                     let start = line_mapping.get(*line).unwrap();
                     let end = line_mapping.get(line + 1).unwrap();
@@ -295,7 +295,7 @@ impl WorkspaceFile {
     }
 
     pub fn clear(&self, parser: &mut Parser, file_path: &PathBuf, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) {
-        *self.file_type.borrow_mut() = gl::INVALID_ENUM;
+        *self.file_type.borrow_mut() = None;
         self.content.borrow_mut().clear();
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
         self.line_mapping.borrow_mut().clear();
@@ -323,7 +323,7 @@ impl WorkspaceFile {
 }
 
 impl File for WorkspaceFile {
-    fn file_type(&self) -> &RefCell<u32> {
+    fn file_type(&self) -> &RefCell<Option<ShaderStage>> {
         &self.file_type
     }
 

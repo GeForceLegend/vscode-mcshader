@@ -64,19 +64,19 @@ impl MinecraftLanguageServer {
             } else {
                 let is_valid_shader = self.is_valid_shader(&shader_packs, &file_path).map(|pack_path| {
                     let shader_type = match file_path.extension() {
-                        Some(ext) if ext == "vsh" => gl::VERTEX_SHADER,
-                        Some(ext) if ext == "gsh" => gl::GEOMETRY_SHADER,
-                        Some(ext) if ext == "fsh" => gl::FRAGMENT_SHADER,
-                        Some(ext) if ext == "csh" => gl::COMPUTE_SHADER,
+                        Some(ext) if ext == "vsh" => Some(ShaderStage::Vertex),
+                        Some(ext) if ext == "gsh" => Some(ShaderStage::Geometry),
+                        Some(ext) if ext == "fsh" => Some(ShaderStage::Fragment),
+                        Some(ext) if ext == "csh" => Some(ShaderStage::Compute),
                         // This will never be used since we have ensured the extension through basic shaders regex.
-                        _ => gl::NONE,
+                        _ => None,
                     };
                     (pack_path, shader_type)
                 });
                 let (file_path, workspace_file) = match workspace_files.get_key_value(&file_path) {
                     Some((file_path, changed_file)) => {
                         let mut file_type = changed_file.file_type().borrow_mut();
-                        if *file_type == gl::INVALID_ENUM {
+                        if file_type.is_none() {
                             if let Some((_, shader_type)) = is_valid_shader {
                                 changed_file
                                     .parent_shaders()
@@ -84,7 +84,7 @@ impl MinecraftLanguageServer {
                                     .insert(file_path.clone(), (changed_file.clone(), RefCell::new(vec![])));
                                 *file_type = shader_type;
                             } else {
-                                *file_type = gl::NONE;
+                                *file_type = Some(ShaderStage::Callable);
                             }
                         }
                         (file_path.clone(), changed_file)
