@@ -31,6 +31,7 @@ impl TempFile {
         }
 
         let mut resource = OsString::new();
+        let mut cache = None;
         if file_type != gl::INVALID_ENUM {
             for component in buffer {
                 resource.push(component);
@@ -40,6 +41,9 @@ impl TempFile {
                 }
             }
             resource.push("shaders");
+            if file_type != gl::NONE {
+                cache = Some(ShaderCache::new());
+            }
         }
 
         let tree = parser.parse(&content, None).unwrap();
@@ -54,6 +58,7 @@ impl TempFile {
             file_type: RefCell::new(file_type),
             shader_pack: ShaderPack { path: pack_path, debug },
             content: RefCell::new(content),
+            cache: RefCell::new(cache),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
             including_files: RefCell::new(vec![]),
@@ -211,6 +216,7 @@ impl TempFile {
             file_type: RefCell::new(gl::NONE),
             shader_pack: parent_file.shader_pack.clone(),
             content: self.content,
+            cache: RefCell::new(None),
             tree: self.tree,
             line_mapping: self.line_mapping,
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
@@ -249,6 +255,10 @@ impl File for TempFile {
 
     fn content(&self) -> &RefCell<String> {
         &self.content
+    }
+
+    fn cache(&self) -> &RefCell<Option<ShaderCache>> {
+        &self.cache
     }
 
     fn tree(&self) -> &RefCell<Tree> {

@@ -14,6 +14,7 @@ use tree_sitter::{InputEdit, Parser, Point, Tree};
 
 use crate::constant::*;
 
+mod shader_cache;
 mod temp_file;
 mod workspace_file;
 
@@ -161,6 +162,7 @@ pub fn preprocess_shader(shader_content: &mut String, is_debug: bool) -> u32 {
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
     fn content(&self) -> &RefCell<String>;
+    fn cache(&self) -> &RefCell<Option<ShaderCache>>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
     fn include_links(&self) -> Vec<DocumentLink>;
@@ -230,6 +232,11 @@ pub trait File {
     }
 }
 
+pub struct ShaderCache {
+    index: u8,
+    cache: [(u64, String); 4],
+}
+
 pub struct WorkspaceFile {
     /// Type of the shader
     file_type: RefCell<u32>,
@@ -237,6 +244,10 @@ pub struct WorkspaceFile {
     shader_pack: Rc<ShaderPack>,
     /// Live content for this file
     content: RefCell<String>,
+    /// Cache to store previously shader code that passed compile
+    ///
+    /// Only available for shader files
+    cache: RefCell<Option<ShaderCache>>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
     /// Line-content mapping
@@ -256,6 +267,10 @@ pub struct TempFile {
     shader_pack: ShaderPack,
     /// Live content for this file
     content: RefCell<String>,
+    /// Cache to store previously shader code that passed compile
+    ///
+    /// Only available for shader files
+    cache: RefCell<Option<ShaderCache>>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
     /// Line-content mapping

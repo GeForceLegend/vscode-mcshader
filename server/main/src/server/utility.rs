@@ -92,7 +92,15 @@ impl MinecraftLanguageServer {
         let offset = preprocess_shader(&mut shader_content, shader_file.0.shader_pack().debug);
 
         let shader_path_str = shader_path.to_str().unwrap();
-        let validation_result = OPENGL_CONTEXT.validate_shader(*shader_file.0.file_type().borrow(), shader_content);
+
+        let mut cache = shader_file.0.cache().borrow_mut();
+        let cache = cache.as_mut().unwrap();
+        let hit_cache = cache.check(&shader_content);
+        let validation_result = if hit_cache {
+            None
+        } else {
+            OPENGL_CONTEXT.validate_shader(*shader_file.0.file_type().borrow(), &shader_content)
+        };
 
         match validation_result {
             Some(compile_log) => {
@@ -153,6 +161,9 @@ impl MinecraftLanguageServer {
                     });
             }
             None => {
+                if !hit_cache {
+                    cache.insert(shader_content);
+                }
                 info!("Compilation reported no errors"; "shader file" => shader_path_str);
                 file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
                     workspace_file
@@ -173,8 +184,16 @@ impl MinecraftLanguageServer {
         let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
             let file_type = *temp_file.file_type().borrow();
             let offset = preprocess_shader(&mut source, temp_file.shader_pack().debug);
-            let validation_result = OPENGL_CONTEXT.validate_shader(file_type, source);
 
+            let mut cache = temp_file.cache().borrow_mut();
+            let cache = cache.as_mut().unwrap();
+            let hit_cache = cache.check(&source);
+
+            let validation_result = if hit_cache {
+                None
+            } else {
+                OPENGL_CONTEXT.validate_shader(file_type, &source)
+            };
             match validation_result {
                 Some(compile_log) => {
                     info!(
@@ -213,6 +232,9 @@ impl MinecraftLanguageServer {
                         .collect::<Vec<_>>()
                 }
                 None => {
+                    if !hit_cache {
+                        cache.insert(source);
+                    }
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     vec![]
                 }
