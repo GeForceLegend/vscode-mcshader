@@ -234,7 +234,7 @@ pub trait File {
 
 pub struct ShaderCache {
     index: u8,
-    cache: [(u64, String); 4],
+    cache: [u64; 4],
 }
 
 pub struct WorkspaceFile {

@@ -162,7 +162,7 @@ impl MinecraftLanguageServer {
             }
             None => {
                 if !hit_cache {
-                    cache.insert(shader_content);
+                    cache.insert(&shader_content);
                 }
                 info!("Compilation reported no errors"; "shader file" => shader_path_str);
                 file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
@@ -233,7 +233,7 @@ impl MinecraftLanguageServer {
                 }
                 None => {
                     if !hit_cache {
-                        cache.insert(source);
+                        cache.insert(&source);
                     }
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     vec![]
