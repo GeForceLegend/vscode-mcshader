@@ -92,7 +92,15 @@ impl MinecraftLanguageServer {
         let offset = preprocess_shader(&mut shader_content, shader_file.0.shader_pack().debug);
 
         let shader_path_str = shader_path.to_str().unwrap();
-        let validation_result = SHADER_COMPILER.validate(shader_content, shader_file.0.file_type().borrow().unwrap());
+
+        let mut cache = shader_file.0.cache().borrow_mut();
+        let cache = cache.as_mut().unwrap();
+        let hit_cache = cache.check(&shader_content);
+        let validation_result = if hit_cache {
+            None
+        } else {
+            SHADER_COMPILER.validate(&shader_content, shader_file.0.file_type().borrow().unwrap())
+        };
 
         match validation_result {
             Some(compile_log) => {
@@ -112,7 +120,6 @@ impl MinecraftLanguageServer {
                             let mut diagnostic = parent_shaders.get(shader_path).unwrap().1.borrow_mut();
                             diagnostic.clear();
                             pointer = &mut *diagnostic as *mut Vec<Diagnostic>;
-                            info!("File {} : {}", index, file_path.to_str().unwrap());
                         }
                         update_list.insert(file_path, workspace_file);
                         (index, pointer)
@@ -154,6 +161,9 @@ impl MinecraftLanguageServer {
                     });
             }
             None => {
+                if !hit_cache {
+                    cache.insert(shader_content);
+                }
                 info!("Compilation reported no errors"; "shader file" => shader_path_str);
                 file_list.into_iter().for_each(|(file_path, (_, workspace_file))| {
                     workspace_file
@@ -174,8 +184,16 @@ impl MinecraftLanguageServer {
         let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
             let file_type = temp_file.file_type().borrow().unwrap();
             let offset = preprocess_shader(&mut source, temp_file.shader_pack().debug);
-            let validation_result = SHADER_COMPILER.validate(source, file_type);
 
+            let mut cache = temp_file.cache().borrow_mut();
+            let cache = cache.as_mut().unwrap();
+            let hit_cache = cache.check(&source);
+
+            let validation_result = if hit_cache {
+                None
+            } else {
+                SHADER_COMPILER.validate(&source, file_type)
+            };
             match validation_result {
                 Some(compile_log) => {
                     info!(
@@ -214,6 +232,9 @@ impl MinecraftLanguageServer {
                         .collect::<Vec<_>>()
                 }
                 None => {
+                    if !hit_cache {
+                        cache.insert(source);
+                    }
                     info!("Compilation reported no errors"; "shader file" => file_path.to_str().unwrap());
                     vec![]
                 }

@@ -15,7 +15,7 @@ impl ShaderCompiler {
         Self { compiler, options }
     }
 
-    pub fn validate(&self, source: String, shater_type: ShaderStage) -> Option<String> {
+    pub fn validate(&self, source: &str, shater_type: ShaderStage) -> Option<String> {
         let source = ShaderSource::try_from(source).unwrap();
         let input = ShaderInput::new(&source, shater_type, &self.options, None).unwrap();
         match Shader::new(self.compiler, input) {

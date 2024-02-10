@@ -22,6 +22,7 @@ impl WorkspaceFile {
             file_type: RefCell::new(file_type),
             shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
+            cache: RefCell::new(Some(ShaderCache::new())),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashMap::new()),
@@ -167,6 +168,7 @@ impl WorkspaceFile {
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
             let scanned = existing_file_type.is_some();
             *existing_file_type = file_type;
+            *workspace_file.cache.borrow_mut() = Some(ShaderCache::new());
 
             // File already scanned. Just change its type to shaders.
             if scanned {
@@ -185,6 +187,7 @@ impl WorkspaceFile {
                 file_type: RefCell::new(file_type),
                 shader_pack: pack_path.clone(),
                 content: RefCell::new(String::new()),
+                cache: RefCell::new(Some(ShaderCache::new())),
                 tree: RefCell::new(parser.parse("", None).unwrap()),
                 line_mapping: RefCell::new(vec![]),
                 included_files: RefCell::new(HashMap::new()),
@@ -219,6 +222,7 @@ impl WorkspaceFile {
             file_type: RefCell::new(Some(ShaderStage::Callable)),
             shader_pack: parent_file.shader_pack.clone(),
             content: RefCell::new(String::new()),
+            cache: RefCell::new(None),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
@@ -329,6 +333,10 @@ impl File for WorkspaceFile {
 
     fn content(&self) -> &RefCell<String> {
         &self.content
+    }
+
+    fn cache(&self) -> &RefCell<Option<ShaderCache>> {
+        &self.cache
     }
 
     fn tree(&self) -> &RefCell<Tree> {
