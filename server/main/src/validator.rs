@@ -1,11 +1,11 @@
 use glslang::{error::GlslangError, *};
 
-pub struct ShaderCompiler {
+pub struct ShaderValidator {
     compiler: &'static Compiler,
     options: CompilerOptions,
 }
 
-impl ShaderCompiler {
+impl ShaderValidator {
     pub fn new() -> Self {
         let compiler = Compiler::acquire().unwrap();
         let options = CompilerOptions {

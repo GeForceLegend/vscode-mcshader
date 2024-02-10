@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::commands::*;
-use crate::validator::ShaderCompiler;
+use crate::validator::ShaderValidator;
 
 lazy_static! {
     pub static ref BASIC_EXTENSIONS: HashSet<String> = {
@@ -32,7 +32,7 @@ lazy_static! {
         r#"^(?P<severity>ERROR|WARNING): (?P<filepath>[^?<>*|"\n]+):(?P<linenum>\d+): (?:'.*' :|[a-z]+\(#\d+\)) +(?P<output>.+)$"#,
     )
     .unwrap();
-    pub static ref SHADER_COMPILER: ShaderCompiler = ShaderCompiler::new();
+    pub static ref SHADER_VALIDATOR: ShaderValidator = ShaderValidator::new();
 }
 
 pub const OPTIFINE_MACROS: &str = "#define MC_VERSION 11900

@@ -99,7 +99,7 @@ impl MinecraftLanguageServer {
         let validation_result = if hit_cache {
             None
         } else {
-            SHADER_COMPILER.validate(&shader_content, shader_file.0.file_type().borrow().unwrap())
+            SHADER_VALIDATOR.validate(&shader_content, shader_file.0.file_type().borrow().unwrap())
         };
 
         match validation_result {
@@ -192,7 +192,7 @@ impl MinecraftLanguageServer {
             let validation_result = if hit_cache {
                 None
             } else {
-                SHADER_COMPILER.validate(&source, file_type)
+                SHADER_VALIDATOR.validate(&source, file_type)
             };
             match validation_result {
                 Some(compile_log) => {
