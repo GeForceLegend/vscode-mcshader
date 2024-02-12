@@ -22,9 +22,10 @@ impl WorkspaceFile {
             file_type: RefCell::new(file_type),
             shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
-            cache: RefCell::new(Some(ShaderCache::new())),
+            cache: RefCell::new(Some(CompileCache::new())),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
+            ignored_lines: RefCell::new(vec![]),
             included_files: RefCell::new(HashMap::new()),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(HashMap::new()),
@@ -90,6 +91,7 @@ impl WorkspaceFile {
     ) {
         let mut old_including_files = workspace_file.including_pathes();
         let mut including_files = vec![];
+        let mut ignored_lines = vec![];
 
         let pack_path = &workspace_file.shader_pack;
         let content = workspace_file.content().borrow();
@@ -106,7 +108,11 @@ impl WorkspaceFile {
             };
 
             let line = i - 1;
-            let include_content = captures.get(1).unwrap();
+            if captures.get(1).unwrap().as_str() == "line" {
+                ignored_lines.push(line);
+                continue;
+            }
+            let include_content = captures.get(2).unwrap();
             let path = include_content.as_str();
             match include_path_join(&pack_path.path, file_path, path) {
                 Ok(include_path) => {
@@ -148,6 +154,7 @@ impl WorkspaceFile {
             including_file.update_shader_list(update_list, depth);
             update_list.insert(include_path, including_file);
         });
+        *workspace_file.ignored_lines.borrow_mut() = ignored_lines;
         *workspace_file.including_files.borrow_mut() = including_files;
     }
 
@@ -168,7 +175,7 @@ impl WorkspaceFile {
             let mut existing_file_type = workspace_file.file_type.borrow_mut();
             let scanned = *existing_file_type != gl::INVALID_ENUM;
             *existing_file_type = file_type;
-            *workspace_file.cache.borrow_mut() = Some(ShaderCache::new());
+            *workspace_file.cache.borrow_mut() = Some(CompileCache::new());
 
             // File already scanned. Just change its type to shaders.
             if scanned {
@@ -187,9 +194,10 @@ impl WorkspaceFile {
                 file_type: RefCell::new(file_type),
                 shader_pack: pack_path.clone(),
                 content: RefCell::new(String::new()),
-                cache: RefCell::new(Some(ShaderCache::new())),
+                cache: RefCell::new(Some(CompileCache::new())),
                 tree: RefCell::new(parser.parse("", None).unwrap()),
                 line_mapping: RefCell::new(vec![]),
+                ignored_lines: RefCell::new(vec![]),
                 included_files: RefCell::new(HashMap::new()),
                 including_files: RefCell::new(vec![]),
                 parent_shaders: RefCell::new(HashMap::new()),
@@ -225,6 +233,7 @@ impl WorkspaceFile {
             cache: RefCell::new(None),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
+            ignored_lines: RefCell::new(vec![]),
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(
@@ -273,11 +282,13 @@ impl WorkspaceFile {
         shader_content.push('\n');
 
         let content = self.content.borrow();
+        let line_mapping = self.line_mapping.borrow();
+        let ignored_lines = self.ignored_lines.borrow();
+        let mut ignored_lines = ignored_lines.iter();
         let mut start_index = 0;
 
         if depth < 10 {
             depth += 1;
-            let line_mapping = self.line_mapping.borrow();
             let including_files = self.including_files.borrow();
             including_files
                 .iter()
@@ -286,15 +297,30 @@ impl WorkspaceFile {
                     let start = line_mapping.get(*line).unwrap();
                     let end = line_mapping.get(line + 1).unwrap();
 
-                    let before_content = unsafe { content.get_unchecked(start_index..*start) };
-                    push_str_without_line(shader_content, before_content);
+                    push_str_without_ignored(
+                        shader_content,
+                        &content,
+                        start_index,
+                        *start,
+                        *line,
+                        &mut ignored_lines,
+                        &line_mapping,
+                    );
                     start_index = end - 1;
 
                     include_file.merge_file(file_list, include_file, shader_content, include_path, file_id, depth);
                     push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 });
         }
-        push_str_without_line(shader_content, unsafe { content.get_unchecked(start_index..) });
+        push_str_without_ignored(
+            shader_content,
+            &content,
+            start_index,
+            content.len(),
+            line_mapping.len(),
+            &mut ignored_lines,
+            &line_mapping,
+        );
         shader_content.push('\n');
     }
 
@@ -335,7 +361,7 @@ impl File for WorkspaceFile {
         &self.content
     }
 
-    fn cache(&self) -> &RefCell<Option<ShaderCache>> {
+    fn cache(&self) -> &RefCell<Option<CompileCache>> {
         &self.cache
     }
 
@@ -345,6 +371,10 @@ impl File for WorkspaceFile {
 
     fn line_mapping(&self) -> &RefCell<Vec<usize>> {
         &self.line_mapping
+    }
+
+    fn ignored_lines(&self) -> &RefCell<Vec<usize>> {
+        &self.ignored_lines
     }
 
     fn include_links(&self) -> Vec<DocumentLink> {

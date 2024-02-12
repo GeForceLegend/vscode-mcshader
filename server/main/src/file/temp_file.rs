@@ -42,7 +42,7 @@ impl TempFile {
             }
             resource.push("shaders");
             if file_type != gl::NONE {
-                cache = Some(ShaderCache::new());
+                cache = Some(CompileCache::new());
             }
         }
 
@@ -61,6 +61,7 @@ impl TempFile {
             cache: RefCell::new(cache),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
+            ignored_lines: RefCell::new(vec![]),
             including_files: RefCell::new(vec![]),
         };
 
@@ -76,6 +77,7 @@ impl TempFile {
         let pack_path = &self.shader_pack.path;
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
+        let mut ignored_lines = vec![];
 
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
@@ -90,7 +92,11 @@ impl TempFile {
             };
 
             let line = i - 1;
-            let include_content = captures.get(2).unwrap();
+            if captures.get(1).unwrap().as_str() == "line" {
+                ignored_lines.push(line);
+                continue;
+            }
+            let include_content = captures.get(3).unwrap();
             let path = include_content.as_str();
 
             let line_content = captures.get(0).unwrap().as_str();
@@ -99,7 +105,7 @@ impl TempFile {
             let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
             let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
 
-            match captures.get(1).unwrap().as_str() {
+            match captures.get(2).unwrap().as_str() {
                 "include" => match include_path_join(pack_path, file_path, path) {
                     Ok(include_path) => including_files.push((line, start, end, include_path)),
                     Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
@@ -130,6 +136,8 @@ impl TempFile {
 
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
+        let ignored_lines = self.ignored_lines.borrow();
+        let mut ignored_lines = ignored_lines.iter();
         let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
@@ -137,8 +145,15 @@ impl TempFile {
             let start = line_mapping.get(*line).unwrap();
             let end = line_mapping.get(line + 1).unwrap();
 
-            let before_content = unsafe { content.get_unchecked(start_index..*start) };
-            push_str_without_line(&mut temp_content, before_content);
+            push_str_without_ignored(
+                &mut temp_content,
+                &content,
+                start_index,
+                *start,
+                *line,
+                &mut ignored_lines,
+                &line_mapping,
+            );
             start_index = *end - 1;
 
             if Self::merge_temp(&self.shader_pack.path, include_path, &mut temp_content, &mut file_id, 1) {
@@ -147,7 +162,15 @@ impl TempFile {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
             }
         }
-        push_str_without_line(&mut temp_content, unsafe { content.get_unchecked(start_index..) });
+        push_str_without_ignored(
+            &mut temp_content,
+            &content,
+            start_index,
+            content.len(),
+            line_mapping.len(),
+            &mut ignored_lines,
+            &line_mapping,
+        );
 
         Some(temp_content)
     }
@@ -167,35 +190,37 @@ impl TempFile {
             let mut start_index = 0;
             let mut lines = 2;
 
-            RE_MACRO_CATCH.find_iter(content.as_ref()).for_each(|macro_line| {
-                let start = macro_line.start();
-                let end = macro_line.end();
+            RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
+                let line = captures.get(0).unwrap();
+                let start = line.start();
+                let end = line.end();
 
                 let before_content = unsafe { content.get_unchecked(start_index..start) };
-                let capture_content = macro_line.as_str();
-                if let Some(capture) = RE_MACRO_INCLUDE.captures(capture_content) {
-                    let path = capture.get(1).unwrap().as_str();
-
-                    let include_path = match path.strip_prefix('/') {
-                        Some(path) => pack_path.join(PathBuf::from(path.replace('/', MAIN_SEPARATOR_STR))),
-                        None => file_path
-                            .parent()
-                            .unwrap()
-                            .join(PathBuf::from(path.replace('/', MAIN_SEPARATOR_STR))),
-                    };
-                    temp_content.push_str(before_content);
-                    start_index = end;
-                    lines += before_content.matches('\n').count();
-
-                    if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
-                        push_line_macro(temp_content, lines, curr_file_id, file_name);
-                    } else {
-                        temp_content.push_str(capture_content);
+                temp_content.push_str(before_content);
+                lines += before_content.matches('\n').count();
+                start_index = end;
+                if captures.get(1).unwrap().as_str() == "line" {
+                    return;
+                }
+                let include_path = captures.get(3).unwrap().as_str();
+                let include_path = match captures.get(2).unwrap().as_str() {
+                    "include" => match include_path_join(pack_path, file_path, include_path) {
+                        Ok(include_path) => include_path,
+                        Err(error) => {
+                            error!("Unable to parse include link {}, error: {}", include_path, error);
+                            return;
+                        }
+                    },
+                    // moj_import
+                    _ => {
+                        let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + include_path;
+                        pack_path.join(additional_path)
                     }
-                } else if RE_MACRO_LINE.is_match(capture_content) {
-                    temp_content.push_str(before_content);
-                    start_index = end;
-                    lines += before_content.matches('\n').count();
+                };
+                if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
+                    push_line_macro(temp_content, lines, curr_file_id, file_name);
+                } else {
+                    temp_content.push_str(line.as_str());
                 }
             });
             temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
@@ -219,6 +244,7 @@ impl TempFile {
             cache: RefCell::new(None),
             tree: self.tree,
             line_mapping: self.line_mapping,
+            ignored_lines: self.ignored_lines,
             included_files: RefCell::new(HashMap::from([(parent_path.clone(), parent_file.clone())])),
             including_files: RefCell::new(vec![]),
             parent_shaders: RefCell::new(
@@ -257,7 +283,7 @@ impl File for TempFile {
         &self.content
     }
 
-    fn cache(&self) -> &RefCell<Option<ShaderCache>> {
+    fn cache(&self) -> &RefCell<Option<CompileCache>> {
         &self.cache
     }
 
@@ -267,6 +293,10 @@ impl File for TempFile {
 
     fn line_mapping(&self) -> &RefCell<Vec<usize>> {
         &self.line_mapping
+    }
+
+    fn ignored_lines(&self) -> &RefCell<Vec<usize>> {
+        &self.ignored_lines
     }
 
     fn include_links(&self) -> Vec<DocumentLink> {

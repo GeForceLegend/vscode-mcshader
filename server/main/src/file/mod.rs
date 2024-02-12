@@ -14,7 +14,7 @@ use tree_sitter::{InputEdit, Parser, Point, Tree};
 
 use crate::constant::*;
 
-mod shader_cache;
+mod compile_cache;
 mod temp_file;
 mod workspace_file;
 
@@ -81,13 +81,19 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
     line_mapping
 }
 
-fn push_str_without_line(shader_content: &mut String, str: &str) {
-    let mut start_index = 0;
-    RE_MACRO_LINE_MULTILINE.find_iter(str).for_each(|capture| {
-        shader_content.push_str(unsafe { str.get_unchecked(start_index..capture.start()) });
-        start_index = capture.end();
-    });
-    shader_content.push_str(unsafe { str.get_unchecked(start_index..) });
+fn push_str_without_ignored(
+    shader_content: &mut String, file_content: &str, mut start_index: usize, end_index: usize, curr_line: usize,
+    ignored_lines: &mut core::slice::Iter<'_, usize>, line_mapping: &[usize],
+) {
+    for line in ignored_lines.by_ref() {
+        if *line > curr_line {
+            break;
+        }
+        let line_start = line_mapping[*line];
+        shader_content.push_str(unsafe { file_content.get_unchecked(start_index..line_start) });
+        start_index = line_mapping[*line + 1];
+    }
+    shader_content.push_str(unsafe { file_content.get_unchecked(start_index..end_index) });
 }
 
 fn byte_offset(content: &str, chars: usize) -> usize {
@@ -162,9 +168,10 @@ pub fn preprocess_shader(shader_content: &mut String, is_debug: bool) -> u32 {
 pub trait File {
     fn file_type(&self) -> &RefCell<u32>;
     fn content(&self) -> &RefCell<String>;
-    fn cache(&self) -> &RefCell<Option<ShaderCache>>;
+    fn cache(&self) -> &RefCell<Option<CompileCache>>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
+    fn ignored_lines(&self) -> &RefCell<Vec<usize>>;
     fn include_links(&self) -> Vec<DocumentLink>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) -> bool {
@@ -232,7 +239,7 @@ pub trait File {
     }
 }
 
-pub struct ShaderCache {
+pub struct CompileCache {
     index: u8,
     cache: [u64; 8],
 }
@@ -247,11 +254,15 @@ pub struct WorkspaceFile {
     /// Cache to store previously shader code that passed compile
     ///
     /// Only available for shader files
-    cache: RefCell<Option<ShaderCache>>,
+    cache: RefCell<Option<CompileCache>>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
+    /// Lines that should ignore when merging files.
+    ///
+    /// Currently only contains `#line` macro
+    ignored_lines: RefCell<Vec<usize>>,
     /// Files that directly include this file
     included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     /// Lines and paths for include files
@@ -270,11 +281,15 @@ pub struct TempFile {
     /// Cache to store previously shader code that passed compile
     ///
     /// Only available for shader files
-    cache: RefCell<Option<ShaderCache>>,
+    cache: RefCell<Option<CompileCache>>,
     /// Live syntax tree for this file
     tree: RefCell<Tree>,
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
+    /// Lines that should ignore when merging files.
+    ///
+    /// Currently only contains `#line` macro
+    ignored_lines: RefCell<Vec<usize>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }
