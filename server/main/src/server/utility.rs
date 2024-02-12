@@ -86,10 +86,17 @@ impl MinecraftLanguageServer {
     ) {
         let mut file_list = HashMap::new();
         let mut shader_content = String::new();
-        shader_file
-            .0
-            .merge_file(&mut file_list, &shader_file.0, &mut shader_content, shader_path, &mut -1, 0);
-        let offset = preprocess_shader(&mut shader_content, shader_file.0.shader_pack().debug);
+        let mut version = String::new();
+        shader_file.0.merge_file(
+            &mut file_list,
+            &shader_file.0,
+            &mut shader_content,
+            &mut version,
+            shader_path,
+            &mut -1,
+            0,
+        );
+        let offset = preprocess_shader(&mut shader_content, version, shader_file.0.shader_pack().debug);
 
         let shader_path_str = shader_path.to_str().unwrap();
 
@@ -181,9 +188,9 @@ impl MinecraftLanguageServer {
     }
 
     pub(super) fn lint_temp_file(&self, temp_file: &TempFile, file_path: &Path, url: Url, temp_lint: bool) -> Diagnostics {
-        let diagnostics = if let Some(mut source) = temp_file.merge_self(file_path) {
+        let diagnostics = if let Some((mut source, version)) = temp_file.merge_self(file_path) {
             let file_type = *temp_file.file_type().borrow();
-            let offset = preprocess_shader(&mut source, temp_file.shader_pack().debug);
+            let offset = preprocess_shader(&mut source, version, temp_file.shader_pack().debug);
 
             let mut cache = temp_file.cache().borrow_mut();
             let cache = cache.as_mut().unwrap();

@@ -22,6 +22,7 @@ impl WorkspaceFile {
             file_type: RefCell::new(file_type),
             shader_pack: pack_path.clone(),
             content: RefCell::new(String::new()),
+            version: RefCell::new(None),
             cache: RefCell::new(Some(CompileCache::new())),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
@@ -85,13 +86,14 @@ impl WorkspaceFile {
         }
     }
 
-    pub fn update_include(
+    pub fn parse_content(
         workspace_files: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, temp_files: &mut HashMap<PathBuf, TempFile>, parser: &mut Parser,
         update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>, workspace_file: &Rc<WorkspaceFile>, file_path: &Rc<PathBuf>, depth: i32,
     ) {
         let mut old_including_files = workspace_file.including_pathes();
         let mut including_files = vec![];
         let mut ignored_lines = vec![];
+        let mut version = None;
 
         let pack_path = &workspace_file.shader_pack;
         let content = workspace_file.content().borrow();
@@ -101,14 +103,22 @@ impl WorkspaceFile {
         for i in 1..line_mapping.len() {
             let end_index = *line_mapping.get(i).unwrap();
             let content = &content[start_index..(end_index - 1)];
+            let start_index_copy = start_index;
             start_index = end_index;
-            let captures = match RE_MACRO_INCLUDE.captures(content) {
+            let captures = match RE_MACRO_PARSER.captures(content) {
                 Some(captures) => captures,
                 None => continue,
             };
 
             let line = i - 1;
-            if captures.get(1).unwrap().as_str() == "line" {
+            let capture_type = captures.get(1).unwrap();
+            if capture_type.as_str() == "version" {
+                if version.is_none() {
+                    version = Some((start_index_copy, end_index - 1));
+                }
+                ignored_lines.push(line);
+                continue;
+            } else if capture_type.as_str() == "line" {
                 ignored_lines.push(line);
                 continue;
             }
@@ -154,6 +164,7 @@ impl WorkspaceFile {
             including_file.update_shader_list(update_list, depth);
             update_list.insert(include_path, including_file);
         });
+        *workspace_file.version.borrow_mut() = version;
         *workspace_file.ignored_lines.borrow_mut() = ignored_lines;
         *workspace_file.including_files.borrow_mut() = including_files;
     }
@@ -194,6 +205,7 @@ impl WorkspaceFile {
                 file_type: RefCell::new(file_type),
                 shader_pack: pack_path.clone(),
                 content: RefCell::new(String::new()),
+                version: RefCell::new(None),
                 cache: RefCell::new(Some(CompileCache::new())),
                 tree: RefCell::new(parser.parse("", None).unwrap()),
                 line_mapping: RefCell::new(vec![]),
@@ -211,7 +223,7 @@ impl WorkspaceFile {
         };
 
         let workspace_file = workspace_file.clone();
-        Self::update_include(
+        Self::parse_content(
             workspace_files,
             temp_files,
             parser,
@@ -230,6 +242,7 @@ impl WorkspaceFile {
             file_type: RefCell::new(gl::NONE),
             shader_pack: parent_file.shader_pack.clone(),
             content: RefCell::new(String::new()),
+            version: RefCell::new(None),
             cache: RefCell::new(None),
             tree: RefCell::new(parser.parse("", None).unwrap()),
             line_mapping: RefCell::new(vec![]),
@@ -251,7 +264,7 @@ impl WorkspaceFile {
         let include_file = include_file.clone();
         if include_file.update_from_disc(parser, &file_path) && depth < 10 {
             // Clone the content so they can be used alone.
-            Self::update_include(
+            Self::parse_content(
                 workspace_files,
                 temp_files,
                 parser,
@@ -267,9 +280,10 @@ impl WorkspaceFile {
         (file_path, include_file)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn merge_file(
         &self, file_list: &mut HashMap<Rc<PathBuf>, (String, Rc<WorkspaceFile>)>, rc_self: &Rc<WorkspaceFile>, shader_content: &mut String,
-        file_path: &Rc<PathBuf>, file_id: &mut i32, mut depth: u8,
+        version: &mut String, file_path: &Rc<PathBuf>, file_id: &mut i32, mut depth: u8,
     ) {
         *file_id += 1;
         let curr_file_id = file_list
@@ -286,6 +300,12 @@ impl WorkspaceFile {
         let ignored_lines = self.ignored_lines.borrow();
         let mut ignored_lines = ignored_lines.iter();
         let mut start_index = 0;
+
+        if let Some((start, end)) = self.version.borrow().as_ref() {
+            if version.is_empty() {
+                *version = unsafe { content.get_unchecked(*start..*end).to_owned() };
+            }
+        }
 
         if depth < 10 {
             depth += 1;
@@ -308,7 +328,7 @@ impl WorkspaceFile {
                     );
                     start_index = end - 1;
 
-                    include_file.merge_file(file_list, include_file, shader_content, include_path, file_id, depth);
+                    include_file.merge_file(file_list, include_file, shader_content, version, include_path, file_id, depth);
                     push_line_macro(shader_content, line + 2, &curr_file_id, file_name);
                 });
         }
@@ -352,7 +372,7 @@ impl WorkspaceFile {
     }
 }
 
-impl File for WorkspaceFile {
+impl ShaderFile for WorkspaceFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
     }

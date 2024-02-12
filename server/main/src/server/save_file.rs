@@ -22,7 +22,7 @@ impl MinecraftLanguageServer {
             let workspace_file = workspace_file.clone();
             let mut update_list = HashMap::new();
 
-            WorkspaceFile::update_include(
+            WorkspaceFile::parse_content(
                 &mut workspace_files,
                 &mut temp_files,
                 &mut parser,

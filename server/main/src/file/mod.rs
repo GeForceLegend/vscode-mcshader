@@ -91,7 +91,7 @@ fn push_str_without_ignored(
         }
         let line_start = line_mapping[*line];
         shader_content.push_str(unsafe { file_content.get_unchecked(start_index..line_start) });
-        start_index = line_mapping[*line + 1];
+        start_index = line_mapping[*line + 1] - 1;
     }
     shader_content.push_str(unsafe { file_content.get_unchecked(start_index..end_index) });
 }
@@ -130,42 +130,26 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
     (line_start + line_offset, line_offset)
 }
 
-pub fn preprocess_shader(shader_content: &mut String, is_debug: bool) -> u32 {
+pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_debug: bool) -> u32 {
     let mut offset = 2;
-    if let Some(capture) = RE_MACRO_VERSION.captures(shader_content) {
-        let version = capture.get(0).unwrap();
-        let version_num = capture.get(1).unwrap().as_str().parse::<u32>().unwrap();
-        let mut version_content = version.as_str().to_owned() + "\n";
 
-        // If we are not in the debug folder, add Optifine's macros
-        if !is_debug {
-            version_content += OPTIFINE_MACROS;
-        }
-        version_content += unsafe { shader_content.get_unchecked(..version.start()) };
-        let start = version.end();
-
-        // Since Mojang added #version in moj_import files, we must remove them so there will only one #version macro.
-        let mut start_index = start;
-        RE_MACRO_VERSION
-            .find_iter(unsafe { shader_content.get_unchecked(start..) })
-            .for_each(|version| {
-                let version_start = start + version.start();
-                version_content += unsafe { shader_content.get_unchecked(start_index..version_start) };
-                start_index = start + version.end();
-            });
-        version_content += unsafe { shader_content.get_unchecked(start_index..) };
-
-        *shader_content = version_content;
-        if version_num > 150 {
+    if let Some(capture) = RE_MACRO_VERSION.captures(&version) {
+        if capture.get(1).unwrap().as_str().parse::<u32>().unwrap() > 150 {
             offset = 1;
         }
-    } else if !is_debug {
-        shader_content.insert_str(0, OPTIFINE_MACROS);
     }
+    version.push('\n');
+
+    if !is_debug {
+        version += OPTIFINE_MACROS;
+    }
+    version += shader_content;
+    *shader_content = version;
+
     offset
 }
 
-pub trait File {
+pub trait ShaderFile {
     fn file_type(&self) -> &RefCell<u32>;
     fn content(&self) -> &RefCell<String>;
     fn cache(&self) -> &RefCell<Option<CompileCache>>;
@@ -251,6 +235,8 @@ pub struct WorkspaceFile {
     shader_pack: Rc<ShaderPack>,
     /// Live content for this file
     content: RefCell<String>,
+    /// Range of `#version` macro line. None if this file does not contain `#version`
+    version: RefCell<Option<(usize, usize)>>,
     /// Cache to store previously shader code that passed compile
     ///
     /// Only available for shader files
@@ -262,6 +248,8 @@ pub struct WorkspaceFile {
     /// Lines that should ignore when merging files.
     ///
     /// Currently only contains `#line` macro
+    ///
+    /// TODO: Store content of `#version` marco in a String and insert their line here
     ignored_lines: RefCell<Vec<usize>>,
     /// Files that directly include this file
     included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
@@ -278,6 +266,8 @@ pub struct TempFile {
     shader_pack: ShaderPack,
     /// Live content for this file
     content: RefCell<String>,
+    /// Range of `#version` macro line. None if this file does not contain `#version`
+    version: RefCell<Option<(usize, usize)>>,
     /// Cache to store previously shader code that passed compile
     ///
     /// Only available for shader files
@@ -289,6 +279,8 @@ pub struct TempFile {
     /// Lines that should ignore when merging files.
     ///
     /// Currently only contains `#line` macro
+    ///
+    /// TODO: Store content of `#version` marco in a String and insert their line here
     ignored_lines: RefCell<Vec<usize>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,

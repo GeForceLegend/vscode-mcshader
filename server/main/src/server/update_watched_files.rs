@@ -110,7 +110,7 @@ impl MinecraftLanguageServer {
 
                 // Clone the content so they can be used alone.
                 let workspace_file = workspace_file.clone();
-                WorkspaceFile::update_include(
+                WorkspaceFile::parse_content(
                     &mut workspace_files,
                     &mut temp_files,
                     &mut parser,

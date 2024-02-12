@@ -58,6 +58,7 @@ impl TempFile {
             file_type: RefCell::new(file_type),
             shader_pack: ShaderPack { path: pack_path, debug },
             content: RefCell::new(content),
+            version: RefCell::new(None),
             cache: RefCell::new(cache),
             tree: RefCell::new(tree),
             line_mapping: RefCell::new(line_mapping),
@@ -78,6 +79,7 @@ impl TempFile {
         let mut including_files = self.including_files.borrow_mut();
         including_files.clear();
         let mut ignored_lines = vec![];
+        let mut version = None;
 
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
@@ -85,14 +87,22 @@ impl TempFile {
         for i in 1..line_mapping.len() {
             let end_index = *line_mapping.get(i).unwrap();
             let content = &content[start_index..(end_index - 1)];
+            let start_index_copy = start_index;
             start_index = end_index;
-            let captures = match RE_MACRO_INCLUDE_TEMP.captures(content) {
+            let captures = match RE_MACRO_PARSER_TEMP.captures(content) {
                 Some(captures) => captures,
                 None => continue,
             };
 
             let line = i - 1;
-            if captures.get(1).unwrap().as_str() == "line" {
+            let capture_type = captures.get(1).unwrap();
+            if capture_type.as_str() == "version" {
+                if version.is_none() {
+                    version = Some((start_index_copy, end_index - 1));
+                }
+                ignored_lines.push(line);
+                continue;
+            } else if capture_type.as_str() == "line" {
                 ignored_lines.push(line);
                 continue;
             }
@@ -119,9 +129,11 @@ impl TempFile {
                 }
             }
         }
+        *self.version.borrow_mut() = version;
+        *self.ignored_lines.borrow_mut() = ignored_lines;
     }
 
-    pub fn merge_self(&self, file_path: &Path) -> Option<String> {
+    pub fn merge_self(&self, file_path: &Path) -> Option<(String, String)> {
         let file_type = *self.file_type.borrow();
         if file_type == gl::NONE || file_type == gl::INVALID_ENUM {
             return None;
@@ -141,6 +153,10 @@ impl TempFile {
         let including_files = self.including_files.borrow();
         let mut start_index = 0;
 
+        let mut version = self.version.borrow().as_ref().map_or(String::new(), |(start, end)| unsafe {
+            content.get_unchecked(*start..*end).to_owned()
+        });
+
         for (line, _start, _end, include_path) in including_files.iter() {
             let start = line_mapping.get(*line).unwrap();
             let end = line_mapping.get(line + 1).unwrap();
@@ -156,7 +172,14 @@ impl TempFile {
             );
             start_index = *end - 1;
 
-            if Self::merge_temp(&self.shader_pack.path, include_path, &mut temp_content, &mut file_id, 1) {
+            if Self::merge_temp(
+                &self.shader_pack.path,
+                include_path,
+                &mut temp_content,
+                &mut version,
+                &mut file_id,
+                1,
+            ) {
                 push_line_macro(&mut temp_content, line + 2, "0", file_name);
             } else {
                 temp_content.push_str(unsafe { content.get_unchecked(*start..start_index) });
@@ -172,10 +195,12 @@ impl TempFile {
             &line_mapping,
         );
 
-        Some(temp_content)
+        Some((temp_content, version))
     }
 
-    fn merge_temp(pack_path: &Path, file_path: &Path, temp_content: &mut String, file_id: &mut i32, depth: i32) -> bool {
+    fn merge_temp(
+        pack_path: &Path, file_path: &Path, temp_content: &mut String, version: &mut String, file_id: &mut i32, depth: i32,
+    ) -> bool {
         if depth > 10 {
             return false;
         }
@@ -190,7 +215,7 @@ impl TempFile {
             let mut start_index = 0;
             let mut lines = 2;
 
-            RE_MACRO_CATCH.captures_iter(content.as_ref()).for_each(|captures| {
+            RE_MACRO_PARSER_MULTI_LINE.captures_iter(content.as_ref()).for_each(|captures| {
                 let line = captures.get(0).unwrap();
                 let start = line.start();
                 let end = line.end();
@@ -199,7 +224,14 @@ impl TempFile {
                 temp_content.push_str(before_content);
                 lines += before_content.matches('\n').count();
                 start_index = end;
-                if captures.get(1).unwrap().as_str() == "line" {
+
+                let capture_type = captures.get(1).unwrap();
+                if capture_type.as_str() == "version" {
+                    if version.is_empty() {
+                        *version = line.as_str().to_owned();
+                    }
+                    return;
+                } else if capture_type.as_str() == "line" {
                     return;
                 }
                 let include_path = captures.get(3).unwrap().as_str();
@@ -217,7 +249,7 @@ impl TempFile {
                         pack_path.join(additional_path)
                     }
                 };
-                if Self::merge_temp(pack_path, &include_path, temp_content, file_id, depth + 1) {
+                if Self::merge_temp(pack_path, &include_path, temp_content, version, file_id, depth + 1) {
                     push_line_macro(temp_content, lines, curr_file_id, file_name);
                 } else {
                     temp_content.push_str(line.as_str());
@@ -241,6 +273,7 @@ impl TempFile {
             file_type: RefCell::new(gl::NONE),
             shader_pack: parent_file.shader_pack.clone(),
             content: self.content,
+            version: RefCell::new(None),
             cache: RefCell::new(None),
             tree: self.tree,
             line_mapping: self.line_mapping,
@@ -260,7 +293,7 @@ impl TempFile {
         workspace_files.insert_unique_unchecked(file_path.clone(), workspace_file.clone());
 
         if depth < 10 {
-            WorkspaceFile::update_include(
+            WorkspaceFile::parse_content(
                 workspace_files,
                 temp_files,
                 parser,
@@ -274,7 +307,7 @@ impl TempFile {
     }
 }
 
-impl File for TempFile {
+impl ShaderFile for TempFile {
     fn file_type(&self) -> &RefCell<u32> {
         &self.file_type
     }

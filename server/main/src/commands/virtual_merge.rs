@@ -27,15 +27,24 @@ impl Command for VirtualMerge {
                 gl::NONE | gl::INVALID_ENUM => return Err(LanguageServerError::not_shader_error()),
                 _ => {
                     let mut content = String::new();
-                    workspace_file.merge_file(&mut HashMap::new(), workspace_file, &mut content, file_path, &mut -1, 0);
-                    preprocess_shader(&mut content, workspace_file.shader_pack().debug);
+                    let mut version = String::new();
+                    workspace_file.merge_file(
+                        &mut HashMap::new(),
+                        workspace_file,
+                        &mut content,
+                        &mut version,
+                        file_path,
+                        &mut -1,
+                        0,
+                    );
+                    preprocess_shader(&mut content, version, workspace_file.shader_pack().debug);
                     content
                 }
             }
         } else if let Some(temp_file) = temp_files.get(&file_path) {
             match temp_file.merge_self(&file_path) {
-                Some(mut temp_content) => {
-                    preprocess_shader(&mut temp_content, temp_file.shader_pack().debug);
+                Some((mut temp_content, version)) => {
+                    preprocess_shader(&mut temp_content, version, temp_file.shader_pack().debug);
                     temp_content
                 }
                 None => return Err(LanguageServerError::not_shader_error()),
