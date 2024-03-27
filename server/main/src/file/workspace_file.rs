@@ -347,8 +347,17 @@ impl WorkspaceFile {
     pub fn clear(&self, parser: &mut Parser, file_path: &PathBuf, update_list: &mut HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>) {
         *self.file_type.borrow_mut() = gl::INVALID_ENUM;
         self.content.borrow_mut().clear();
+        *self.version.borrow_mut() = None;
+        *self.cache.borrow_mut() = None;
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
         self.line_mapping.borrow_mut().clear();
+        self.ignored_lines.borrow_mut().clear();
+
+        let mut parent_shaders = self.parent_shaders.borrow_mut();
+        parent_shaders.remove(file_path);
+        parent_shaders.iter().for_each(|(_, (_, diagnostics))| {
+            diagnostics.borrow_mut().clear();
+        });
 
         self.including_files
             .take()
