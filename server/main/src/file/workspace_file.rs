@@ -348,7 +348,6 @@ impl WorkspaceFile {
         *self.file_type.borrow_mut() = gl::INVALID_ENUM;
         self.content.borrow_mut().clear();
         *self.version.borrow_mut() = None;
-        *self.cache.borrow_mut() = None;
         *self.tree.borrow_mut() = parser.parse("", None).unwrap();
         self.line_mapping.borrow_mut().clear();
         self.ignored_lines.borrow_mut().clear();
