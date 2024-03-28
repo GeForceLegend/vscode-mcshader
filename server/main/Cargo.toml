@@ -1,6 +1,6 @@
 [package]
 name = "vscode-mcshader"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["GeForceLegend"]
 edition = "2021"
 

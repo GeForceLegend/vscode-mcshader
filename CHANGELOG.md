@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.5.1] 2024-03-28
+
+### Added
+
+- Added hash queue cache for shaders, improving performance when compiling a shader with same content multiple times;
+
+### Changed
+
+- Improved file merging performance;
+
+### Fixed
+
+- Fixed diagnostics not cleared on file deleting;
+
 ## [0.5.0] 2024-01-04
 
 ### Changed
