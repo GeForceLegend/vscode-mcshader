@@ -103,26 +103,24 @@ impl WorkspaceFile {
         // If the start of line is a comment.
         let mut in_comment = false;
         // False marks a single line comment, true marks a multi line comment.
-        let mut comment_type = false;
+        let mut comment_type = true;
         for i in 1..line_mapping.len() {
             let end_index = *line_mapping.get(i).unwrap();
             let content = &content[start_index..(end_index - 1)];
             let start_index_copy = start_index;
             start_index = end_index;
 
-            let capture_comment_start = RE_COMMENT_START.find_iter(content);
-            let capture_comment_multi_end = RE_COMMENT_MULTI_END.find_iter(content);
-            let capture_comment_single_end = RE_COMMENT_SINGLE_END.is_match(content);
+            let mut comment_matches = RE_COMMENT.find_iter(content);
             if in_comment {
                 if comment_type {
-                    if let Some(end) = RE_COMMENT_MULTI_END.find(content) {
-                        (in_comment, comment_type) = end_in_comment(
-                            end.end(), capture_comment_start, capture_comment_multi_end, capture_comment_single_end
-                        );
+                    if let Some(end) = comment_matches.find(|end| end.as_str() == "*/") {
+                        end_in_comment(end.end(), comment_matches, &mut in_comment, &mut comment_type);
                     }
                 } else {
-                    if !RE_COMMENT_SINGLE_END.is_match(content) {
-                        in_comment = false;
+                    in_comment = comment_matches.last().map(|comment_match| comment_match.as_str().contains('\\')) == Some(true);
+                    // Set comment_type to true if next line is not comment
+                    if !in_comment {
+                        comment_type = true;
                     }
                 }
                 // If this line started as comments, it should not match any capture regex as capture regexs start as `^\s*`
@@ -186,9 +184,7 @@ impl WorkspaceFile {
                 }
             }
 
-            (in_comment, comment_type) = end_in_comment(
-                index, capture_comment_start, capture_comment_multi_end, capture_comment_single_end
-            );
+            end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
         }
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.into_iter().for_each(|(include_path, including_file)| {

@@ -26,9 +26,7 @@ lazy_static! {
     pub static ref RE_MACRO_PARSER: Regex = Regex::new(r#"^\s*#\s*(include\s+"(.+)"|line|version)"#).unwrap();
     pub static ref RE_MACRO_PARSER_TEMP: Regex = Regex::new(r#"^\s*#\s*((include|moj_import)\s+[<"](.+)[>"]|line|version)"#).unwrap();
     pub static ref RE_MACRO_VERSION: Regex = Regex::new(r"^[ \f\t\v]*#\s*version[ \f\t\v]+(\d+).*$").unwrap();
-    pub static ref RE_COMMENT_START: Regex = Regex::new(r"/[/*]").unwrap();
-    pub static ref RE_COMMENT_SINGLE_END: Regex = Regex::new(r"\\$").unwrap();
-    pub static ref RE_COMMENT_MULTI_END: Regex = Regex::new(r"\*/").unwrap();
+    pub static ref RE_COMMENT: Regex = Regex::new(r"/[/*]|\*/|\\\r?$").unwrap();
     pub static ref OPENGL_CONTEXT: OpenGlContext = OpenGlContext::new();
     pub static ref DIAGNOSTICS_REGEX: Regex = {
         match OPENGL_CONTEXT.vendor().as_str() {

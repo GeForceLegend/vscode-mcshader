@@ -138,39 +138,41 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
     (line_start + line_offset, line_offset)
 }
 
-fn end_in_comment(mut index: usize, start_matches: Matches<'_, '_>, mut multi_end_matches: Matches<'_, '_>, single_end_match: bool) -> (bool, bool) {
-    let mut in_comment = false;
-    let mut comment_type = false;
-    for start_match in start_matches {
-        if start_match.start() < index {
+fn end_in_comment(index: usize, comment_matches: Matches<'_, '_>, in_comment: &mut bool, comment_type: &mut bool) {
+    for comment_match in comment_matches {
+        if comment_match.start() < index {
             continue;
         }
-        match start_match.as_str().as_bytes().get(1).unwrap() {
-            b'*' => {
-                index = start_match.end();
-                let end_match = multi_end_matches.find(|end_match| end_match.start() > index);
-                match end_match {
-                    Some(end_match) => {
-                        index = end_match.end();
-                    }
-                    None => {
-                        in_comment = true;
-                        comment_type = true;
-                        break;
-                    }
+        match comment_match.as_str() {
+            "/*" => {
+                // if `comment_type` is set to false, this line should be considerd as a single line comment
+                if !*in_comment && !*comment_type {
+                    *in_comment = true;
+                    *comment_type = true;
                 }
-            }
-            b'/' => {
-                in_comment = single_end_match;
-                comment_type = false;
-                break;
-            }
+            },
+            "*/" => {
+                *in_comment = false;
+            },
+            "//" => {
+                if !*in_comment {
+                    // `//` would not make next line comment unless this line ends with `\`
+                    *comment_type = false;
+                }
+            },
+            // `\$` for multi comment lines using `//`
+            // This is the end of line so nothing left
             _ => {
-                // Should be unreachable
+                if !*comment_type {
+                    *in_comment = true;
+                }
             }
         }
     }
-    (in_comment, comment_type)
+    // Reset comment_type to true if next line is not comment
+    if !*in_comment {
+        *comment_type = true;
+    }
 }
 
 pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_debug: bool) -> u32 {
