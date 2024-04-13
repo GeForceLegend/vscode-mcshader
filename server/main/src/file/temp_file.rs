@@ -238,50 +238,74 @@ impl TempFile {
             push_line_macro(temp_content, 1, curr_file_id, file_name);
             temp_content.push('\n');
 
-            let mut start_index = 0;
-            let mut lines = 2;
-
-            RE_MACRO_PARSER_MULTI_LINE.captures_iter(content.as_ref()).for_each(|captures| {
-                let line = captures.get(0).unwrap();
-                let start = line.start();
-                let end = line.end();
-
-                let before_content = unsafe { content.get_unchecked(start_index..start) };
-                temp_content.push_str(before_content);
-                lines += before_content.matches('\n').count();
-                start_index = end;
-
-                let capture_type = captures.get(1).unwrap();
-                if capture_type.as_str() == "version" {
-                    if version.is_empty() {
-                        *version = line.as_str().to_owned();
-                    }
-                    return;
-                } else if capture_type.as_str() == "line" {
-                    return;
-                }
-                let include_path = captures.get(3).unwrap().as_str();
-                let include_path = match captures.get(2).unwrap().as_str() {
-                    "include" => match include_path_join(pack_path, file_path, include_path) {
-                        Ok(include_path) => include_path,
-                        Err(error) => {
-                            error!("Unable to parse include link {}, error: {}", include_path, error);
-                            return;
+            // If the start of line is a comment.
+            let mut in_comment = false;
+            // False marks a single line comment, true marks a multi line comment.
+            let mut comment_type = true;
+            for (line, content) in content.split_inclusive('\n').enumerate() {
+                let mut comment_matches = RE_COMMENT.find_iter(&content[0..(content.len() - 2)]);
+                if in_comment {
+                    if comment_type {
+                        if let Some(end) = comment_matches.find(|end| end.as_str() == "*/") {
+                            in_comment = false;
+                            end_in_comment(end.end(), comment_matches, &mut in_comment, &mut comment_type);
                         }
-                    },
-                    // moj_import
-                    _ => {
-                        let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + include_path;
-                        pack_path.join(additional_path)
+                    } else {
+                        in_comment = comment_matches.last().map(|comment_match| comment_match.as_str().contains('\\')) == Some(true);
+                        // Set comment_type to true if next line is not comment
+                        if !in_comment {
+                            comment_type = true;
+                        }
                     }
-                };
-                if Self::merge_temp(pack_path, &include_path, temp_content, version, file_id, depth + 1) {
-                    push_line_macro(temp_content, lines, curr_file_id, file_name);
-                } else {
-                    temp_content.push_str(line.as_str());
+                    temp_content.push_str(content);
+                    // If this line started as comments, it should not match any capture regex as capture regexs start as `^\s*`
+                    // Even if multi line comments ends here and followed by an include, there will be at least a `*/` before include
+                    // This will breaks in Optifine too, so we have no need considering this case
+                    continue;
                 }
-            });
-            temp_content.push_str(unsafe { content.get_unchecked(start_index..) });
+
+                let mut index = 0;
+                if let Some(captures) = RE_MACRO_PARSER_TEMP.captures(content) {
+                    index = captures.get(0).unwrap().end();
+                    let capture_type = captures.get(1).unwrap();
+                    if capture_type.as_str() == "version" {
+                        if version.is_empty() {
+                            *version = content.to_owned();
+                        }
+                        temp_content.push('\n');
+                        continue;
+                    } else if capture_type.as_str() == "line" {
+                        temp_content.push('\n');
+                        continue;
+                    }
+                    let include_path = captures.get(3).unwrap().as_str();
+                    let include_path = match captures.get(2).unwrap().as_str() {
+                        "include" => match include_path_join(pack_path, file_path, include_path) {
+                            Ok(include_path) => include_path,
+                            Err(error) => {
+                                error!("Unable to parse include link {}, error: {}", include_path, error);
+                                temp_content.push_str(content);
+                                continue;
+                            }
+                        },
+                        // moj_import
+                        _ => {
+                            let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + include_path;
+                            pack_path.join(additional_path)
+                        }
+                    };
+                    if Self::merge_temp(pack_path, &include_path, temp_content, version, file_id, depth + 1) {
+                        push_line_macro(temp_content, line + 2, curr_file_id, file_name);
+                        temp_content.push('\n');
+                    } else {
+                        temp_content.push_str(content);
+                    }
+                } else {
+                    temp_content.push_str(content);
+                }
+
+                end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
+            };
             temp_content.push('\n');
             true
         } else {
