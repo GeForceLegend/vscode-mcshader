@@ -100,63 +100,95 @@ impl WorkspaceFile {
         let line_mapping = workspace_file.line_mapping().borrow();
 
         let mut start_index = 0;
+        // If the start of line is a comment.
+        let mut in_comment = false;
+        // False marks a single line comment, true marks a multi line comment.
+        let mut comment_type = false;
         for i in 1..line_mapping.len() {
             let end_index = *line_mapping.get(i).unwrap();
             let content = &content[start_index..(end_index - 1)];
             let start_index_copy = start_index;
             start_index = end_index;
-            let captures = match RE_MACRO_PARSER.captures(content) {
-                Some(captures) => captures,
-                None => continue,
-            };
 
-            let line = i - 1;
-            let capture_type = captures.get(1).unwrap();
-            if capture_type.as_str() == "version" {
-                if version.is_none() {
-                    version = Some((start_index_copy, end_index - 1));
+            let capture_comment_start = RE_COMMENT_START.find_iter(content);
+            let capture_comment_multi_end = RE_COMMENT_MULTI_END.find_iter(content);
+            let capture_comment_single_end = RE_COMMENT_SINGLE_END.is_match(content);
+            if in_comment {
+                if comment_type {
+                    if let Some(end) = RE_COMMENT_MULTI_END.find(content) {
+                        (in_comment, comment_type) = end_in_comment(
+                            end.end(), capture_comment_start, capture_comment_multi_end, capture_comment_single_end
+                        );
+                    }
+                } else {
+                    if !RE_COMMENT_SINGLE_END.is_match(content) {
+                        in_comment = false;
+                    }
                 }
-                ignored_lines.push(line);
-                continue;
-            } else if capture_type.as_str() == "line" {
-                ignored_lines.push(line);
+                // If this line started as comments, it should not match any capture regex as capture regexs start as `^\s*`
+                // Even if multi line comments ends here and followed by an include, there will be at least a `*/` before include
+                // This will breaks in Optifine too, so we have no need considering this case
                 continue;
             }
-            let include_content = captures.get(2).unwrap();
-            let path = include_content.as_str();
-            match include_path_join(&pack_path.path, file_path, path) {
-                Ok(include_path) => {
-                    let (include_path, include_file) = if let Some((include_path, include_file)) =
-                        workspace_files.get_key_value(&include_path)
-                    {
-                        // File exists in workspace_files. If this is already included before modification, no need to update its includes.
-                        // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
-                        match old_including_files.remove_entry(include_path) {
-                            Some(include) => include,
-                            None => {
-                                // Parent shader of self might get extended in previous include scan.
-                                // And it might get changed if it includes it self in its include tree, so we should clone here.
-                                let parent_shaders = workspace_file.parent_shaders.borrow().clone();
-                                include_file.extend_shader_list(&parent_shaders, depth);
-                                include_file
-                                    .included_files
-                                    .borrow_mut()
-                                    .insert(file_path.clone(), workspace_file.clone());
-                                (include_path.clone(), include_file.clone())
-                            }
+
+            let mut index = 0;
+            if let Some(captures) = RE_MACRO_PARSER.captures(content) {
+                index = captures.get(0).unwrap().end();
+                let line = i - 1;
+                let capture_type = captures.get(1).unwrap();
+
+                // Currently there is issue: if a macro line that will be ignored contains the start of multi line comment
+                // this will be ignored too, causing comments fuked up.
+                // TODO: Fix this by adding comment types of ignored lines and includes if they have one.
+                if capture_type.as_str() == "version" {
+                    if version.is_none() {
+                        version = Some((start_index_copy, end_index - 1));
+                    }
+                    ignored_lines.push(line);
+                } else if capture_type.as_str() == "line" {
+                    ignored_lines.push(line);
+                } else {
+                    let include_content = captures.get(2).unwrap();
+                    let path = include_content.as_str();
+                    match include_path_join(&pack_path.path, file_path, path) {
+                        Ok(include_path) => {
+                            let (include_path, include_file) = if let Some((include_path, include_file)) =
+                                workspace_files.get_key_value(&include_path)
+                            {
+                                // File exists in workspace_files. If this is already included before modification, no need to update its includes.
+                                // If a file does not exist in workspace_files, then it's impossible to exists in old_including_files too.
+                                match old_including_files.remove_entry(include_path) {
+                                    Some(include) => include,
+                                    None => {
+                                        // Parent shader of self might get extended in previous include scan.
+                                        // And it might get changed if it includes it self in its include tree, so we should clone here.
+                                        let parent_shaders = workspace_file.parent_shaders.borrow().clone();
+                                        include_file.extend_shader_list(&parent_shaders, depth);
+                                        include_file
+                                            .included_files
+                                            .borrow_mut()
+                                            .insert(file_path.clone(), workspace_file.clone());
+                                        (include_path.clone(), include_file.clone())
+                                    }
+                                }
+                            } else if let Some(temp_file) = temp_files.remove(&include_path) {
+                                temp_file.into_workspace_file(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
+                            } else {
+                                Self::new_include(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
+                            };
+                            let start_byte = include_content.start();
+                            let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
+                            let end = start + path.chars().count();
+                            including_files.push((line, start, end, include_path, include_file));
                         }
-                    } else if let Some(temp_file) = temp_files.remove(&include_path) {
-                        temp_file.into_workspace_file(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
-                    } else {
-                        Self::new_include(workspace_files, temp_files, parser, include_path, file_path, workspace_file, depth)
-                    };
-                    let start_byte = include_content.start();
-                    let start = unsafe { content.get_unchecked(..start_byte) }.chars().count();
-                    let end = start + path.chars().count();
-                    including_files.push((line, start, end, include_path, include_file));
+                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                    }
                 }
-                Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
             }
+
+            (in_comment, comment_type) = end_in_comment(
+                index, capture_comment_start, capture_comment_multi_end, capture_comment_single_end
+            );
         }
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.into_iter().for_each(|(include_path, including_file)| {

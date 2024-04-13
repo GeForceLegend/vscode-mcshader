@@ -9,6 +9,7 @@ use std::{
 use hashbrown::HashMap;
 use itoa::Buffer;
 use logging::{error, warn};
+use regex::Matches;
 use tower_lsp::lsp_types::*;
 use tree_sitter::{InputEdit, Parser, Point, Tree};
 
@@ -20,6 +21,13 @@ mod workspace_file;
 
 pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>, Rc<WorkspaceFile>);
 pub type ShaderData = (Rc<WorkspaceFile>, RefCell<Vec<Diagnostic>>);
+
+/// Used to store comment type of multi line comments for ignored lines
+// enum CommentType {
+//     None,
+//     Single,
+//     Multi,
+// }
 
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
@@ -128,6 +136,41 @@ pub fn byte_index(content: &str, position: Position, line_mapping: &[usize]) -> 
     let rest_content = unsafe { content.get_unchecked(*line_start..) };
     let line_offset = byte_offset(rest_content, position.character as usize);
     (line_start + line_offset, line_offset)
+}
+
+fn end_in_comment(mut index: usize, start_matches: Matches<'_, '_>, mut multi_end_matches: Matches<'_, '_>, single_end_match: bool) -> (bool, bool) {
+    let mut in_comment = false;
+    let mut comment_type = false;
+    for start_match in start_matches {
+        if start_match.start() < index {
+            continue;
+        }
+        match start_match.as_str().as_bytes().get(1).unwrap() {
+            b'*' => {
+                index = start_match.end();
+                let end_match = multi_end_matches.find(|end_match| end_match.start() > index);
+                match end_match {
+                    Some(end_match) => {
+                        index = end_match.end();
+                    }
+                    None => {
+                        in_comment = true;
+                        comment_type = true;
+                        break;
+                    }
+                }
+            }
+            b'/' => {
+                in_comment = single_end_match;
+                comment_type = false;
+                break;
+            }
+            _ => {
+                // Should be unreachable
+            }
+        }
+    }
+    (in_comment, comment_type)
 }
 
 pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_debug: bool) -> u32 {
@@ -247,9 +290,7 @@ pub struct WorkspaceFile {
     line_mapping: RefCell<Vec<usize>>,
     /// Lines that should ignore when merging files.
     ///
-    /// Currently only contains `#line` macro
-    ///
-    /// TODO: Store content of `#version` marco in a String and insert their line here
+    /// Currently only contains `#line` and `#version` macro
     ignored_lines: RefCell<Vec<usize>>,
     /// Files that directly include this file
     included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
@@ -278,9 +319,7 @@ pub struct TempFile {
     line_mapping: RefCell<Vec<usize>>,
     /// Lines that should ignore when merging files.
     ///
-    /// Currently only contains `#line` macro
-    ///
-    /// TODO: Store content of `#version` marco in a String and insert their line here
+    /// Currently only contains `#line` and `#version` macro
     ignored_lines: RefCell<Vec<usize>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
