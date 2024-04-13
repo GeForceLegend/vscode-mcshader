@@ -84,50 +84,76 @@ impl TempFile {
         let content = self.content.borrow();
         let line_mapping = self.line_mapping.borrow();
         let mut start_index = 0;
+        // If the start of line is a comment.
+        let mut in_comment = false;
+        // False marks a single line comment, true marks a multi line comment.
+        let mut comment_type = true;
         for i in 1..line_mapping.len() {
             let end_index = *line_mapping.get(i).unwrap();
             let content = &content[start_index..(end_index - 1)];
             let start_index_copy = start_index;
             start_index = end_index;
-            let captures = match RE_MACRO_PARSER_TEMP.captures(content) {
-                Some(captures) => captures,
-                None => continue,
-            };
 
-            let line = i - 1;
-            let capture_type = captures.get(1).unwrap();
-            if capture_type.as_str() == "version" {
-                if version.is_none() {
-                    version = Some((start_index_copy, end_index - 1));
+            let mut comment_matches = RE_COMMENT.find_iter(content);
+            if in_comment {
+                if comment_type {
+                    if let Some(end) = comment_matches.find(|end| end.as_str() == "*/") {
+                        in_comment = false;
+                        end_in_comment(end.end(), comment_matches, &mut in_comment, &mut comment_type);
+                    }
+                } else {
+                    in_comment = comment_matches.last().map(|comment_match| comment_match.as_str().contains('\\')) == Some(true);
+                    // Set comment_type to true if next line is not comment
+                    if !in_comment {
+                        comment_type = true;
+                    }
                 }
-                ignored_lines.push(line);
-                continue;
-            } else if capture_type.as_str() == "line" {
-                ignored_lines.push(line);
+                // If this line started as comments, it should not match any capture regex as capture regexs start as `^\s*`
+                // Even if multi line comments ends here and followed by an include, there will be at least a `*/` before include
+                // This will breaks in Optifine too, so we have no need considering this case
                 continue;
             }
-            let include_content = captures.get(3).unwrap();
-            let path = include_content.as_str();
 
-            let line_content = captures.get(0).unwrap().as_str();
-            let start_byte = include_content.start();
-            let end_byte = include_content.end();
-            let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
-            let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
+            let mut index = 0;
+            if let Some(captures) = RE_MACRO_PARSER_TEMP.captures(content) {
+                index = captures.get(0).unwrap().end();
+                let line = i - 1;
+                let capture_type = captures.get(1).unwrap();
+                if capture_type.as_str() == "version" {
+                    if version.is_none() {
+                        version = Some((start_index_copy, end_index - 1));
+                    }
+                    ignored_lines.push(line);
+                    continue;
+                } else if capture_type.as_str() == "line" {
+                    ignored_lines.push(line);
+                    continue;
+                }
+                let include_content = captures.get(3).unwrap();
+                let path = include_content.as_str();
 
-            match captures.get(2).unwrap().as_str() {
-                "include" => match include_path_join(pack_path, file_path, path) {
-                    Ok(include_path) => including_files.push((line, start, end, include_path)),
-                    Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
-                },
-                _ => {
-                    // If marco name is not include, it must be moj_import
-                    let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
-                    let include_path = pack_path.join(additional_path);
+                let line_content = captures.get(0).unwrap().as_str();
+                let start_byte = include_content.start();
+                let end_byte = include_content.end();
+                let start = unsafe { line_content.get_unchecked(..start_byte) }.chars().count();
+                let end = start + unsafe { line_content.get_unchecked(start_byte..end_byte) }.chars().count();
 
-                    including_files.push((line, start, end, include_path));
+                match captures.get(2).unwrap().as_str() {
+                    "include" => match include_path_join(pack_path, file_path, path) {
+                        Ok(include_path) => including_files.push((line, start, end, include_path)),
+                        Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
+                    },
+                    _ => {
+                        // If marco name is not include, it must be moj_import
+                        let additional_path = "include".to_owned() + MAIN_SEPARATOR_STR + path;
+                        let include_path = pack_path.join(additional_path);
+
+                        including_files.push((line, start, end, include_path));
+                    }
                 }
             }
+
+            end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
         }
         *self.version.borrow_mut() = version;
         *self.ignored_lines.borrow_mut() = ignored_lines;

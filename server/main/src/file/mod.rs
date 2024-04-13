@@ -146,7 +146,7 @@ fn end_in_comment(index: usize, comment_matches: Matches<'_, '_>, in_comment: &m
         match comment_match.as_str() {
             "/*" => {
                 // if `comment_type` is set to false, this line should be considerd as a single line comment
-                if !*in_comment && !*comment_type {
+                if !*in_comment && *comment_type {
                     *in_comment = true;
                     *comment_type = true;
                 }

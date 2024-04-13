@@ -114,6 +114,7 @@ impl WorkspaceFile {
             if in_comment {
                 if comment_type {
                     if let Some(end) = comment_matches.find(|end| end.as_str() == "*/") {
+                        in_comment = false;
                         end_in_comment(end.end(), comment_matches, &mut in_comment, &mut comment_type);
                     }
                 } else {
