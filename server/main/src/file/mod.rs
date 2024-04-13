@@ -23,11 +23,11 @@ pub type IncludeInformation = (usize, usize, usize, Rc<PathBuf>, Rc<WorkspaceFil
 pub type ShaderData = (Rc<WorkspaceFile>, RefCell<Vec<Diagnostic>>);
 
 /// Used to store comment type of multi line comments for ignored lines
-// enum CommentType {
-//     None,
-//     Single,
-//     Multi,
-// }
+enum CommentType {
+    None,
+    Single,
+    Multi,
+}
 
 fn include_path_join(root_path: &Path, curr_path: &Path, additional: &str) -> Result<PathBuf, &'static str> {
     let mut buffer: Vec<Component>;
@@ -91,14 +91,19 @@ fn generate_line_mapping(content: &str) -> Vec<usize> {
 
 fn push_str_without_ignored(
     shader_content: &mut String, file_content: &str, mut start_index: usize, end_index: usize, curr_line: usize,
-    ignored_lines: &mut core::slice::Iter<'_, usize>, line_mapping: &[usize],
+    ignored_lines: &mut core::slice::Iter<'_, (usize, CommentType)>, line_mapping: &[usize],
 ) {
-    for line in ignored_lines.by_ref() {
+    for (line, comment_type) in ignored_lines.by_ref() {
         if *line > curr_line {
             break;
         }
         let line_start = line_mapping[*line];
         shader_content.push_str(unsafe { file_content.get_unchecked(start_index..line_start) });
+        match comment_type {
+            CommentType::None => {},
+            CommentType::Single => shader_content.push_str(r"// \"),
+            CommentType::Multi => shader_content.push_str(r"/*"),
+        }
         start_index = line_mapping[*line + 1] - 1;
     }
     shader_content.push_str(unsafe { file_content.get_unchecked(start_index..end_index) });
@@ -200,7 +205,6 @@ pub trait ShaderFile {
     fn cache(&self) -> &RefCell<Option<CompileCache>>;
     fn tree(&self) -> &RefCell<Tree>;
     fn line_mapping(&self) -> &RefCell<Vec<usize>>;
-    fn ignored_lines(&self) -> &RefCell<Vec<usize>>;
     fn include_links(&self) -> Vec<DocumentLink>;
 
     fn update_from_disc(&self, parser: &mut Parser, file_path: &Path) -> bool {
@@ -290,10 +294,10 @@ pub struct WorkspaceFile {
     tree: RefCell<Tree>,
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
-    /// Lines that should ignore when merging files.
+    /// Lines that should ignore when merging files and their comment types at the end.
     ///
     /// Currently only contains `#line` and `#version` macro
-    ignored_lines: RefCell<Vec<usize>>,
+    ignored_lines: RefCell<Vec<(usize, CommentType)>>,
     /// Files that directly include this file
     included_files: RefCell<HashMap<Rc<PathBuf>, Rc<WorkspaceFile>>>,
     /// Lines and paths for include files
@@ -319,10 +323,10 @@ pub struct TempFile {
     tree: RefCell<Tree>,
     /// Line-content mapping
     line_mapping: RefCell<Vec<usize>>,
-    /// Lines that should ignore when merging files.
+    /// Lines that should ignore when merging files and their comment types at the end.
     ///
     /// Currently only contains `#line` and `#version` macro
-    ignored_lines: RefCell<Vec<usize>>,
+    ignored_lines: RefCell<Vec<(usize, CommentType)>>,
     /// Lines and paths for include files
     including_files: RefCell<Vec<(usize, usize, usize, PathBuf)>>,
 }

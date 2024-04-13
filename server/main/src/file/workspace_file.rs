@@ -130,22 +130,28 @@ impl WorkspaceFile {
                 continue;
             }
 
-            let mut index = 0;
             if let Some(captures) = RE_MACRO_PARSER.captures(content) {
-                index = captures.get(0).unwrap().end();
+                end_in_comment(captures.get(0).unwrap().end(), comment_matches, &mut in_comment, &mut comment_type);
                 let line = i - 1;
                 let capture_type = captures.get(1).unwrap();
 
-                // Currently there is issue: if a macro line that will be ignored contains the start of multi line comment
+                // Previous issue: if a macro line that will be ignored contains the start of multi line comment
                 // this will be ignored too, causing comments fuked up.
-                // TODO: Fix this by adding comment types of ignored lines and includes if they have one.
+                // Include files may require this to working same as Optifine, only `ignored_lines` need to apply this.
+                let comment_type = if !in_comment {
+                    CommentType::None
+                } else if comment_type {
+                    CommentType::Multi
+                } else {
+                    CommentType::Single
+                };
                 if capture_type.as_str() == "version" {
                     if version.is_none() {
                         version = Some((start_index_copy, end_index - 1));
                     }
-                    ignored_lines.push(line);
+                    ignored_lines.push((line, comment_type));
                 } else if capture_type.as_str() == "line" {
-                    ignored_lines.push(line);
+                    ignored_lines.push((line, comment_type));
                 } else {
                     let include_content = captures.get(2).unwrap();
                     let path = include_content.as_str();
@@ -183,9 +189,9 @@ impl WorkspaceFile {
                         Err(error) => error!("Unable to parse include link {}, error: {}", path, error),
                     }
                 }
+            } else {
+                end_in_comment(0, comment_matches, &mut in_comment, &mut comment_type);
             }
-
-            end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
         }
         // They are removed from including list of this file. Let's remove this file from their parent list.
         old_including_files.into_iter().for_each(|(include_path, including_file)| {
@@ -428,10 +434,6 @@ impl ShaderFile for WorkspaceFile {
 
     fn line_mapping(&self) -> &RefCell<Vec<usize>> {
         &self.line_mapping
-    }
-
-    fn ignored_lines(&self) -> &RefCell<Vec<usize>> {
-        &self.ignored_lines
     }
 
     fn include_links(&self) -> Vec<DocumentLink> {

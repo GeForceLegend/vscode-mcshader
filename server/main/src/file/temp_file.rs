@@ -114,19 +114,25 @@ impl TempFile {
                 continue;
             }
 
-            let mut index = 0;
             if let Some(captures) = RE_MACRO_PARSER_TEMP.captures(content) {
-                index = captures.get(0).unwrap().end();
+                end_in_comment(captures.get(0).unwrap().end(), comment_matches, &mut in_comment, &mut comment_type);
                 let line = i - 1;
                 let capture_type = captures.get(1).unwrap();
+                let comment_type = if !in_comment {
+                    CommentType::None
+                } else if comment_type {
+                    CommentType::Multi
+                } else {
+                    CommentType::Single
+                };
                 if capture_type.as_str() == "version" {
                     if version.is_none() {
                         version = Some((start_index_copy, end_index - 1));
                     }
-                    ignored_lines.push(line);
+                    ignored_lines.push((line, comment_type));
                     continue;
                 } else if capture_type.as_str() == "line" {
-                    ignored_lines.push(line);
+                    ignored_lines.push((line, comment_type));
                     continue;
                 }
                 let include_content = captures.get(3).unwrap();
@@ -151,9 +157,9 @@ impl TempFile {
                         including_files.push((line, start, end, include_path));
                     }
                 }
+            } else {
+                end_in_comment(0, comment_matches, &mut in_comment, &mut comment_type);
             }
-
-            end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
         }
         *self.version.borrow_mut() = version;
         *self.ignored_lines.borrow_mut() = ignored_lines;
@@ -264,18 +270,32 @@ impl TempFile {
                     continue;
                 }
 
-                let mut index = 0;
                 if let Some(captures) = RE_MACRO_PARSER_TEMP.captures(content) {
-                    index = captures.get(0).unwrap().end();
+                    end_in_comment(captures.get(0).unwrap().end(), comment_matches, &mut in_comment, &mut comment_type);
                     let capture_type = captures.get(1).unwrap();
+                    let comment_type = if !in_comment {
+                        CommentType::None
+                    } else if comment_type {
+                        CommentType::Multi
+                    } else {
+                        CommentType::Single
+                    };
                     if capture_type.as_str() == "version" {
                         if version.is_empty() {
                             *version = content.to_owned();
                         }
-                        temp_content.push('\n');
+                        match comment_type {
+                            CommentType::None => temp_content.push('\n'),
+                            CommentType::Single => temp_content.push_str("// \\\n"),
+                            CommentType::Multi => temp_content.push_str("/*\n"),
+                        }
                         continue;
                     } else if capture_type.as_str() == "line" {
-                        temp_content.push('\n');
+                        match comment_type {
+                            CommentType::None => temp_content.push('\n'),
+                            CommentType::Single => temp_content.push_str("// \\\n"),
+                            CommentType::Multi => temp_content.push_str("/*\n"),
+                        }
                         continue;
                     }
                     let include_path = captures.get(3).unwrap().as_str();
@@ -301,10 +321,9 @@ impl TempFile {
                         temp_content.push_str(content);
                     }
                 } else {
+                    end_in_comment(0, comment_matches, &mut in_comment, &mut comment_type);
                     temp_content.push_str(content);
                 }
-
-                end_in_comment(index, comment_matches, &mut in_comment, &mut comment_type);
             };
             temp_content.push('\n');
             true
@@ -376,10 +395,6 @@ impl ShaderFile for TempFile {
 
     fn line_mapping(&self) -> &RefCell<Vec<usize>> {
         &self.line_mapping
-    }
-
-    fn ignored_lines(&self) -> &RefCell<Vec<usize>> {
-        &self.ignored_lines
     }
 
     fn include_links(&self) -> Vec<DocumentLink> {
