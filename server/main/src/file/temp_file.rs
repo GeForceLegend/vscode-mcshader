@@ -249,7 +249,10 @@ impl TempFile {
             // False marks a single line comment, true marks a multi line comment.
             let mut comment_type = true;
             for (line, content) in content.split_inclusive('\n').enumerate() {
-                let mut comment_matches = RE_COMMENT.find_iter(&content[0..(content.len() - 2)]);
+                if content.is_empty() {
+                    continue;
+                }
+                let mut comment_matches = RE_COMMENT.find_iter(&content[0..(content.len() - 1)]);
                 if in_comment {
                     if comment_type {
                         if let Some(end) = comment_matches.find(|end| end.as_str() == "*/") {
