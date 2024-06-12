@@ -160,17 +160,13 @@ fn end_in_comment(index: usize, comment_matches: Matches<'_, '_>, in_comment: &m
                 *in_comment = false;
             },
             "//" => {
-                if !*in_comment {
-                    // `//` would not make next line comment unless this line ends with `\`
-                    *comment_type = false;
-                }
+                // `//` would not make next line comment unless this line ends with `\`
+                *comment_type &= *in_comment;
             },
             // `\$` for multi comment lines using `//`
             // This is the end of line so nothing left
             _ => {
-                if !*comment_type {
-                    *in_comment = true;
-                }
+                *in_comment |= !*comment_type;
             }
         }
     }
@@ -187,6 +183,8 @@ pub fn preprocess_shader(shader_content: &mut String, mut version: String, is_de
         if capture.get(1).unwrap().as_str().parse::<u32>().unwrap() > 150 {
             offset = 1;
         }
+        // Ignore the possible multi-line comment start. It will be added on its original place later.
+        version.truncate(capture.get(0).unwrap().end());
     }
     version.push('\n');
 
