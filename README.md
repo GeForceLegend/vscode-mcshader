@@ -36,3 +36,11 @@ This extension does not provide syntax highlight for GLSL yet. If you want GLSL 
 
 // To avoid this issue, please add an active include here before writing other code.
 ```
+
+## Build and use guide
+
+ - Run `cargo build --release` in `/server` (require rustc and cargo installed)
+ - Move the build output `/server/target/release/vscode-mcshader(.exe)` to `/server`
+ - Editing line 58 of `/client/src/extension.ts` to match the output. For Windows paltform, you can simply moving the build output `/server/target/release/vscode-mcshader(.exe)` to `/server`, while on other plaforms you may also need to change the `path.join()` params (as there is no `.exe` suffix)
+ - Run `vsce package` in the root path (require npm and vsce installed)
+ - Open your vscode and import the output vsix
