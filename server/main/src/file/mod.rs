@@ -80,7 +80,7 @@ fn push_line_macro(content: &mut String, line: usize, file_id: &str, file_name: 
     content.push_str(file_name);
 }
 
-fn generate_line_mapping(content: &str) -> Vec<usize> {
+pub fn generate_line_mapping(content: &str) -> Vec<usize> {
     let mut line_mapping = vec![0];
     content.match_indices('\n').for_each(|(index, _)| {
         line_mapping.push(index + 1);
