@@ -89,10 +89,10 @@ impl MinecraftLanguageServer {
                 }
             } else {
                 workspace_files.iter().for_each(|(file_path, workspace_file)| {
-                    file_path.strip_prefix(&before_path).map_or((), |stripped_path| {
+                    if let Ok(stripped_path) = file_path.strip_prefix(&before_path) {
                         let after_path = after_path.join(stripped_path);
                         rename_file(workspace_file, file_path, &after_path, &mut changes);
-                    });
+                    }
                 });
             }
         }
