@@ -217,7 +217,7 @@ pub trait ShaderFile {
         }
     }
 
-    fn apply_edit(&self, changes: &[TextDocumentContentChangeEvent], parser: &mut Parser) {
+    fn apply_edit(&self, mut changes: Vec<TextDocumentContentChangeEvent>, parser: &mut Parser) {
         let mut content = self.content().borrow_mut();
         let mut tree = self.tree().borrow_mut();
         let mut line_mapping = self.line_mapping().borrow_mut();
@@ -226,7 +226,10 @@ pub trait ShaderFile {
         let mut new_content = String::new();
 
         unsafe {
-            changes.iter().rev().for_each(|change| {
+            changes.sort_by(|a, b| {
+                a.range.unwrap().start.cmp(&b.range.unwrap().start)
+            });
+            changes.iter().for_each(|change| {
                 let range = change.range.unwrap();
 
                 let start_byte = byte_index(&content, range.start, &line_mapping);

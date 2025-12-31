@@ -190,7 +190,7 @@ impl LanguageServer for MinecraftLanguageServer {
 
     #[logging::with_trace_id]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
-        if let Some(diagnostics) = self.change_file(params.text_document.uri, &params.content_changes) {
+        if let Some(diagnostics) = self.change_file(params.text_document.uri, params.content_changes) {
             self.publish_diagnostic(diagnostics).await;
         }
     }
