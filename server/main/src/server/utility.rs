@@ -8,7 +8,7 @@ impl MinecraftLanguageServer {
         });
     }
 
-    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&Rc<ShaderPack>> {
+    pub(super) fn is_valid_shader<'a>(&'a self, shader_packs: &'a HashSet<Rc<ShaderPack>>, file_path: &Path) -> Option<&'a Rc<ShaderPack>> {
         for shader_pack in shader_packs {
             if let Ok(relative_path) = file_path.strip_prefix(&shader_pack.path) {
                 let relative_path = relative_path.to_str().unwrap();
